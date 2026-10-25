@@ -4,6 +4,8 @@
 
 阅读时机：首次进入项目或查找各端工程入口。AI 先读 [AGENTS.md](AGENTS.md)，产品与技术工作从 [文档总导航](docs/README.md) 和 [当前技术状态](docs/current/technical-status.md) 开始。
 
+协作使用 [GitHub Flow 与工作树规范](docs/current/development/git-workflow.md)：任务分支通过 PR 审查验证后压缩合并到 `main`。用户负责关键决策与验收，主会话负责规划、提示词和整合，其他 AI 按任务卡实现；见 [协作流程](docs/current/development/ai-collaboration.md) 与 [工作台账及模板](docs/work/README.md)。
+
 ## 工程入口
 
 | 目录 | 用途 | 何时阅读 |

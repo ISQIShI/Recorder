@@ -39,6 +39,8 @@
 | 优先级 | 即时唤起与响应性能、维护、扩展同级，资源占用次之 |
 | 正文与登录体验 | 纯文本 + Markdown；首次设置用户名密码，之后可记住登录并撤销会话 |
 | 开源与提交 | 公有 GitHub 仓库、MIT 协议；后续提交使用 Conventional Commits |
+| 工作分工 | 用户负责关键选择与验收；主会话辅助决策、规划文档、拆任务及 Git 整合，其他 AI 按任务卡在工作树实现，见 [AI 协作](development/ai-collaboration.md) |
+| Git 协作 | 根据用户授权采用 GitHub Flow，短期任务分支与 PR squash 合并；设置、验证要求与清理见 [Git 工作流](development/git-workflow.md)；具体任务见 [工作台账](../work/README.md) |
 | 当前阶段 | 已实现账号及第一条记录保存/查询流程，10 项测试与 Electron 创建/重启/退出流程通过；附件、完整恢复等继续开发 |
 
 ## 尚未确认的技术选择

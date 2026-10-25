@@ -15,14 +15,16 @@ await mkdir(join(directory, 'profile'));
 let ctx;
 try {
   let port = 0;
-  for (const resume of [false, true]) {
+  for (const scenario of ['create', 'resume', 'discard-quit', 'discard-close']) {
+    const resume = scenario !== 'create';
     ctx = await createApplication({ dataDir: directory, setupCode, http: { port } });
     const address = ctx.recorderHttp.address;
     port = Number(new URL(address).port);
-    const resultFile = join(directory, resume ? 'resume.json' : 'create.json');
+    const resultFile = join(directory, scenario + '.json');
     await writeFile(resultFile, '{}');
     const env = { ...process.env, RECORDER_BACKEND_URL: address, RECORDER_SMOKE_DATA_DIR: join(directory, 'profile'),
       RECORDER_SMOKE_SETUP_CODE: setupCode, RECORDER_SMOKE_RESUME: resume ? '1' : '0', RECORDER_SMOKE_RESULT: resultFile,
+      RECORDER_SMOKE_SCENARIO: scenario,
       RECORDER_SMOKE_SCREENSHOT: join(artifacts, 'records-desktop.png') };
     delete env.ELECTRON_RUN_AS_NODE;
     await new Promise((resolve, reject) => {
@@ -41,7 +43,7 @@ try {
         } catch (error) { reject(error); }
       });
     });
-    if (resume) {
+    if (scenario === 'resume') {
       const row = ctx.recorderDatabase.raw.prepare('SELECT count(*) AS n FROM identity_sessions WHERE revoked_at IS NULL').get();
       if (row.n !== 0) throw new Error('Logout did not revoke the persisted session');
     }

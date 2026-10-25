@@ -10,6 +10,8 @@
 
 契约、生成客户端和动态插件调用工作读 [统一 API 提案](../docs/design/interfaces/unified-api.md)。共享部分约定操作语义，Web Cookie、Electron IPC 和 Android 原生会话由平台适配处理。
 
-[B001-T01](../docs/work/b001-record-editing/t01-update-api.md) 增加 `RecordUpdateInput` / `updateRecord`。框架无关的 `encodeApiRequest` 为 Web 与 Electron 共用固定路由编码：id 只进入路径，PUT JSON 只发送其余输入；响应继续使用 `RecordData` 和既有 `ApiError`。共享传输测试检查实际 fetch 参数、正文、CSRF、错误保留及真实 Electron 连接插件的 IPC 转发（替换宿主 IPC 表面，不需桌面环境）。编辑 UI 尚未实现，按 T03 接续。
+[B001-T01](../docs/work/b001-record-editing/t01-update-api.md) 增加 `RecordUpdateInput` / `updateRecord`。框架无关的 `encodeApiRequest` 为 Web 与 Electron 共用固定路由编码：id 只进入路径，PUT JSON 只发送其余输入；响应继续使用 `RecordData` 和既有 `ApiError`。共享传输测试检查实际 fetch 参数、正文、CSRF、错误保留及真实 Electron 连接插件的 IPC 转发（替换宿主 IPC 表面，不需桌面环境）。
+
+[B001-T03](../docs/work/b001-record-editing/t03-editor.md) 提供 `record-editor` 与 `leave-guard` Cordis 插件：详情重新读取后进入编辑，手动保存标题、正文和格式；保存中冻结表单，失败保留草稿，超时提示结果未确认。409 保留原基线，查看最新只作对照；用户可放弃草稿或明确改用新基线整理后再手动保存。应用内切换、结束编辑、退出登录和撤销当前会话均使用同一离开守卫；浏览器监听只在有待保护编辑时注册，插件撤回会清理监听与内存状态。会话变化会立即清除旧身份草稿并忽略旧回包。草稿仅在当前窗口内存中，不支持跨重启恢复；纯文本与 Markdown 均按源文编辑、查看。
 
 根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。当前 API 子集见 [账号记录流程](../docs/current/development/first-record-flow.md)；尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。

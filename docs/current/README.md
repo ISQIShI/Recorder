@@ -13,6 +13,7 @@
 | [全面插件化要求](architecture/plugin-everything.md) | 前后端全部能力的 Cordis 插件约束、最小启动边界和替换含义 | 实现任何功能、服务、UI 或设备适配之前 |
 | [已确认后端技术](architecture/backend-stack.md) | Cordis 维护发行及配套 Loader、Fastify、SQLite + better-sqlite3，确认范围与验证状态 | 后端实现、依赖、存储与部署相关工作前 |
 | [已确认 API 与认证主线](architecture/api-auth-baseline.md) | HTTP/REST、OpenAPI、SSE、本地账号与可撤销会话，已确认范围与待定配套 | 公共接口、SDK、登录、设备接入及插件公开能力相关工作前 |
+| [记录编辑与版本冲突契约](interfaces/record-editing.md) | 已确认手动保存、离开提醒与冲突保留原则，以及待实现的更新 API/并发规则 | 开发或验收 B001 的后端更新、客户端编辑、传输与退出时 |
 | [已确认数据模型主线](storage/data-model-baseline.md) | 统一记录基础、独立附件、标签分类关联与插件业务表，确认范围和未冻结细节 | 记录、附件、组织关系、数据库访问与插件持久化工作前 |
 | [已确认数据访问与迁移主线](storage/data-access-baseline.md) | Drizzle、better-sqlite3、Kit、Recorder 统一命名空间账本与受控执行适配、卸载默认保留及维护体验 | 数据查询、事务、迁移工具、升级或插件卸载相关工作前 |
 | [已确认备份与恢复主线](storage/backup-baseline.md) | 统一恢复集合 + 后台复制、restic、本地独立副本与加密异地副本，以及未冻结细节 | 备份、恢复、附件保留、插件数据备份、备份工具与 PC/服务器搬迁相关工作前 |

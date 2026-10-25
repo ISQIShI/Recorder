@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { ipcMain } from 'electron';
-import { parseFoundationStatus, apiRoutes, isApiMethod, parseApiResponse, ApiError } from '@recorder/contracts';
+import { parseFoundationStatus, encodeApiRequest, isApiMethod, parseApiResponse, ApiError } from '@recorder/contracts';
 import './credentials.js';
 import '../contracts.js';
 export const inject = ['recorderWindow', 'recorderCredentials'];
@@ -18,12 +18,11 @@ export async function apply(ctx: Context, config: { rendererUrl: string; backend
         if (event.sender !== ctx.recorderWindow.webContents || event.senderFrame !== event.sender.mainFrame || event.senderFrame.url !== config.rendererUrl) throw new ApiError('INVALID_SENDER', '调用来源不受信任', 403);
         if (!isApiMethod(method) || !input || typeof input !== 'object' || Array.isArray(input) || JSON.stringify(input).length > 220000) throw new ApiError('INVALID_REQUEST', '调用格式不正确', 400);
         const values = input as Record<string, unknown>;
-        const route = apiRoutes[method];
-        const url = new URL(route.path.replace(':id', encodeURIComponent(String(values.id ?? ''))), base);
-        if (route.method === 'GET' && method !== 'getRecord') for (const [key, value] of Object.entries(values)) url.searchParams.set(key, String(value));
-        const response = await fetch(url, { method: route.method, redirect: 'error',
+        const request = encodeApiRequest(method, values);
+        const url = new URL(request.path, base);
+        const response = await fetch(url, { ...request, redirect: 'error',
           headers: { 'content-type': 'application/json', 'x-recorder-request': '1', 'x-recorder-client': 'native', ...(token ? { authorization: 'Bearer ' + token } : {}) },
-          ...(route.method === 'POST' ? { body: JSON.stringify(input) } : {}), signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
         const body = await response.json() as any;
         if (response.status === 401 || response.headers.get('x-recorder-clear-session')) { token = undefined; await ctx.recorderCredentials.save(base.href); }
         if (!response.ok) throw new ApiError(body.code ?? 'REQUEST_FAILED', body.message ?? '请求失败', response.status);

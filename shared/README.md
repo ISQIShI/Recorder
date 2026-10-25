@@ -10,4 +10,6 @@
 
 契约、生成客户端和动态插件调用工作读 [统一 API 提案](../docs/design/interfaces/unified-api.md)。共享部分约定操作语义，Web Cookie、Electron IPC 和 Android 原生会话由平台适配处理。
 
+[B001-T01](../docs/work/b001-record-editing/t01-update-api.md) 增加 `RecordUpdateInput` / `updateRecord`。框架无关的 `encodeApiRequest` 为 Web 与 Electron 共用固定路由编码：id 只进入路径，PUT JSON 只发送其余输入；响应继续使用 `RecordData` 和既有 `ApiError`。共享传输测试检查实际 fetch 参数、正文、CSRF、错误保留及真实 Electron 连接插件的 IPC 转发（替换宿主 IPC 表面，不需桌面环境）。编辑 UI 尚未实现，按 T03 接续。
+
 根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。当前 API 子集见 [账号记录流程](../docs/current/development/first-record-flow.md)；尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。

@@ -10,6 +10,8 @@
 
 `credentials` 插件使用 safeStorage 加密保存按后端地址区分的会话，连接插件持有 Bearer，renderer 仅通过固定方法白名单调用 API，不得到 token。`pnpm test:records:desktop` 验证创建账号、保存查询、重启登录保持及退出撤销，详见 [账号记录流程](../docs/current/development/first-record-flow.md)。
 
+[B001-T01](../docs/work/b001-record-editing/t01-update-api.md) 已支持窄桥 `updateRecord` → `PUT /api/v1/records/{id}`，与 Web 使用同一编码，路径 id 不混入正文，409 等错误码经 IPC 原样保留。sender/frame 校验、固定操作白名单、loopback 和 token 隔离继续生效；本任务未增加编辑 UI。构建后运行 `node backend/test/record-edit-desktop.mjs` 可检查真实 Electron 更新、旧 revision 冲突、主进程实际发送的 JSON 和后端重启持久化；隔离数据与结果保留在忽略的 `artifacts/t01-update-*`。
+
 快捷键插件注册 `Ctrl+Shift+Space`，尚未实按验证；关闭最后窗口退出，无托盘常驻策略。剪贴板、拖拽、安装包和更新待实现；是否附带后端未定。目前连接限制 loopback，远程 HTTPS 未实现。所有新增能力遵守 [全面插件化](../docs/current/architecture/plugin-everything.md)。
 
 连接与传输工作按需读 [统一 API](../docs/design/interfaces/unified-api.md)；凭据、设备登记和退出工作读 [身份与多设备](../docs/design/security/identity-device-access.md)。本机后端启动或远程地址配置另参考 [部署接入](../docs/design/operations/deployment-access.md)。

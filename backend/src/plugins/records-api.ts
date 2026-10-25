@@ -6,4 +6,5 @@ export function apply(ctx: Context) {
   register('createRecord', ({ principal, input }) => ({ body: ctx.recorderRecords.create(principal!, input) }));
   register('listRecords', ({ principal, input }) => ({ body: ctx.recorderRecords.list(principal!, input) }));
   register('getRecord', ({ principal, input }) => ({ body: ctx.recorderRecords.get(principal!, input.id) }));
+  register('updateRecord', ({ principal, input }) => ({ body: ctx.recorderRecords.update(principal!, input) }));
 }

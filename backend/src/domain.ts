@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { ApiMethod, Credentials, Identity, RecordData, RecordInput, SessionData } from '@recorder/contracts';
+import type { ApiMethod, Credentials, Identity, RecordData, RecordInput, RecordUpdateInput, SessionData } from '@recorder/contracts';
 export type Channel = 'web' | 'native';
 export interface User { id: string; username: string; passwordHash: string; createdAt: number }
 export interface Principal extends Identity { channel: Channel }
@@ -20,11 +20,13 @@ export interface AuthService {
   sessions(principal: Principal): SessionData[]; revoke(principal: Principal, sessionId: string): void;
 }
 export interface RecordStore {
+  update(ownerId: string, input: RecordUpdateInput, now: number): RecordData;
   instanceId: string; create(ownerId: string, input: RecordInput, hash: string, id: string, now: number): RecordData;
   list(ownerId: string, q: string, limit: number, offset: number): { items: RecordData[]; total: number };
   get(ownerId: string, id: string): RecordData | undefined;
 }
 export interface RecordService {
+  update(principal: Principal, input: RecordUpdateInput): RecordData;
   create(principal: Principal, input: RecordInput): RecordData;
   list(principal: Principal, input: { q?: string; limit?: number; offset?: number }): { items: RecordData[]; total: number };
   get(principal: Principal, id: string): RecordData;

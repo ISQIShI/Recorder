@@ -1,11 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { apiRoutes, ApiError, parseApiResponse, type ApiTransport, type ApiMethod, type ApiInputs } from '@recorder/contracts';
-export function apiRequest(method: ApiMethod, input: any) {
-  const route = apiRoutes[method];
-  const path = route.path.replace(':id', encodeURIComponent(input.id ?? ''));
-  const query = route.method === 'GET' && method !== 'getRecord' ? new URLSearchParams(Object.entries(input).map(([k, v]) => [k, String(v)])).toString() : '';
-  return { path: path + (query ? '?' + query : ''), method: route.method, ...(route.method === 'POST' ? { body: JSON.stringify(input) } : {}) };
-}
+import { encodeApiRequest, ApiError, parseApiResponse, type ApiTransport, type ApiMethod, type ApiInputs } from '@recorder/contracts';
+export const apiRequest = encodeApiRequest;
 export function webApi(ctx: Context) {
   ctx.effect(() => {
     const controller = new AbortController();

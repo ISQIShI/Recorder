@@ -6,6 +6,8 @@
 
 `src/main.ts` 装配共享账号和记录 UI 插件，fetch 提供者携带同源 Cookie 与 CSRF 标记。`vite.config.ts` 固定本机 5173 端口，代理 API 到 loopback 后端。能力遵守 [全面插件化](../docs/current/architecture/plugin-everything.md)，不额外建立 Web 业务后端。静态资源生产发布仍待实现；当前流程见 [账号记录说明](../docs/current/development/first-record-flow.md)。
 
+[B001-T01](../docs/work/b001-record-editing/t01-update-api.md) 的共享 fetch 传输已支持 `updateRecord`，发送带 CSRF 的 PUT JSON，id 置于路径，409 `REVISION_CONFLICT` 保留为 `ApiError`。自动测试核对请求正文与凭据选项；真实后端测试覆盖 Cookie/Origin/CSRF 更新。编辑入口、草稿和真实浏览器编辑交互留给 T03，本任务没有增加 UI。
+
 根目录 `pnpm build` 后，分别运行 `pnpm dev:backend` 与 `pnpm dev:web`。Web 生产资源输出到本目录 `dist/`；后端未承担静态文件发布。构建和类型检查已通过，共享 UI 在 Electron 中实际验证；独立浏览器端到端流程尚未验证，见 [工程基线](../docs/current/development/engineering-baseline.md)。
 
 业务调用与在线事件读 [统一 API](../docs/design/interfaces/unified-api.md)，Cookie 与登录流程读 [身份与多设备](../docs/design/security/identity-device-access.md)，同源发布和反向代理读 [部署接入](../docs/design/operations/deployment-access.md)。前后端分目录不要求运行在不同域名。

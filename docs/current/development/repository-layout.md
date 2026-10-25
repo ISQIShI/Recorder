@@ -10,6 +10,8 @@
 Recorder/
   AGENTS.md
   README.md
+  .github/         # PR 交付模板；当前尚无 CI workflow
+  .githooks/       # Conventional Commits 标题检查
   package.json / pnpm-workspace.yaml / pnpm-lock.yaml
   backend/          # src/plugins、src/data、migrations、test、validation/migrations
   desktop/          # src/plugins、preload、renderer
@@ -23,6 +25,7 @@ Recorder/
     current/
     design/
     history/
+    work/          # 批次计划、任务卡、提示词与整合证据
 ```
 
 | 入口 | 归属 | 何时阅读 |
@@ -56,5 +59,7 @@ Recorder/
 已有源码、依赖、Capacitor/Gradle 配置与检查脚本。后续按真实需要新增业务插件和包，不先创建空功能目录。保留 android/native 的人工修改，不把原生工程当成可随意丢弃的 Web 产物。文档里的未来业务模块仍不代表已实现。
 
 每个工程 README 只保留入口和局部信息；有效架构继续维护在 docs/current，未冻结方案在 docs/design，历史比较在 docs/history，避免复制多套相互冲突的说明。
+
+执行计划与交付证据独立放在 [docs/work](../../work/README.md)，按批次及任务登记。分支/PR/工作树遵循 [Git 工作流](git-workflow.md)，不通过复制工程目录整合并行改动。
 
 返回 [当前文档索引](../README.md) 或 [文档总导航](../../README.md)。

@@ -4,18 +4,21 @@
 
 AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态](current/technical-status.md)。基础工程及 [账号与记录保存查询](current/development/first-record-flow.md) 已实现，前后端全部功能沿用 Cordis 插件机制。用户新增 [Android 本地后端与同步方向](current/architecture/local-runtime-sync.md)，不再限定必须由 PC/服务器承载；本轮未实现移动后端或云同步。完整升级恢复、附件等继续开发，活跃提案不等于已完成能力。
 
-## 三层文档与阅读时机
+## 文档分类与阅读时机
 
 | 层次 | 入口 | 何时阅读 | 如何使用 |
 | --- | --- | --- | --- |
 | 当前有效说明 | [current 索引](current/README.md) | 开始工作时，按任务读取需求、架构和技术状态 | 日常依据；候选项明确标为待定 |
 | 活跃设计提案 | [design 索引](design/README.md) | 工作涉及相应功能、技术选择或尚未冻结的契约时 | 用于完善方案；不视作已获确认或已实现 |
 | 历史背景 | [history 索引](history/README.md) | 追溯决策理由、需求变化或重新比较旧方向时 | 按需参考，不加入默认必读清单 |
+| 执行台账 | [work 索引](work/README.md) | 拆分任务、实现获分配工作、交付或整合一批成果时 | 保存具体计划与验证证据；不替代当前架构依据 |
 
 ## 按任务找文档
 
 | 当前任务 | 阅读路径 |
 | --- | --- |
+| 协助决策、安排多个 AI、生成派工提示词 | [AI 协作](current/development/ai-collaboration.md) → [工作台账与模板](work/README.md)；用户决定关键选项，主会话规划与整合 |
+| 创建分支/工作树、提交 PR、整合或清理成果 | [Git 工作流](current/development/git-workflow.md) → 对应批次计划；GitHub Flow + Conventional Commits |
 | 了解项目或检查需求范围 | [技术状态](current/technical-status.md) → [需求](current/product/requirements.md) |
 | 调整本地运行、多实例身份或网盘同步 | [本地宿主与同步演进](current/architecture/local-runtime-sync.md)；取代旧的 PC/服务器限定，具体 Android 宿主和同步协议待验证 |
 | 设计或实现任何插件能力、判断启动底座边界 | [全面插件化要求](current/architecture/plugin-everything.md) → 对应工程 README；不能另写一套生命周期 |
@@ -46,6 +49,8 @@ AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态
 已确认且供实现使用的接口、身份与权限、存储、插件契约、开发方法、测试、部署和用户说明，按需放入 `current/interfaces/`、`current/security/`、`current/storage/`、`current/plugins/`、`current/development/`、`current/testing/`、`current/operations/`、`current/user-guide/`。未冻结的对应设计放入 `design/` 下同类目录；被替代的方案归入 `history/`。产生实际内容时再创建目录。
 
 每份文档都要在其所属层级的 README 中登记用途和阅读时机。移入历史的文档保留当时分析，但在顶部指向当前依据；当前正文不保留整段讨论时间线或已经结束的选型比较。状态、日期与内部链接应一同维护。
+
+具体工作批次与任务卡放入 `work/`，由该批次 README 和 work 总索引登记。已结束批次保留路径并转入台账的已结束区，按需追溯，不变成默认必读设计材料。
 
 ## 本次整理的迁移关系
 

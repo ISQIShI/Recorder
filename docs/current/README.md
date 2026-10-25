@@ -19,6 +19,8 @@
 | [已确认前端技术](architecture/frontend-stack.md) | Vue 3 + TypeScript + Vite、Electron、Capacitor，跨端复用边界与待定配套 | Web、桌面界面、共享组件、UI 扩展与 Android 接入相关工作前 |
 | [Android 当前方向](architecture/android-stack.md) | Capacitor + Vue、按需 Kotlin，以及收集暂存和提醒目标 | Android 界面、采集、设备存储、传输和通知工作前 |
 | [工程目录规划](development/repository-layout.md) | 根目录各端工程、shared 的归属和依赖边界，各目录 README 入口 | 初始化工程、添加文件、拆分模块或设置构建前 |
+| [Git 工作流与工作树整合](development/git-workflow.md) | GitHub Flow、任务分支、Conventional Commits、PR、保护与合并清理流程 | 建立工作树、提交、开 PR、整合成果或清理环境前 |
+| [决策与 AI 协作](development/ai-collaboration.md) | 用户/规划整合者/实现者职责，决策到派工、交付与整合步骤 | 规划下一批工作、分配任务、生成提示词和接收交付时；具体材料见 [工作台账](../work/README.md) |
 | [工程基线与验证记录](development/engineering-baseline.md) | 实际锁定版本、安装运行命令、插件实现范围和验证证据 | 运行工程、升级依赖、修改宿主或判断实现状态时 |
 | [账号与第一条记录流程](development/first-record-flow.md) | 当前账号、会话、记录保存查询、schema/迁移边界与运行验收 | 运行产品流程、修改认证/记录/客户端或检查本轮完成范围时 |
 | [Android 环境配置](development/android-environment.md) | Windows 安装 SDK/JDK、同步工程、构建 APK 与连接手机的步骤及未验证范围 | 首次配置 Android 环境、执行原生构建或真机检查时 |

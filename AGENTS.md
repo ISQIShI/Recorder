@@ -12,7 +12,7 @@
 
 ## 当前工作阶段
 
-用户已明确授权开始工程搭建和关键技术验证，项目进入实现起步阶段。按当前请求初始化工程、安装依赖、编写插件并验证；实际完成项和可用命令以当前技术状态及工程 README 为准，不把设计提案当成已经实现的功能，也不自行冻结完整 MVP 或排期。
+项目进入增量实现阶段，已完成基础工程及账号/第一条记录保存查询，见 [当前业务流程](docs/current/development/first-record-flow.md)。继续按用户请求推进插件及验证；实际完成项以当前文档为准，不把提案当成已完成能力，不自行冻结完整 MVP 或排期。Android 真机验证明确延后。
 
 当用户明确要求开始实现时，按该请求推进，不需要再次询问已授权事项；同时更新当前技术状态和必要的开发文档。本段描述阶段，不是永久禁止实现。
 
@@ -21,11 +21,12 @@
 ## 必须保持的项目方向
 
 - 名称继续使用 Recorder；Windows 客户端使用 Electron，共享界面使用 Vue 3 + TypeScript + Vite；Android 已选 Capacitor + Vue，必要时用 Kotlin 补充原生能力。确认范围见 [前端技术](docs/current/architecture/frontend-stack.md) 与 [Android 方向](docs/current/architecture/android-stack.md)。
-- 后端部署在 PC 或远程服务器，业务规则与持久化集中在后端。前端承担展示、交互及必要的本机设备接入。
+- 业务规则与持久化属于可部署的后端能力，前端承担展示、交互与设备接入。当前 Node.js 宿主面向 Windows/Linux；未来须考虑 Android 本地宿主，不强制 PC/服务器常驻，详细边界见 [部署与同步演进](docs/current/architecture/local-runtime-sync.md)。
 - 后端语言与运行时已选 TypeScript + Node.js。前端、后端及其功能模块全部按“一切皆插件”组织，使用 Cordis 服务依赖与受管理生命周期实现可替换、可插拔；边界见 [全面插件化要求](docs/current/architecture/plugin-everything.md)。启动入口仅做最小装配，不能把 HTTP、数据库、UI 或设备能力藏入不可替换的业务核心。
 - 采用 Harness 维护版 Cordis 及配套 Loader 构建独立产品，不重写插件框架；HTTP 已选 Fastify，数据库已选 SQLite + better-sqlite3。具体版本及实现细节见 [已确认后端技术](docs/current/architecture/backend-stack.md)。
-- 多客户端访问统一后端，不默认恢复早期 Android 独立离线业务库或多端数据库同步方案。
+- 同一后端多客户端访问继续支持；新增未来各设备本地处理并通过网盘等云存储同步的方向。Android 运行时、身份映射、数据同步与冲突处理尚未实现，不直接同步正在使用的 SQLite/WAL 文件，不把登录会话和设备秘密当作业务同步数据。
 - 同一后端先供用户自己使用，保留未来增加账号的空间，不默认扩展为团队协作产品。统一 API 已选 HTTP/REST + OpenAPI + SSE，认证已选本地账号与后端可撤销会话；具体契约和配套见 [API 与认证主线](docs/current/architecture/api-auth-baseline.md)。
+- 正文当前支持纯文本和 Markdown，明确保存格式；账号首次设置用户名密码，之后可记住登录、退出及撤销会话。不要把 Markdown 源码当 HTML 执行；当前源文编辑和查看不代表已有富文本编辑器。
 - Android 收集内容在后端不可达时先持久暂存，连通后自动重试，明确区分手机暂存与后端保存；此要求不自动扩展到所有业务操作或其他客户端。
 - Android 提醒以尽量准点、短时断网或 PC 后端关机仍能触发已登记提醒为目标；业务规则由后端计算，手机执行计划，具体投递实现仍需细化和验证。
 - 文件默认进入后端托管资料库，也保留关联原文件的需求；客户端路径不代表远程后端可读取的文件。
@@ -60,6 +61,7 @@
 
 ## 修改与交付
 
+- 仓库公开，项目代码使用 MIT 协议；不提交凭据、私有资料和本机运行数据。后续提交遵循 Conventional Commits（如 `feat(auth): add revocable sessions`），不擅自改写此前已发布历史。克隆后用 `git config core.hooksPath .githooks` 启用提交标题检查。
 - 先用 `rg` 等工具定位相关内容，保持改动围绕用户目标；保留既有工作，不擅自覆盖无关文件。
 - backend、desktop、web、android 与 shared 按工程归属放置文件；实现状态以各工程 README 为准。共享 UI 不直接依赖平台 SDK，客户端不导入后端业务实现；插件消费者依赖服务契约，不直接导入具体提供者来绕过替换边界。
 - 实现阶段按真实依赖与项目脚本选择检查，不引入重复的业务后端、插件生命周期或无关抽象。

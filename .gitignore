@@ -4,6 +4,7 @@ dist/
 .cache/
 .tmp/
 artifacts/
+.recorder/
 *.log
 .env
 .env.*

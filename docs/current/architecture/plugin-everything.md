@@ -33,7 +33,7 @@ Node 侧沿用配套 Loader；浏览器和移动 WebView 侧沿用同一 Cordis 
 
 最少验证：移除提供者后消费者及其入口撤回；重新装载后恢复且不重复注册；更换兼容实现后消费者行为变化；卸载等待资源关闭；数据不会因插件卸载被删除；UI 贡献可以在不重建整套界面的情况下启停。仅改文件名、建立 plugins 目录或声明一个接口均不能替代这些运行证据。
 
-此要求保持集中后端：前端插件只承担展示、交互、客户端连接及设备执行，不成为第二个业务后端。共享 UI 不直接依赖 Electron 或 Capacitor，宿主通过可替换能力适配接入。
+此要求保持业务与界面分层：前端插件承担展示、交互、连接及设备执行，不在每种界面里重写业务规则。后端可以与界面位于同一设备，未来 Android 本地宿主按 [新部署方向](local-runtime-sync.md) 验证。共享 UI 不直接依赖 Electron 或 Capacitor，宿主通过可替换能力适配接入。
 
 依据：[Harness Cordis 入门](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-primer.md)、[服务与注入](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-tutorial/03-services.md)、[生命周期](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cordis-tutorial/02-lifecycle-and-effects.md)。官方机制于 2026 年 10 月 25 日核对，Recorder 的验证结果另按实际执行记录。
 

@@ -2,7 +2,7 @@
 
 状态：项目文档入口。更新日期：2026 年 10 月 25 日。
 
-AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态](current/technical-status.md)。项目已按授权开始工程实现：后端 TypeScript + Node.js，前端、后端和功能模块全面插件化；技术选择继续遵守此前确认主线。基础 workspace、插件宿主和隔离诊断链已经运行，实际范围见 [工程基线](current/development/engineering-baseline.md)。正式记录、认证、迁移协调、附件与备份恢复仍待实现，活跃提案不等于已完成能力。
+AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态](current/technical-status.md)。基础工程及 [账号与记录保存查询](current/development/first-record-flow.md) 已实现，前后端全部功能沿用 Cordis 插件机制。用户新增 [Android 本地后端与同步方向](current/architecture/local-runtime-sync.md)，不再限定必须由 PC/服务器承载；本轮未实现移动后端或云同步。完整升级恢复、附件等继续开发，活跃提案不等于已完成能力。
 
 ## 三层文档与阅读时机
 
@@ -17,8 +17,10 @@ AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态
 | 当前任务 | 阅读路径 |
 | --- | --- |
 | 了解项目或检查需求范围 | [技术状态](current/technical-status.md) → [需求](current/product/requirements.md) |
+| 调整本地运行、多实例身份或网盘同步 | [本地宿主与同步演进](current/architecture/local-runtime-sync.md)；取代旧的 PC/服务器限定，具体 Android 宿主和同步协议待验证 |
 | 设计或实现任何插件能力、判断启动底座边界 | [全面插件化要求](current/architecture/plugin-everything.md) → 对应工程 README；不能另写一套生命周期 |
 | 安装、运行、验证工程或升级依赖 | [工程基线与验证记录](current/development/engineering-baseline.md) → 对应工程 README |
+| 使用或开发账号与记录保存查询 | [账号与第一条记录流程](current/development/first-record-flow.md)，包括当前认证和初始迁移实现范围 |
 | 准备构建 APK 或连接 Android 手机 | [Android 环境配置](current/development/android-environment.md)；用户尚未安装 SDK，APK/真机验证待执行 |
 | 调整后端或多端职责 | [架构概览](current/architecture/overview.md) → [后端与 Electron 协作提案](design/architecture/backend-electron-boundaries.md) |
 | 设计三端共用接口、SDK 或插件公开操作 | [API 与认证主线](current/architecture/api-auth-baseline.md) → [统一 API 设计](design/interfaces/unified-api.md)；客户端适配再读对应协作提案 |

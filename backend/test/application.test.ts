@@ -1,0 +1,108 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, readdir, unlink, rmdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import Database from 'better-sqlite3';
+import { createApplication } from '../dist/application.js';
+import { applyMigrations } from '../dist/plugins/migrations.js';
+const credentials = { username: 'owner', password: 'correct horse battery staple', remember: true, clientName: 'Test device' };
+const setupCode = 'isolated-test-initialization-code';
+const native = { 'x-recorder-client': 'native', 'x-recorder-request': '1' };
+test('account initialization, scoped sessions, record persistence, idempotency and revocation across restart', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'recorder-app-'));
+  const options = { filename: join(directory, 'data.sqlite'), setupCode, http: { listen: false } };
+  let ctx = await createApplication(options);
+  try {
+    const unauthenticated = await ctx.recorderHttp.server.inject('/api/v1/records');
+    assert.equal(unauthenticated.statusCode, 401);
+    assert.equal((await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/setup', headers: native, payload: { ...credentials, setupCode: 'wrong-initialization-code' } })).statusCode, 403);
+    const setup = await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/setup', headers: native, payload: { ...credentials, setupCode } });
+    assert.equal(setup.statusCode, 200, setup.body);
+    const token = String(setup.headers['x-recorder-session']);
+    assert.equal(Object.hasOwn(setup.json(), 'token'), false);
+    assert.equal(Object.hasOwn(setup.json(), 'channel'), false);
+    const headers = { ...native, authorization: 'Bearer ' + token };
+    const input = { requestId: randomUUID(), title: '会议', body: '# 中文记录\n<script>alert(1)</script> 100% _', format: 'markdown' };
+    const create = () => ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/records', headers, payload: input });
+    const saved = await create();
+    assert.equal(saved.statusCode, 200, saved.body);
+    assert.equal((await create()).json().id, saved.json().id);
+    assert.equal((await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/records', headers, payload: { ...input, body: 'different' } })).statusCode, 409);
+    assert.equal((await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/records', headers, payload: { ...input, ownerId: 'someone' } })).statusCode, 400);
+    const secondUser = randomUUID();
+    ctx.recorderDatabase.raw.prepare('INSERT INTO identity_users VALUES (?, ?, ?, ?, ?)').run(secondUser, 'other', 'not-a-real-password-hash', 2, Date.now());
+    assert.equal(ctx.recorderRecordStore.get(secondUser, saved.json().id), undefined);
+    assert.equal(ctx.recorderRecordStore.list(secondUser, '', 30, 0).total, 0);
+    const storedSession = ctx.recorderDatabase.raw.prepare('SELECT token_hash FROM identity_sessions').get() as { token_hash: string };
+    assert.notEqual(storedSession.token_hash, token);
+    const user = ctx.recorderIdentityStore.user('owner')!;
+    assert.ok(user.passwordHash.startsWith('scrypt$'));
+    assert.ok(!user.passwordHash.includes(credentials.password));
+    await ctx.fiber.dispose();
+    ctx = await createApplication(options);
+    assert.equal(ctx.recorderAuth.info().initialized, true);
+    const found = await ctx.recorderHttp.server.inject({ url: '/api/v1/records?q=' + encodeURIComponent('100% _'), headers });
+    assert.equal(found.statusCode, 200, found.body);
+    assert.equal(found.json().total, 1);
+    assert.equal(found.json().items[0].body, input.body);
+    assert.equal((await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/setup', headers: native, payload: { ...credentials, setupCode } })).statusCode, 409);
+    const login = await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/login', headers: native, payload: credentials });
+    assert.equal(login.statusCode, 200, login.body);
+    assert.equal((await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/sessions/revoke', headers, payload: { sessionId: login.json().sessionId } })).statusCode, 200);
+    assert.equal((await ctx.recorderHttp.server.inject({ url: '/api/v1/me', headers: { ...native, authorization: 'Bearer ' + login.headers['x-recorder-session'] } })).statusCode, 401);
+    await ctx.loader.update('records', { disabled: true }); await ctx.loader.await();
+    assert.equal((await ctx.recorderHttp.server.inject({ url: '/api/v1/records', headers })).statusCode, 503);
+    assert.equal((await ctx.recorderHttp.server.inject({ url: '/api/v1/me', headers })).statusCode, 200);
+    await ctx.loader.update('records', { disabled: false }); await ctx.loader.await();
+    assert.equal((await ctx.recorderHttp.server.inject({ url: '/api/v1/records', headers })).json().total, 1);
+    await ctx.loader.update('auth', { disabled: true }); await ctx.loader.await();
+    assert.equal(ctx.get('recorderHttp'), undefined);
+  } finally {
+    await ctx.fiber.dispose();
+    for (const name of await readdir(directory)) await unlink(join(directory, name));
+    await rmdir(directory);
+  }
+});
+test('Web cookie, CSRF, origin and ambiguous-credential checks protect mutations', async () => {
+  const ctx = await createApplication({ filename: ':memory:', setupCode, http: { listen: false } });
+  try {
+    const headers = { origin: 'http://127.0.0.1:5173', 'x-recorder-request': '1' };
+    const setup = await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/setup', headers, payload: { ...credentials, setupCode } });
+    assert.equal(setup.statusCode, 200, setup.body);
+    assert.ok(String(setup.headers['set-cookie']).includes('HttpOnly'));
+    assert.ok(String(setup.headers['set-cookie']).includes('SameSite=Strict'));
+    assert.equal(setup.headers['x-recorder-session'], undefined);
+    const cookie = String(setup.headers['set-cookie']).split(';')[0]!;
+    const csrf = String(setup.headers['x-csrf-token']);
+    const input = { requestId: randomUUID(), title: '', body: '文本', format: 'plain' };
+    const save = (extra: Record<string, string>) => ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/records', headers: { ...headers, cookie, ...extra }, payload: input });
+    assert.equal((await save({})).statusCode, 403);
+    assert.equal((await save({ 'x-csrf-token': csrf, origin: 'https://attacker.example' })).statusCode, 403);
+    assert.equal((await save({ 'x-csrf-token': csrf, authorization: 'Bearer anything' })).statusCode, 400);
+    assert.equal((await save({ 'x-csrf-token': csrf })).statusCode, 200);
+    assert.equal((await ctx.recorderHttp.server.inject({ url: '/api/v1/me', headers: { cookie, host: 'attacker.example' } })).statusCode, 403);
+    const schema = (await ctx.recorderHttp.server.inject('/openapi.json')).json();
+    assert.ok(schema.paths['/api/v1/records'].post.requestBody.content['application/json'].schema.required.includes('requestId'));
+    assert.equal((await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/logout', headers: { ...headers, cookie, 'x-csrf-token': csrf }, payload: {} })).statusCode, 200);
+    assert.equal((await ctx.recorderHttp.server.inject({ url: '/api/v1/me', headers: { cookie } })).statusCode, 401);
+    let limited = 0;
+    for (let i = 0; i < 10; i++) limited = (await ctx.recorderHttp.server.inject({ method: 'POST', url: '/api/v1/auth/login?attempt=' + i, headers: native, payload: { ...credentials, username: 'unknown' } })).statusCode;
+    assert.equal(limited, 429, 'query strings must not bypass login rate limits');
+  } finally { await ctx.fiber.dispose(); }
+});
+test('initial namespace migrations roll back, reject checksum edits and preserve retained namespaces', () => {
+  const db = new Database(':memory:');
+  const first = { namespace: 'identity', revision: 1, requires: [], sql: 'CREATE TABLE sample(id INTEGER PRIMARY KEY);' };
+  try {
+    assert.throws(() => applyMigrations(db, [first, { namespace: 'records', revision: 1, requires: ['identity'], sql: 'CREATE TABLE broken(' }]));
+    assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name='sample'").get(), undefined);
+    applyMigrations(db, [first]);
+    applyMigrations(db, [first]);
+    assert.throws(() => applyMigrations(db, [{ ...first, sql: first.sql + ' ' }]), /checksum/);
+    assert.throws(() => applyMigrations(db, [{ ...first, namespace: 'new', requires: ['missing'] }]), /dependency/);
+    applyMigrations(db, []);
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name='sample'").get());
+  } finally { db.close(); }
+});

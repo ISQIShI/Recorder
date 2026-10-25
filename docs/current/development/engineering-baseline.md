@@ -1,10 +1,10 @@
 # Recorder 工程基线与验证记录
 
-状态：已实现的基础工程与实际验证，不是完整产品交付。更新日期：2026 年 10 月 25 日。
+状态：起步版本与首轮基础验证记录。后续账号和记录流程已实现，当前使用以 [账号记录流程](first-record-flow.md) 为准。更新日期：2026 年 10 月 25 日。
 
 阅读时机：安装依赖、运行工程、修改工具链、编写插件或判断某项能力是否已经验证时。先读 [全面插件化要求](../architecture/plugin-everything.md)，目录与归属见 [工程布局](repository-layout.md)。
 
-## 本轮范围
+## 首轮工程范围（已完成）
 
 用户已确认后端 TypeScript + Node.js，并授权正式开始工程搭建和关键技术验证。当前完成独立后端、三个客户端入口、共享契约与 UI 的 pnpm workspace，以及一条隔离诊断链：Vue UI → 平台传输插件 → Fastify → Cordis 操作插件 → SQLite/Drizzle。它用于验证选定技术和可插拔边界，尚不提供正式记录保存。
 
@@ -47,7 +47,7 @@ pnpm dev:web
 
 后端默认 `http://127.0.0.1:4317`，Web 使用 Vite 输出的本机地址并代理到该后端。先构建再运行 `pnpm desktop` 可打开桌面验证界面。当前桌面不自动启动后端。`RECORDER_PORT` 可调整后端端口，桌面相应通过 `RECORDER_BACKEND_URL` 指向该 loopback 地址；Web 开发代理端口目前在 Vite 配置中指定。
 
-当前服务只监听 loopback，只提供隔离诊断数据；没有账号、会话、正式资料、上传和 SSE 实现。不要将该验证入口视作已完成认证的生产 API，也不要将其直接暴露到局域网或互联网。正式远程接入须在认证、凭据和 HTTPS 插件完成后进行。
+首轮仅提供隔离诊断数据；后续业务入口已切换至可持久化的账号与记录插件，运行方法及限制见 [账号记录流程](first-record-flow.md)。旧 foundation profile 仍用于插件测试。当前仍只监听 loopback，生产 HTTPS、上传和 SSE 尚未完成。
 
 ## 已实现的插件边界
 
@@ -61,7 +61,7 @@ pnpm dev:web
 
 Context 初始化、平台 ready/quit、模块装配、固定 preload ABI 和生成的 Android Activity 属于最低启动边界。正式功能不得继续塞进入口。原生插件、权限或二进制变化可能要求重建/重启；此次未实现第三方插件下载与独立热安装。
 
-## 验证证据与范围
+## 首轮验证证据与范围
 
 环境为本机 Windows、Node 24.14.1；以下记录仅覆盖实际执行结果。
 
@@ -76,12 +76,12 @@ Context 初始化、平台 ready/quit、模块装配、固定 preload ABI 和生
 
 `pnpm check` 组合构建、类型检查、测试和文档检查；桌面 smoke 单独运行，因为需要能启动 Electron 的桌面环境。截图与 JSON 结果位于忽略的 `artifacts/`，不作为源码提交。失败的启动探针和被修复的 ESM/Loader 类型问题不当作已支持能力。
 
-尚未验证：Linux 运行；Windows 安装、更新、托盘、全局快捷键实按、剪贴板和文件拖拽；Web 独立浏览器端到端流程；Android APK/真机/分享/持久暂存/提醒；认证、正式业务、完整迁移协调及崩溃恢复；附件和 restic 恢复一致性；性能指标。Android 环境按 [配置指南](android-environment.md) 后续补齐。
+首轮未覆盖的账号与记录保存查询现已补充验证，见 [账号记录流程](first-record-flow.md)。Linux、Windows 分发/托盘/快捷键实按/剪贴板/拖拽、独立浏览器端到端、Android APK/真机/本地宿主/分享/暂存/提醒、完整升级恢复、附件和 restic 一致性及性能仍未验证。Android 环境按 [配置指南](android-environment.md) 后续补齐。
 
-数据库默认仅内存验证数据。持久化测试使用临时文件，卸载保留得到验证后清理测试目录。`backend/validation` 的 SQL 与测试中的小型账本不是正式 schema 或迁移协调器，不应直接作为用户资料库升级入口。
+首轮 foundation profile 默认内存探针，持久化测试使用临时文件；`backend/validation` 不是正式 schema。当前业务入口使用 `.recorder/` 数据库及 `backend/migrations` 的初始迁移，详见账号记录流程。
 
 ## 后续工作
 
-接下来建议先明确第一条可验收业务流程及正文格式，再落地认证、基础记录契约、正式迁移协调和最小 UI 插件；按 [开发启动评估](project-readiness.md) 继续补齐故障恢复。既定产品目标没有缩减为这张诊断界面，尚未冻结完整 MVP 或排期。
+纯文本与 Markdown、记住登录体验已经确认，第一条账号/记录流程已实现。下一步按 [开发启动评估](project-readiness.md) 补齐修改/回收站和恢复能力，Android 本地宿主及同步另行验证；尚未冻结完整 MVP 或排期。
 
 返回 [当前文档索引](../README.md) 或 [总导航](../../README.md)。

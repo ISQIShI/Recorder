@@ -6,6 +6,8 @@
 
 ## 1. 推荐的协作结构
 
+范围更新：本提案描述 Android 连接远端实例的模式。用户已新增 [Android 本地后端与云同步方向](../../current/architecture/local-runtime-sync.md)，后续也可连接本机宿主；下文不再作为禁止手机本地业务处理的依据。两种模式的具体适配仍待实现，真机验证暂缓。
+
 ```mermaid
 flowchart LR
     subgraph PHONE[Android 客户端]

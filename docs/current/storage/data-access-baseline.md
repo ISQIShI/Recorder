@@ -29,6 +29,6 @@ SQL 特殊能力、统一事务、迁移账本字段和插件数据保留的具�
 
 ## 验证状态
 
-已实际安装并执行 Drizzle 查询、Kit 隔离 SQL 生成、SQLite 数据与示例账本同事务回滚、插件卸载后的文件数据保留。正式记录 schema、受控执行适配、依赖排序、维护锁和故障恢复协调器尚未实现，不将基础探针当作完整迁移系统。精确范围见 [工程基线](../development/engineering-baseline.md)。
+已实际使用 Drizzle 查询与 Kit 生成身份/记录初始 SQL。初始迁移适配通过统一 namespace/revision/摘要账本、依赖排序、SQLite IMMEDIATE 事务及外键检查执行；测试覆盖回滚、摘要变动和依赖拒绝。仅支持命名空间 revision 1 初始化，尚无历史版本升级、备份前置、维护 UI 或完整故障恢复。范围见 [账号记录流程](../development/first-record-flow.md)，不将初始化器当作完整迁移系统。
 
 返回 [当前文档索引](../README.md) 或 [技术状态](../technical-status.md)。

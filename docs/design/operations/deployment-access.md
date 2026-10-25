@@ -1,5 +1,7 @@
 # Recorder PC 与远程服务器接入提案
 
+范围更新（2026 年 10 月 25 日）：本文描述 PC/服务器模式；用户新增的 Android 本地后端及云同步方向以 [本地宿主与同步](../../current/architecture/local-runtime-sync.md) 为准，不将本文当作必须使用服务器/PC 的限制。当前账号与记录入口只监听 loopback，实际边界见 [已实现流程](../../current/development/first-record-flow.md)。
+
 状态：部署建议，未配置服务、网络、证书、代理或外部平台。更新日期：2026 年 10 月 25 日；本页网络技术资料核对日期：2026 年 10 月 24 日。
 
 阅读时机：决定后端监听范围、Web 发布、LAN/外网接入、反向代理或地址切换时。业务协议见 [统一 API](../interfaces/unified-api.md)，身份机制见 [认证和多设备](../security/identity-device-access.md)。当前已确认先个人使用、以后保留增加账号的空间；PC 是否需要从外网访问仍待明确，本提案保留相应选项。

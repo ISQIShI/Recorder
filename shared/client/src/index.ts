@@ -26,3 +26,4 @@ export async function mountClient(target: Element, platform: string, bridge?: St
     return ctx;
   } catch (error) { await ctx.fiber.dispose(); throw error; }
 }
+export { mountApplication } from './application.js';

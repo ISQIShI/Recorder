@@ -1,3 +1,4 @@
+import type { ApiMethod } from './api.js';
 export interface FoundationStatus {
   application: 'Recorder';
   stage: 'foundation';
@@ -6,7 +7,8 @@ export interface FoundationStatus {
 export interface StatusTransport {
   status(): Promise<FoundationStatus>;
 }
-export interface DesktopBridge extends StatusTransport {}
+export type ApiWireResult = { ok: true; value: unknown } | { ok: false; error: { code: string; message: string; status: number } };
+export interface DesktopBridge extends StatusTransport { invokeApi(method: ApiMethod, input: unknown): Promise<ApiWireResult> }
 export function parseFoundationStatus(value: unknown): FoundationStatus {
   if (!value || typeof value !== 'object') throw new Error('Invalid diagnostic response');
   const input = value as Partial<FoundationStatus>;
@@ -15,3 +17,4 @@ export function parseFoundationStatus(value: unknown): FoundationStatus {
     || !Number.isSafeInteger(input.storage.value)) throw new Error('Invalid diagnostic response');
   return input as FoundationStatus;
 }
+export * from './api.js';

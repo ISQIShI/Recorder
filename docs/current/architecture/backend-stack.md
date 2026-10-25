@@ -18,7 +18,7 @@
 | 迁移生成与执行 | Drizzle Kit 辅助生成，Recorder 统一命名空间账本 + 受控 SQL 执行适配 | 不让各业务插件自行并发升级数据库；账本格式与适配实现继续设计 |
 | 备份执行工具 | restic | 与统一恢复集合 + 后台复制配合；具体版本、部署、凭据和执行协议未冻结 |
 
-这些选择不再作为待选项反复询问。用户确认技术主线，AI 在授权实现中核验并锁定起步版本，见 [工程基线](../development/engineering-baseline.md)；前期研究版本表不覆盖实际 lockfile。核心后端运行在 PC 或远程服务器，前端通过后端接口工作；不因 SQLite 是嵌入式数据库就改为每个客户端各存一份业务库。
+这些选择不再作为待选项反复询问。用户确认技术主线，AI 在授权实现中核验并锁定起步版本，见 [工程基线](../development/engineering-baseline.md)；前期研究版本表不覆盖实际 lockfile。当前 Node.js 宿主面向 PC/服务器；用户新增未来 Android 本地后端和各端同步方向，见 [本地宿主与同步演进](local-runtime-sync.md)，不声称 better-sqlite3 可直接运行于 WebView。
 
 HTTP/REST + OpenAPI + SSE、本地账号与后端可撤销会话也已确认，确认范围见 [API 与认证主线](api-auth-baseline.md)。
 
@@ -29,7 +29,7 @@ HTTP/REST + OpenAPI + SSE、本地账号与后端可撤销会话也已确认，�
 - 后端语言和运行时已选 TypeScript + Node.js；起步版本、pnpm workspace 与构建方式已落地，升级时按工程基线复验。
 - 若采用文件配置，使用同一维护分支的 `@deepseek-ai/cordis-plugin-include`；是否采用该配置入口及辅助插件清单尚待细化。HMR、Timer 和日志等按需加入。
 - 固定 API 门面配动态业务操作注册表、完整 schema、文件和事件恢复契约仍按 [统一 API 设计](../../design/interfaces/unified-api.md) 细化。
-- Web Cookie、原生 Bearer 凭据及配套库见 [身份与设备设计](../../design/security/identity-device-access.md)；本机/LAN/服务器的入口和代理见 [部署提案](../../design/operations/deployment-access.md)，具体实现尚未选定。
+- Web Cookie、Electron Bearer 和账号基础实现见 [账号记录流程](../development/first-record-flow.md)；Android 凭据和远程 HTTPS 仍按 [身份提案](../../design/security/identity-device-access.md)、[部署提案](../../design/operations/deployment-access.md) 继续设计。
 - Drizzle、Kit 与驱动已锁定并验证查询、生成 SQL 和事务回滚；Recorder 统一命名空间账本、受控 SQL 执行适配和插件卸载默认保留数据已确认，具体格式、升级依赖与失败恢复见 [迁移机制提案](../../design/storage/plugin-migrations.md)，完整迁移协调器尚未实现。
 - 具体表结构、插件迁移、中文检索和资料库布局按 [模型细化](../../design/storage/data-model.md)、[存储生命周期](../../design/storage/storage-lifecycle.md) 和 [插件数据契约](../../design/plugins/data-extension.md) 继续设计。
 - 桌面安装包是否附带后端，以及启动、更新和备份恢复的具体执行方式继续讨论；备份总体方案已确认，见下文。
@@ -46,7 +46,7 @@ Fastify 的业务接入应服从同一后端服务边界，避免重复维护第
 
 ## 验证状态
 
-已完成依赖安装、锁定、基础启动与插件测试，结果及边界见 [工程基线](../development/engineering-baseline.md)。目前仅隔离诊断接口，不能视为生产可用。后续继续验证：
+已完成依赖安装、基础插件及账号/记录流程，结果和限制见 [账号记录流程](../development/first-record-flow.md)。仅开放本机 loopback，不能视为完整生产部署。后续继续验证：
 
 1. 所选 Cordis、Loader 及辅助包的 exports、类型、peer 依赖和运行环境，保证核心依赖来源一致。
 2. 插件启停、依赖不可用、配置失败与重载时的资源清理及数据保留。

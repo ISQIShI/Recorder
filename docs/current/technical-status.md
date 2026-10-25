@@ -9,7 +9,7 @@
 | 项目 | 当前决定 |
 | --- | --- |
 | 名称 | Recorder |
-| 后端形态 | 核心后端运行在 PC 或远程服务器，业务与数据集中处理 |
+| 后端形态 | 当前 Node.js 宿主面向 Windows/Linux；未来允许 Android 等设备本地后端，不强制 PC/服务器常驻，见 [本地宿主与同步](architecture/local-runtime-sync.md) |
 | 后端语言与运行时 | TypeScript + Node.js；具体版本与结果见 [工程基线](development/engineering-baseline.md) |
 | 全面插件化 | 前端、后端及功能模块都以插件实现，沿用 Cordis 可替换服务与生命周期；见 [全面插件化](architecture/plugin-everything.md) |
 | 插件核心与加载 | Harness 维护版 Cordis 及配套 Loader，使用现有机制构建独立产品 |
@@ -25,19 +25,21 @@
 | 备份工具 | restic；具体版本、仓库配置、集成与密钥保存方式未锁定 |
 | 数据模型 | 统一记录基础 + 独立附件 + 标签分类关联 + 插件业务表；具体字段与存储实现未冻结 |
 | 统一 API | HTTP/REST + OpenAPI + SSE；具体路径、schema 与配套库未冻结 |
-| 认证主线 | Recorder 本地账号与后端可撤销会话；具体凭据、库和登录交互未冻结 |
+| 认证主线 | 当前实例本地账号与可撤销会话；已实现初始化、登录、退出/撤销，Web Cookie、Electron 主进程 Bearer 与加密持久化 |
 | Windows | Electron；起步版本已锁定，实际窗口验证通过 |
 | 共享 Web 界面 | Vue 3 + TypeScript + Vite；起步版本已锁定，路由等配套仍按需选择 |
 | Android | Capacitor + Vue，必要时用 Kotlin 补充原生能力 |
 | Android 收集暂存 | 后端不可达时先存手机，连通后自动重试，明确标为尚未保存到后端 |
 | Android 提醒目标 | 尽量准点；短时断网或 PC 后端关机时，已有提醒仍希望继续触发 |
 | 数据归属 | 保存到后端设备；文件默认托管，也保留关联原文件的需求 |
-| 多端关系 | 客户端访问同一后端；当前不要求独立离线业务库或多端数据库同步 |
+| 多端关系 | 可连接同一后端；新增未来各端本地处理、通过网盘等云存储同步的方向，协议与 Android 宿主未实现 |
 | 使用主体 | 同一后端先供用户自己使用，保留未来增加账号的空间 |
 | 资料组织 | 多个标签，同一记录可同时归入多个分类，分类可以分层 |
 | 删除体验 | 先进入回收站，可恢复；清空时再次确认彻底删除 |
 | 优先级 | 即时唤起与响应性能、维护、扩展同级，资源占用次之 |
-| 当前阶段 | 基础工程已实现：workspace、插件宿主、诊断通信、三端构建与必要测试；正式业务、认证与恢复仍待实现 |
+| 正文与登录体验 | 纯文本 + Markdown；首次设置用户名密码，之后可记住登录并撤销会话 |
+| 开源与提交 | 公有 GitHub 仓库、MIT 协议；后续提交使用 Conventional Commits |
+| 当前阶段 | 已实现账号及第一条记录保存/查询流程，10 项测试与 Electron 创建/重启/退出流程通过；附件、完整恢复等继续开发 |
 
 ## 尚未确认的技术选择
 
@@ -47,7 +49,7 @@
 | --- | --- | --- |
 | 后端配置与扩展配套 | 当前使用代码 profile 装配 Loader；文件配置可使用已锁定的 Include | [工程基线](development/engineering-baseline.md)；Include 未启用，HMR、任务、日志等按需求引入 |
 | 网络契约细节 | 在已选 HTTP/REST、OpenAPI、SSE 上细化独立文件通道、插件操作入口及并发/幂等协议 | [API 与认证主线](architecture/api-auth-baseline.md) → [接口设计](../design/interfaces/unified-api.md)；完整路径和 schema 未冻结 |
-| 认证实现 | Web 用 Cookie，原生端各持独立 Bearer 凭据，共用后端会话服务 | [身份与设备设计](../design/security/identity-device-access.md)；本地账号和可撤销会话已选，载体、库、期限和恢复方式待定 |
+| 认证后续 | 当前 Cookie / Electron Bearer 已实现；Android 凭据、改密找回、配对、HTTPS 与刷新继续设计 | [已实现账号流程](development/first-record-flow.md) 与 [身份提案](../design/security/identity-device-access.md) |
 | 数据模型细节 | 按已确认模型细化字段、约束、索引、附件对象和少量版本化 JSON | [数据模型主线](storage/data-model-baseline.md) → [模型细化](../design/storage/data-model.md)；具体表结构未冻结 |
 | 迁移机制细节 | 在已选 Recorder 账本与受控执行适配上细化维护独占、版本摘要、依赖排序、逐步事务及显式恢复 | [数据访问主线](storage/data-access-baseline.md) → [核心与插件迁移提案](../design/storage/plugin-migrations.md)；账本格式、执行适配实现、锁与清除契约未冻结 |
 | 存储生命周期 | 同库业务表、托管文件目录、分阶段提交、回收站与可恢复清理 | [存储设计](../design/storage/storage-lifecycle.md)；SQLite 参数、索引、文件清理与备份策略待定 |
@@ -67,13 +69,14 @@
 - 提醒提前登记范围、系统能力不足时的提示、多设备投递及错过提醒的处理；Android 的准点与短时离线目标已确认。
 - UI 扩展是否必须独立热安装，以及未来第三方扩展的边界。
 - 原文件关联范围、文件规模、临时资料保留规则和 AI 数据访问规则。
-- 正文格式、分类移动与删除体验、附件复用、修订历史，以及备份具体目标、周期、保留期限、可接受丢失的最近数据范围和恢复耗时。
+- 正文已确认纯文本和 Markdown；富文本/预览、分类移动与删除体验、附件复用、修订历史，以及备份具体目标、周期、保留期限、可接受丢失的最近数据范围和恢复耗时继续讨论。
+- Android 本地宿主、跨实例账号/资料库关联、网盘同步对象和冲突处理，详见本地宿主与同步演进。
 
 上述问题按任务需要询问用户，不要求一次性全部决定。MVP、实现排期、插件市场、数据库同步和完整 AI agent 系统均未定案。
 
 ## 使用与维护
 
-用户已授权开工。当前完成版本锁定、基础构建、7 项自动测试及 Electron 真实进程检查；已验证部分插件依赖撤回、兼容替换与数据保留。精确范围见 [工程基线与验证记录](development/engineering-baseline.md)。正式记录、账号会话、完整迁移协调、附件和 restic 恢复仍未实现。下一步依据 [开发启动评估](development/project-readiness.md) 明确第一条业务流程，不冻结完整 MVP 或排期。
+当前完成基础工程及账号初始化、登录、会话撤销、记录保存、列表/关键字查询。验证范围见 [账号与第一条记录流程](development/first-record-flow.md)；版本和首轮插件验证保留在 [工程基线](development/engineering-baseline.md)。初始命名空间迁移已实现，历史版本升级、完整恢复、附件和 restic 集成仍未实现，不冻结完整 MVP 或排期。
 
 后端、共享界面和 Android 主线已确认，细节见 [后端技术](architecture/backend-stack.md)、[前端技术](architecture/frontend-stack.md) 和 [Android 方向](architecture/android-stack.md)。工程入口见 [目录规划](development/repository-layout.md)。Android 原生工程已生成并同步资源；用户确认没有 SDK，APK 与真机测试待按 [环境指南](development/android-environment.md) 配置后进行。Linux、生产部署和性能未验证。新决定获用户确认后更新本页及对应有效说明，再补入 [历史决策记录](../history/decisions/decision-log.md)。已有明确决定不反复询问，候选不自动转为已确认。
 

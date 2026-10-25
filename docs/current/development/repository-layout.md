@@ -11,14 +11,14 @@ Recorder/
   AGENTS.md
   README.md
   package.json / pnpm-workspace.yaml / pnpm-lock.yaml
-  backend/          # src/plugins、test、validation/migrations
+  backend/          # src/plugins、src/data、migrations、test、validation/migrations
   desktop/          # src/plugins、preload、renderer
   web/              # src、Vite 入口
   android/          # src、Capacitor 配置、native 原生工程
   shared/
-    contracts/      # 框架无关的诊断协议与运行时校验
+    contracts/      # 框架无关的账号/记录 API schema、类型、运行时校验
     client/         # Cordis 服务、Vue 宿主、UI/传输插件、test
-  scripts/          # 文档检查、真实 Electron smoke
+  scripts/          # 提交标题/文档检查、基础与业务 Electron smoke
   docs/
     current/
     design/
@@ -49,7 +49,7 @@ Recorder/
 
 所有能力遵守 [全面插件化](../architecture/plugin-everything.md)。后端插件属于 backend，共享 Vue 扩展属于 shared/client 或对应客户端，本机设备实现属于 desktop/android/web 适配。一个功能可由这些部分配合，不要求整个功能只占一个工程目录；成熟后是否形成独立分发包另定。
 
-数据库、托管附件、Android 暂存、下载副本、凭据和签名材料是运行或构建环境数据，正式路径与管理规则另定。当前默认内存验证库；文件测试使用隔离临时目录；Electron smoke 输出到忽略的 artifacts。不得提交用户资料或凭据。
+当前 Node.js 业务 profile 默认使用根目录 `.recorder/`，也可配置绝对数据目录。foundation profile 仍为隔离探针；测试使用临时目录或忽略的 artifacts。托管附件、Android 暂存和长期资料库管理继续设计；不得提交用户资料、凭据和签名材料。
 
 ## 后续扩展
 

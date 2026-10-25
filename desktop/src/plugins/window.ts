@@ -6,7 +6,7 @@ export function apply(ctx: Context, config: { preload: string; hidden?: boolean 
     const window = new BrowserWindow({
       width: 1100, height: 760, show: !config.hidden, title: 'Recorder · 工程验证',
       backgroundColor: '#111724',
-      webPreferences: { preload: config.preload, sandbox: true, contextIsolation: true, nodeIntegration: false },
+      webPreferences: { preload: config.preload, sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: !config.hidden },
     });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());

@@ -1,5 +1,7 @@
 # GitHub 自动检查
 
+本文件使用 `CI.md` 命名，避免 `.github` 下的 README 覆盖根目录 README 在 GitHub 仓库主页的展示。项目入口见 [根 README](../README.md)。
+
 状态：B001-T02 的 CI 配置与操作说明；实际运行证据见 [任务卡](../docs/work/b001-record-editing/t02-ci.md)。核对日期：2026 年 10 月 25 日。
 
 阅读时机：审查 [CI workflow](workflows/ci.yml)、排查 Actions 失败或准备配置必需检查时。协作规则见 [Git 工作流](../docs/current/development/git-workflow.md)，工程命令见 [工程基线](../docs/current/development/engineering-baseline.md)。

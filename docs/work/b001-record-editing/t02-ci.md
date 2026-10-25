@@ -8,7 +8,7 @@
 
 为 PR 和主分支提供可重复的基本验证，避免多个 AI 的结果只有口头“通过”。使用 GitHub Actions，依照 `.node-version` 与 `packageManager` 安装锁定的 Node/pnpm；固定并核验所用 Action 的官方来源和提交 SHA，实际 runner 版本记入交付。
 
-允许修改 `.github/workflows/ci.yml`、必要的 `scripts/check-pr-title.mjs` 与针对标题检查的独立脚本测试、`scripts/check-commit-message.mjs` 的复用性局部调整、`.github/README.md` 和本任务卡。新增说明需互相链接。不得改业务源码/迁移、升级依赖/重写锁文件、重构现有测试或调整主分支保护。
+允许修改 `.github/workflows/ci.yml`、必要的 `scripts/check-pr-title.mjs` 与针对标题检查的独立脚本测试、`scripts/check-commit-message.mjs` 的复用性局部调整、`.github/CI.md` 和本任务卡。新增说明需互相链接。不得改业务源码/迁移、升级依赖/重写锁文件、重构现有测试或调整主分支保护。
 
 发现跨平台业务/基础测试失败时保留失败证据，报告具体文件及原因，由整合者协调归属；不能以平台跳过或删测试代替修复。少量纯 CI 路径/脚本问题可在上述范围内处理。
 
@@ -37,7 +37,7 @@
 - 开工日期：2026 年 10 月 25 日；实现会话为当前 B001-T02 会话。
 - 实际开工基线：`fb3e552024f732460dd86c8a6933e7f501f4ecda`，已 fetch 核对与 origin/main 一致，包含本计划。
 - 工作树：`C:\Users\30828\.codex\worktrees\31a4\Recorder`；从 detached HEAD 建立 `ci/b001-t02-quality-checks`，目标 `main`。原有未跟踪 `.codex/` 保留且不提交。
-- 变更：[CI workflow](../../../.github/workflows/ci.yml)、[操作说明及 Action 来源](../../../.github/README.md)、PR 标题脚本与独立测试、提交标题规则的小范围复用调整。本任务不改业务、迁移、依赖锁文件或分支保护。
+- 变更：[CI workflow](../../../.github/workflows/ci.yml)、[操作说明及 Action 来源](../../../.github/CI.md)、PR 标题脚本与独立测试、提交标题规则的小范围复用调整。本任务不改业务、迁移、依赖锁文件或分支保护。
 - 本地 Windows、Node 24.14.1 / pnpm 10.33.0：`pnpm install --frozen-lockfile` 成功；`pnpm check` 通过（全部构建/类型、现有 10 项测试、文档检查）；`node --test scripts/check-pr-title.test.mjs` 6 组通过；`pnpm check:docs` 与 `git diff --check` 通过。
 - 初次受限环境安装出现 npm ENOTFOUND 与 pnpm 链接错误；获准联网后用相同冻结安装命令重试成功。安装提示 better-sqlite3 build script 按现有 pnpm 策略忽略，现有测试实际加载包内预构建文件成功；未放宽构建策略。
 - PR：[ISQIShI/Recorder #3](https://github.com/ISQIShI/Recorder/pull/3)。最终完整 HEAD 与本记录提交后的再次运行结果在 PR/交付消息提供，避免自引用提交；交付前核对远端分支与本地 HEAD 一致。

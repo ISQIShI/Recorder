@@ -2,7 +2,7 @@
 
 状态：项目文档入口。更新日期：2026 年 10 月 25 日。
 
-AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态](current/technical-status.md)。基础工程、[账号与记录保存查询及更新 API](current/development/first-record-flow.md)、Windows/Linux 自动检查已实现，编辑界面和离开提醒待 B001-T03；前后端全部功能沿用 Cordis 插件机制。用户新增 [Android 本地后端与同步方向](current/architecture/local-runtime-sync.md)，不再限定必须由 PC/服务器承载；本轮未实现移动后端或云同步。完整升级恢复、附件等继续开发，活跃提案不等于已完成能力。
+AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态](current/technical-status.md)。基础工程、[账号与记录保存查询及更新 API](current/development/first-record-flow.md)、Windows/Linux 自动检查已实现，B001 的编辑界面、冲突草稿与正常离开提醒也已完成；前后端全部功能沿用 Cordis 插件机制。用户新增 [Android 本地后端与同步方向](current/architecture/local-runtime-sync.md)，不再限定必须由 PC/服务器承载；本轮未实现移动后端或云同步。完整升级恢复、附件等继续开发，活跃提案不等于已完成能力。
 
 ## 文档分类与阅读时机
 

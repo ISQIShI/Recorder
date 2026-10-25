@@ -76,14 +76,14 @@ Context 初始化、平台 ready/quit、模块装配、固定 preload ABI 和生
 
 `pnpm check` 组合构建、类型检查、测试和文档检查；桌面 smoke 单独运行，因为需要能启动 Electron 的桌面环境。截图与 JSON 结果位于忽略的 `artifacts/`，不作为源码提交。失败的启动探针和被修复的 ESM/Loader 类型问题不当作已支持能力。
 
-首轮未覆盖的账号与记录保存查询现已补充验证，后续 T01 又完成更新 API 与双端传输。整合版本 `pnpm check` 的 18 项测试、独立标题脚本的 6 组测试、基础/账号重启/真实更新三组 Electron 检查均通过，见 [账号记录流程](first-record-flow.md) 与 [B001 整合记录](../../work/b001-record-editing/README.md)。以上是首轮之后的验证，不改写本节原始结果。
+首轮未覆盖的账号与记录保存查询现已补充验证，后续 T01 又完成更新 API 与双端传输。B001 最终整合版本 `pnpm check` 的 26 项测试、独立标题脚本的 6 组测试、基础/编辑冲突及四阶段退出/真实更新三组 Electron 检查均通过，见 [账号记录流程](first-record-flow.md) 与 [B001 整合记录](../../work/b001-record-editing/README.md)。以上是首轮之后的验证，不改写本节原始结果。
 
-Windows/Linux CI 已通过冻结安装、构建、类型、测试与文档检查，并成为 main 的必需检查，操作见 [CI 指南](../../../.github/README.md)。Linux 生产部署、Windows 分发/托盘/快捷键实按/剪贴板/拖拽、独立浏览器端到端、Android APK/真机/本地宿主/分享/暂存/提醒、完整升级恢复、附件和 restic 一致性及性能仍未验证。Android 环境按 [配置指南](android-environment.md) 后续补齐。
+Windows/Linux CI 已通过冻结安装、构建、类型、测试与文档检查，并成为 main 的必需检查，操作见 [CI 指南](../../../.github/CI.md)。Linux 生产部署、Windows 分发/托盘/快捷键实按/剪贴板/拖拽、其他浏览器和 Chrome 原生离开弹窗选择分支、Android APK/真机/本地宿主/分享/暂存/提醒、完整升级恢复、附件和 restic 一致性及性能仍未验证。Android 环境按 [配置指南](android-environment.md) 后续补齐。
 
 首轮 foundation profile 默认内存探针，持久化测试使用临时文件；`backend/validation` 不是正式 schema。当前业务入口使用 `.recorder/` 数据库及 `backend/migrations` 的初始迁移，详见账号记录流程。
 
 ## 后续工作
 
-纯文本与 Markdown、记住登录体验已经确认，账号/记录保存查询与更新 API 已实现。下一步按 [B001-T03](../../work/b001-record-editing/t03-editor.md) 完成编辑界面与离开提醒，再补齐安全升级/恢复和回收站；Android 本地宿主及同步另行验证，尚未冻结完整 MVP 或排期。
+账号与记录创建/查询/手动编辑、冲突草稿和正常离开提醒已完成；Chrome 编辑操作由实现者验收，刷新/关闭提醒由用户确认，范围见 [B001 记录](../../work/b001-record-editing/README.md)。下一步建议安全升级/恢复，再实现回收站；尚未派工或冻结完整 MVP、排期，Android 本地宿主及同步另行验证。
 
 返回 [当前文档索引](../README.md) 或 [总导航](../../README.md)。

@@ -1,6 +1,6 @@
 # 记录编辑与版本冲突契约
 
-状态：保存方式与冲突原则已获用户确认；更新 API、Web/Electron 传输与并发保护已实现并验证，编辑界面、草稿交互和离开提醒待 T03。更新日期：2026 年 10 月 25 日。
+状态：保存方式与冲突原则已获用户确认；更新 API、Web/Electron 传输与并发保护已实现并验证，T03 的手动编辑、冲突草稿和 Web/Electron 正常离开提醒也已实现。更新日期：2026 年 10 月 25 日。
 
 阅读时机：实现或验收已有记录的编辑、更新 API、客户端传输、草稿与离开提醒时。当前已实现能力见 [账号与第一条记录流程](../development/first-record-flow.md)，本次任务见 [B001 计划](../../work/b001-record-editing/README.md)。
 
@@ -57,7 +57,7 @@ HTTP 只分发认证后的调用；`records-api` 注册更新操作，`records` 
 
 ## 离开提醒与实际限制
 
-共享 UI 的脏状态和应用内确认属于 Cordis 插件能力；浏览器离开监听也须随所属插件清理。Web 刷新/关闭使用平台支持的离开提示。Electron 需同时覆盖关闭窗口和正常退出应用；当前 `before-quit → dispose → window.destroy()` 路径可能绕过 renderer 提示，必须验证并改为通过受控退出能力再释放资源，启动入口仅保留装配。
+共享 UI 的脏状态和应用内确认属于 Cordis 插件能力；浏览器离开监听也须随所属插件清理。Web 刷新/关闭使用平台支持的离开提示。Electron 需同时覆盖关闭窗口和正常退出应用；当前 `exit` 插件将正常退出先转为 `window.close()`，通过 renderer 的 `beforeunload` 和原生确认后，等待窗口真正关闭才释放资源；取消时连接仍可用，启动入口仅保留装配。
 
 共享 UI 不直接导入 Electron；如需窄 IPC 或桌面确认适配，由设备插件实现。用户取消退出不能进入不可恢复的 shuttingDown 状态；保存后正常退出不会循环询问。拒绝操作的提示逻辑不能成为第二套 Cordis 生命周期。
 
@@ -69,4 +69,4 @@ HTTP 只分发认证后的调用；`records-api` 注册更新操作，`records` 
 
 真实后端覆盖保存、持久化、竞争更新、归属隔离、输入拒绝、PUT 的 Cookie/CSRF 和 native 通道、插件撤回，以及原创建幂等不变。真实界面覆盖编辑成功、错误保留、两处界面冲突、未保存离开取消/确认、保存后离开、正常 Electron 退出。用隔离样本执行，不用真实资料。
 
-T01 已通过 [PR #4](https://github.com/ISQIShI/Recorder/pull/4) 合并：真实后端、双端请求编码与安全校验、插件撤回及原创建幂等检查通过；Windows 本机与 Windows/Linux CI 的 18 项测试通过，真实 Electron 更新 IPC、409 与后端重启持久化也已复验。T03 的编辑表单、草稿及离开交互尚未实现，独立浏览器编辑端到端未验证，不能将 API 通过视为整个编辑体验完成。证据见 [B001 整合记录](../../work/b001-record-editing/README.md)。返回 [当前文档索引](../README.md)。
+T01 已通过 [PR #4](https://github.com/ISQIShI/Recorder/pull/4) 合并；T03 通过 [PR #6](https://github.com/ISQIShI/Recorder/pull/6) 补齐编辑界面、内存草稿、冲突对照和离开提醒。整合者复验 26 项测试、真实 Electron 编辑/冲突/重启/退出链路及更新 IPC 均通过，Windows/Linux CI 成功。独立 Chrome 编辑和双标签页竞争由实现者实际验收，刷新/关闭提醒出现由用户人工确认；Chrome 原生弹窗选择分支未自动验收。证据与其他限制见 [B001 整合记录](../../work/b001-record-editing/README.md)。返回 [当前文档索引](../README.md)。

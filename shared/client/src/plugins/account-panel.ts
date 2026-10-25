@@ -1,9 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { defineComponent, h, ref, onBeforeUnmount } from 'vue';
+import { defineComponent, h, ref, watch, onBeforeUnmount } from 'vue';
 import type { SessionData } from '@recorder/contracts';
 import './account.js';
 import '../services.js';
-export const inject = ['recorderPanels', 'recorderAccount', 'recorderApi', 'recorderPlatform'];
+export const inject = ['recorderPanels', 'recorderAccount', 'recorderApi', 'recorderPlatform', 'recorderLeave'];
 export function apply(ctx: Context) {
   ctx.recorderPanels.register(ctx, { id: 'account', component: defineComponent({ setup() {
     const username = ref(''), password = ref(''), setupCode = ref(''), remember = ref(true), busy = ref(false), error = ref('');
@@ -11,10 +11,18 @@ export function apply(ctx: Context) {
     let active = true;
     onBeforeUnmount(() => { active = false; password.value = ''; setupCode.value = ''; });
     const account = ctx.recorderAccount;
+    watch(() => account.state.identity?.sessionId, () => { sessions.value = []; error.value = ''; busy.value = false; }, { flush: 'sync' });
+    async function loadSessions() {
+      const session = account.state.identity?.sessionId;
+      const result = await ctx.recorderApi.request('sessions', {});
+      if (active && session === account.state.identity?.sessionId) sessions.value = result.items;
+    }
     async function run(action: () => Promise<void>) {
+      if (busy.value) return;
+      const session = account.state.identity?.sessionId;
       busy.value = true; error.value = '';
-      try { await action(); } catch (e) { if (active) error.value = account.error(e); }
-      finally { if (active) busy.value = false; }
+      try { await action(); } catch (e) { if (active && session === account.state.identity?.sessionId) error.value = account.error(e); }
+      finally { if (active && session === account.state.identity?.sessionId) busy.value = false; }
     }
     const input = (label: string, key: string, value: typeof username, type = 'text') => h('label', [label, h('input', { name: key, type, value: value.value, autocomplete: key === 'username' ? 'username' : type === 'password' ? 'current-password' : 'off', onInput: (e: Event) => { value.value = (e.target as HTMLInputElement).value; } })]);
     return () => {
@@ -23,12 +31,15 @@ export function apply(ctx: Context) {
       if (state.error) return [h('p', { role: 'alert' }, state.error), h('button', { onClick: () => account.refresh() }, '重新连接')];
       if (state.identity) return [
         h('div', { class: 'account-summary', 'data-signed-in': '' }, [h('div', [h('span', { class: 'badge' }, '已登录'), h('h2', state.identity.username)]),
-          h('div', { class: 'actions' }, [h('button', { disabled: busy.value, onClick: () => run(async () => { sessions.value = (await ctx.recorderApi.request('sessions', {})).items; }) }, '登录会话'),
-            h('button', { 'data-logout': '', disabled: busy.value, onClick: () => run(async () => { await account.logout(); sessions.value = []; }) }, '退出登录')])]),
+          h('div', { class: 'actions' }, [h('button', { disabled: busy.value, onClick: () => run(loadSessions) }, '登录会话'),
+            h('button', { 'data-logout': '', disabled: busy.value, onClick: () => run(async () => { await account.logout(); }) }, '退出登录')])]),
         ...sessions.value.map(s => h('div', { class: 'session-row', key: s.id }, [h('span', `${s.clientName}${s.current ? ' · 当前会话' : ''}`), h('button', { disabled: busy.value, onClick: () => run(async () => {
+          if (s.current && !ctx.recorderLeave.confirm()) return;
+          const session = account.state.identity?.sessionId;
           await ctx.recorderApi.request('revoke', { sessionId: s.id });
+          if (!active || account.state.identity?.sessionId !== session) return;
           if (s.current) { account.state.identity = undefined; sessions.value = []; }
-          else sessions.value = (await ctx.recorderApi.request('sessions', {})).items;
+          else await loadSessions();
         }) }, '撤销') ])), h('p', { role: 'alert' }, error.value),
       ];
       const setup = state.info?.initialized === false;

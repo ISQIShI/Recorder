@@ -7,5 +7,6 @@ declare module '@deepseek-ai/cordis' {
     recorderDesktopConnection: { ready: true };
     recorderDesktopView: { ready: true };
     recorderShortcut: { registered: boolean };
+    recorderExit: { request(): void };
   }
 }

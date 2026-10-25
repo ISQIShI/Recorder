@@ -101,6 +101,8 @@ test('initial namespace migrations roll back, reject checksum edits and preserve
     applyMigrations(db, [first]);
     applyMigrations(db, [first]);
     assert.throws(() => applyMigrations(db, [{ ...first, sql: first.sql + ' ' }]), /checksum/);
+    assert.throws(() => applyMigrations(db, [{ namespace: 'unsafe', revision: 1, requires: [], sql: 'CREATE TABLE injected(id INTEGER); DELETE FROM sample;' }]));
+    assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name='injected'").get(), undefined);
     assert.throws(() => applyMigrations(db, [{ ...first, namespace: 'new', requires: ['missing'] }]), /dependency/);
     applyMigrations(db, []);
     assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name='sample'").get());

@@ -28,7 +28,8 @@ export function applyMigrations(raw: Database.Database, plan: Migration[]) {
         // This first adapter deliberately accepts only generated initialization DDL.
         for (const statement of step.sql.split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean)) {
           if (!/^CREATE (TABLE|(?:UNIQUE )?INDEX)\s/i.test(statement) || /\b(PRAGMA|ATTACH|DETACH|BEGIN|COMMIT|ROLLBACK)\b/i.test(statement)) throw new Error('Unsupported initialization SQL');
-          raw.exec(statement);
+          // prepare rejects multiple statements, so a CREATE prefix cannot hide DML.
+          raw.prepare(statement).run();
         }
         raw.prepare('INSERT INTO recorder_migrations VALUES (?, ?, ?, ?)').run(step.namespace, step.revision, digest, Date.now());
       }

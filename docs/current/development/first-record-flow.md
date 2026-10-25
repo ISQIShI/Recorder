@@ -71,6 +71,6 @@ HTTP 校验 Host，拒绝未知 Origin 和 Cookie/Bearer 混用。当前允许 W
 
 构建和类型检查通过；`pnpm test` 当前 10 项通过，新增覆盖实际账号初始化、跨重启记录/会话、幂等冲突、账号归属、撤销、插件撤回、Cookie/CSRF/Origin、OpenAPI 输入契约，以及初始迁移回滚、摘要和依赖拒绝。`pnpm test:records:desktop` 实际运行 Electron 完成创建账号、Markdown 保存和查询，然后重启后端及客户端、恢复加密凭据与记录，最后退出并核验会话已撤销；检查通过。基础插件检查 `pnpm test:desktop` 也通过，界面截图已查看。
 
-Android 真机和本地运行、Linux 实机、远程 HTTPS、浏览器独立进程端到端与完整恢复仍未验证。账号认证并不能替代备份，当前仍处于早期开发，不应存入唯一一份重要资料。后续优先补齐记录修改/回收站和数据恢复，再扩大正式使用。
+Android 真机和本地运行、Linux 实机、远程 HTTPS、浏览器独立进程端到端与完整恢复仍未验证。账号认证并不能替代备份，当前仍处于早期开发，不应存入唯一一份重要资料。下一批 [B001](../../work/b001-record-editing/README.md) 规划记录修改与自动检查，[编辑契约](../interfaces/record-editing.md) 是待实现依据；安全迁移/恢复与回收站随后推进，再扩大正式使用。
 
 返回 [当前索引](../README.md) 或 [总导航](../../README.md)。

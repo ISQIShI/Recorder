@@ -38,6 +38,7 @@
 | 删除体验 | 先进入回收站，可恢复；清空时再次确认彻底删除 |
 | 优先级 | 即时唤起与响应性能、维护、扩展同级，资源占用次之 |
 | 正文与登录体验 | 纯文本 + Markdown；首次设置用户名密码，之后可记住登录并撤销会话 |
+| 编辑体验 | 用户已确认手动保存、离开未保存修改时提醒；冲突保留草稿并由用户处理；[更新与冲突契约](interfaces/record-editing.md) 已规划，尚未实现 |
 | 开源与提交 | 公有 GitHub 仓库、MIT 协议；后续提交使用 Conventional Commits |
 | 工作分工 | 用户负责关键选择与验收；主会话辅助决策、规划文档、拆任务及 Git 整合，其他 AI 按任务卡在工作树实现，见 [AI 协作](development/ai-collaboration.md) |
 | Git 协作 | 根据用户授权采用 GitHub Flow，短期任务分支与 PR squash 合并；设置、验证要求与清理见 [Git 工作流](development/git-workflow.md)；具体任务见 [工作台账](../work/README.md) |
@@ -77,6 +78,8 @@
 上述问题按任务需要询问用户，不要求一次性全部决定。MVP、实现排期、插件市场、数据库同步和完整 AI agent 系统均未定案。
 
 ## 使用与维护
+
+下一批为 [B001 记录编辑与自动检查](../work/b001-record-editing/README.md)：先并行安排更新接口/双端传输与 CI，前者合并后再启动编辑界面和离开提醒。任务卡与提示词已准备，未启动实现 AI 或配置 CI。当前 schema 已有 revision，本批不改库结构；回收站前须先完成后续迁移与恢复验证。此顺序不是完整 MVP 或排期。
 
 当前完成基础工程及账号初始化、登录、会话撤销、记录保存、列表/关键字查询。验证范围见 [账号与第一条记录流程](development/first-record-flow.md)；版本和首轮插件验证保留在 [工程基线](development/engineering-baseline.md)。初始命名空间迁移已实现，历史版本升级、完整恢复、附件和 restic 集成仍未实现，不冻结完整 MVP 或排期。
 

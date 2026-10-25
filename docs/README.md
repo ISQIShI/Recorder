@@ -24,6 +24,7 @@ AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态
 | 设计或实现任何插件能力、判断启动底座边界 | [全面插件化要求](current/architecture/plugin-everything.md) → 对应工程 README；不能另写一套生命周期 |
 | 安装、运行、验证工程或升级依赖 | [工程基线与验证记录](current/development/engineering-baseline.md) → 对应工程 README |
 | 使用或开发账号与记录保存查询 | [账号与第一条记录流程](current/development/first-record-flow.md)，包括当前认证和初始迁移实现范围 |
+| 接续当前进度，实现记录编辑与自动检查 | [B001 计划与任务索引](work/b001-record-editing/README.md) → [编辑契约](current/interfaces/record-editing.md)；启动其他 AI 用 [本批提示词](work/b001-record-editing/prompts.md) |
 | 准备构建 APK 或连接 Android 手机 | [Android 环境配置](current/development/android-environment.md)；用户尚未安装 SDK，APK/真机验证待执行 |
 | 调整后端或多端职责 | [架构概览](current/architecture/overview.md) → [后端与 Electron 协作提案](design/architecture/backend-electron-boundaries.md) |
 | 设计三端共用接口、SDK 或插件公开操作 | [API 与认证主线](current/architecture/api-auth-baseline.md) → [统一 API 设计](design/interfaces/unified-api.md)；客户端适配再读对应协作提案 |

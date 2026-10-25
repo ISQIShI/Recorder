@@ -1,12 +1,12 @@
 # Recorder 核心与 Cordis 业务插件迁移机制提案
 
-状态：Recorder 统一命名空间账本、受控 SQL 执行适配与卸载默认保留已确认；表名、格式、适配实现和恢复细节仍为建议。更新日期：2026 年 10 月 25 日；本页 Cordis/Drizzle/SQLite 技术资料核对日期：2026 年 10 月 24 日。
+状态：Recorder 统一账本、受控 SQL 与卸载默认保留已确认；初始实现和 B002 子集见下文，其余仍为提案。更新日期：2026 年 10 月 26 日；本页完整方案的 Cordis/Drizzle/SQLite 技术资料核对日期：2026 年 10 月 24 日。
 
 阅读时机：设计核心或插件的数据库升级、迁移账本、兼容检查、失败恢复、卸载和重新安装时。先读 [已确认数据访问主线](../../current/storage/data-access-baseline.md) 与 [数据模型主线](../../current/storage/data-model-baseline.md)。业务表归属见 [插件数据契约](../plugins/data-extension.md)，文件和备份见 [存储生命周期](storage-lifecycle.md)。
 
 ## 1. 前提与总体建议
 
-后续实施更新：已实现 namespace revision 1 初始化的摘要账本、依赖排序与事务回滚，见 [当前业务流程](../../current/development/first-record-flow.md)。完整升级、备份前置和恢复仍为下文设计，不能将初始适配器视为本提案全部完成。
+后续实施更新（2026 年 10 月 26 日）：已实现 namespace revision 1 初始化的摘要账本、依赖排序与事务回滚，见 [当前业务流程](../../current/development/first-record-flow.md)。用户进一步确认先说明升级、手动确认后执行，并先创建恢复点。[B002 实施契约](../../current/storage/migration-recovery-contract.md) 已提炼多版本、独占、恢复点和离线维护/隔离恢复子集，尚未实现；本页其余完整升级、恢复启用与插件清除仍为提案。
 
 已确认 Drizzle SQL 风格查询 + better-sqlite3，Drizzle Kit 辅助生成迁移，后端以 Recorder 统一命名空间账本 + 受控 SQL 执行适配协调执行；插件卸载默认保留数据。用户可以接受升级期间暂停业务写入并显示维护状态，优先保证数据完整和恢复可靠。日常备份仅接受很短的快照窗口，另见 [备份恢复提案](backup-recovery.md)，不能套用全程停写假设。
 

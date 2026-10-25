@@ -1,6 +1,6 @@
 # Recorder 文档总导航
 
-状态：项目文档入口。更新日期：2026 年 10 月 25 日。
+状态：项目文档入口。更新日期：2026 年 10 月 26 日。
 
 AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态](current/technical-status.md)。基础工程、[账号与记录保存查询及更新 API](current/development/first-record-flow.md)、Windows/Linux 自动检查已实现，B001 的编辑界面、冲突草稿与正常离开提醒也已完成；前后端全部功能沿用 Cordis 插件机制。用户新增 [Android 本地后端与同步方向](current/architecture/local-runtime-sync.md)，不再限定必须由 PC/服务器承载；本轮未实现移动后端或云同步。完整升级恢复、附件等继续开发，活跃提案不等于已完成能力。
 
@@ -33,7 +33,7 @@ AI 从根目录 [AGENTS.md](../AGENTS.md) 开始，再阅读 [当前技术状态
 | 后端开发、依赖或存储相关工作 | [技术状态](current/technical-status.md) → [已确认后端技术](current/architecture/backend-stack.md)；需要追溯时再读 [后端比较](history/research/backend-technology-selection.md) |
 | 设计记录、附件、标签分类和查询 | [数据模型主线](current/storage/data-model-baseline.md) → [模型细化](design/storage/data-model.md)；产品范围参考 [当前需求](current/product/requirements.md) |
 | 设计 SQLite 查询、repository 或事务 | [已确认数据访问主线](current/storage/data-access-baseline.md)；追溯选型时再读 [历史比较](history/research/sqlite-access-comparison.md) |
-| 设计核心与插件升级、版本账本或失败恢复 | [数据访问主线](current/storage/data-access-baseline.md) → [迁移机制提案](design/storage/plugin-migrations.md)；账本与执行适配方向、升级停写已确认，具体格式和恢复机制仍需细化 |
+| 设计或实现核心与插件升级、版本账本或失败恢复 | [数据访问主线](current/storage/data-access-baseline.md) → [B002 实施契约](current/storage/migration-recovery-contract.md)；更广范围读 [迁移机制提案](design/storage/plugin-migrations.md)，区分计划与实现 |
 | 设计上传落盘、回收站、文件清理或检索 | [存储与生命周期提案](design/storage/storage-lifecycle.md)；逻辑关系再读 [数据模型](design/storage/data-model.md) |
 | 设计备份、整库恢复或 PC/服务器搬迁 | [已确认备份主线](current/storage/backup-baseline.md) → [备份恢复细化](design/storage/backup-recovery.md)；统一恢复集合 + 后台复制已确认，清单和执行协议继续设计 |
 | 实现 Cordis 备份适配或管理仓库 | [备份主线](current/storage/backup-baseline.md) → [restic 集成](design/storage/restic-integration.md)；工具已选，具体版本和协议待细化；追溯理由再读 [历史比较](history/research/backup-tool-comparison.md) |

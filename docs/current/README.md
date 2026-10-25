@@ -1,6 +1,6 @@
 # 当前文档索引
 
-状态：日常工作依据。更新日期：2026 年 10 月 25 日。
+状态：日常工作依据。更新日期：2026 年 10 月 26 日。
 
 先读 [技术状态](technical-status.md)，再按任务选择下列文档；无需默认阅读历史。AI 行为规则见根目录 [AGENTS.md](../../AGENTS.md)。
 
@@ -16,8 +16,9 @@
 | [记录编辑与版本冲突契约](interfaces/record-editing.md) | 已实现更新 API/并发保护、双端手动编辑、冲突草稿及正常离开提醒；验证范围和限制 | 开发或验收 B001 的后端更新、客户端编辑、传输与退出时 |
 | [已确认数据模型主线](storage/data-model-baseline.md) | 统一记录基础、独立附件、标签分类关联与插件业务表，确认范围和未冻结细节 | 记录、附件、组织关系、数据库访问与插件持久化工作前 |
 | [已确认数据访问与迁移主线](storage/data-access-baseline.md) | Drizzle、better-sqlite3、Kit、Recorder 统一命名空间账本与受控执行适配、卸载默认保留及维护体验 | 数据查询、事务、迁移工具、升级或插件卸载相关工作前 |
+| [数据库升级与恢复演练契约](storage/migration-recovery-contract.md) | B002 待实现子集：多版本、手动确认、独占、恢复点、离线维护与隔离恢复边界 | 实现/审查迁移、升级恢复点和维护入口时；不代表完整恢复已经实现 |
 | [已确认备份与恢复主线](storage/backup-baseline.md) | 统一恢复集合 + 后台复制、restic、本地独立副本与加密异地副本，以及未冻结细节 | 备份、恢复、附件保留、插件数据备份、备份工具与 PC/服务器搬迁相关工作前 |
-| [已确认前端技术](architecture/frontend-stack.md) | Vue 3 + TypeScript + Vite、Electron、Capacitor，跨端复用边界与待定配套 | Web、桌面界面、共享组件、UI 扩展与 Android 接入相关工作前 |
+| [已确认前端技术](architecture/frontend-stack.md) | Vue 3 + TypeScript + Vite、Electron、Capacitor，桌面优先交付、跨端复用边界与待定配套 | 规划客户端任务、桌面界面、共享组件、UI 扩展与后续 Web/Android 补齐前 |
 | [Android 当前方向](architecture/android-stack.md) | Capacitor + Vue、按需 Kotlin，以及收集暂存和提醒目标 | Android 界面、采集、设备存储、传输和通知工作前 |
 | [工程目录规划](development/repository-layout.md) | 根目录各端工程、shared 的归属和依赖边界，各目录 README 入口 | 初始化工程、添加文件、拆分模块或设置构建前 |
 | [GitHub 自动检查](../../.github/CI.md) | 工作流触发、必需检查、工具链和 PR 标题规则 | 修改 CI、排查 Actions 或核对合并门槛时 |

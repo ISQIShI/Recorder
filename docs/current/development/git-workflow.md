@@ -36,7 +36,7 @@ Conventional Commits 继续约束提交消息；它与分支工作流分别解�
 - `main` 要求 PR，禁止强制推送和删除，要求线性历史，管理员也遵守。
 - 仓库只开启 squash 合并，默认取 PR 标题作为最终提交标题。
 - GitHub 必需审批人数暂设为 0：目前多个 AI 使用同一个用户账号，无法形成独立账号审批。整合者仍必须检查代码、测试和验收项，记录证据；这不等同于独立人员审查。
-- PR 讨论须解决。已在 T02 成功运行后启用必需检查 `Quality (Windows)`、`Quality (Linux)`、`PR title`，来源限定 GitHub Actions（app ID 15368），且要求任务分支跟上目标分支。操作说明见 [CI 指南](../../../.github/README.md)，实际证据见 [B001 台账](../../work/b001-record-editing/README.md)。
+- PR 讨论须解决。已在 T02 成功运行后启用必需检查 `Quality (Windows)`、`Quality (Linux)`、`PR title`，来源限定 GitHub Actions（app ID 15368），且要求任务分支跟上目标分支。操作说明见 [CI 指南](../../../.github/CI.md)，实际证据见 [B001 台账](../../work/b001-record-editing/README.md)。
 - 不自动删除远端任务分支；整合者确认交付映射、无后续依赖和工作树保留情况后再清理，防止提前失去任务定位信息。
 
 本地 `commit-msg` 钩子仅检查提交标题，需执行 `git config core.hooksPath .githooks`；它不是服务端保护，也不能阻止他人绕过检查。若规范与线上设置发生漂移，先查明原因并报告，不悄悄放宽保护来合并。[分支保护](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) · [Squash 设置](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/configuring-commit-squashing-for-pull-requests)

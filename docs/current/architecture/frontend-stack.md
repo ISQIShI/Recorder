@@ -35,6 +35,6 @@ Android 外壳已确认，收集暂存和提醒目标见 [Android 当前方向](
 
 共享界面于 2026 年 10 月 24 日由用户确认，记为 D016；后续 Android 确认记为 D017。选择理由与 React 对比保存在 [历史研究](../../history/research/ui-framework-comparison.md)，仅在追溯或重新评估时阅读。工程归属见 [目录规划](../development/repository-layout.md)。
 
-已完成共享 UI 与三端 Web 资源构建，并在 Windows Electron 实际进程验证 UI 插件启停和诊断调用。Android APK、独立浏览器端到端流程、性能与完整设备兼容性尚未验证，范围以工程基线为准。
+已完成共享 UI 与三端 Web 资源构建，并在 Windows Electron 实际进程验证 UI 插件启停、编辑、冲突和正常退出。独立 Chrome 已完成本机编辑与双标签页冲突操作，刷新/关闭提醒出现由用户确认；Chrome 原生弹窗选择分支、其他浏览器、Android APK、性能与完整设备兼容性尚未完整验证，范围见 [当前业务流程](../development/first-record-flow.md)。
 
 返回 [当前文档索引](../README.md) 或 [总导航](../../README.md)。

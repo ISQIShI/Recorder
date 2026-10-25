@@ -38,12 +38,12 @@
 | 删除体验 | 先进入回收站，可恢复；清空时再次确认彻底删除 |
 | 优先级 | 即时唤起与响应性能、维护、扩展同级，资源占用次之 |
 | 正文与登录体验 | 纯文本 + Markdown；首次设置用户名密码，之后可记住登录并撤销会话 |
-| 编辑体验 | 用户已确认手动保存、离开未保存修改时提醒、冲突保留草稿并由用户处理；[更新 API 与双端传输](interfaces/record-editing.md) 已实现，编辑界面/草稿/离开提醒待 T03 |
+| 编辑体验 | 用户已确认手动保存、离开未保存修改时提醒、冲突保留草稿并由用户处理；[更新 API 与双端传输](interfaces/record-editing.md) 及手动编辑、冲突草稿和 Web/Electron 正常离开提醒均已实现 |
 | 开源与提交 | 公有 GitHub 仓库、MIT 协议；后续提交使用 Conventional Commits |
 | 工作分工 | 用户负责关键选择与验收；主会话辅助决策、规划文档、拆任务及 Git 整合，其他 AI 按任务卡在工作树实现，见 [AI 协作](development/ai-collaboration.md) |
 | Git 协作 | 根据用户授权采用 GitHub Flow，短期任务分支与 PR squash 合并；设置、验证要求与清理见 [Git 工作流](development/git-workflow.md)；具体任务见 [工作台账](../work/README.md) |
 | 自动检查 | Windows/Linux 构建、类型、测试和文档检查，以及 PR 标题检查已启用，均为 main 必需检查；见 [Git 工作流](development/git-workflow.md) |
-| 当前阶段 | 已实现账号、记录保存/查询/更新 API；18 项测试、6 组标题检查与 Electron 基础/账号重启/更新链路通过；编辑界面、附件、完整恢复等继续开发 |
+| 当前阶段 | 已实现账号、记录保存/查询/更新 API；26 项测试、6 组标题检查与 Electron 基础/编辑/冲突/重启/退出链路通过；附件、完整恢复等继续开发 |
 
 ## 尚未确认的技术选择
 
@@ -80,10 +80,10 @@
 
 ## 使用与维护
 
-[B001 记录编辑与自动检查](../work/b001-record-editing/README.md) 正在进行：T02 自动检查（PR #3）、T01 更新接口/双端传输（PR #4）已合并；T03 编辑界面和离开提醒前置已满足，待用户启动实现会话。原会话/工作树可以复用，但须从最新 main 建立新任务分支并读取更新后的任务卡。当前 schema 已有 revision，本批不改库结构；回收站前须先完成后续迁移与恢复验证。此顺序不是完整 MVP 或排期。
+[B001 记录编辑与自动检查](../work/b001-record-editing/README.md) 已完成：T02（PR #3）、T01（PR #4）和 T03（PR #6）均已合并，验证证据与局限见批次记录。下一批尚未派工；建议先落实后续迁移与最小恢复演练，再实现需要 schema 扩展的回收站。此建议不是完整 MVP 或排期。
 
-当前完成基础工程及账号初始化、登录、会话撤销、记录保存、列表/关键字查询、带版本保护的更新 API 与双端传输。验证范围见 [账号与第一条记录流程](development/first-record-flow.md)；版本和首轮插件验证保留在 [工程基线](development/engineering-baseline.md)。编辑 UI 尚未完成；初始命名空间迁移已实现，历史版本升级、完整恢复、附件和 restic 集成仍未实现，不冻结完整 MVP 或排期。
+当前完成基础工程及账号初始化、登录、会话撤销、记录保存、列表/关键字查询、带版本保护的更新 API 与双端传输。验证范围见 [账号与第一条记录流程](development/first-record-flow.md)；版本和首轮插件验证保留在 [工程基线](development/engineering-baseline.md)。手动编辑与离开提醒已完成，草稿仅保存在当前会话内存；初始命名空间迁移已实现，历史版本升级、完整恢复、附件和 restic 集成仍未实现，不冻结完整 MVP 或排期。
 
-后端、共享界面和 Android 主线已确认，细节见 [后端技术](architecture/backend-stack.md)、[前端技术](architecture/frontend-stack.md) 和 [Android 方向](architecture/android-stack.md)。工程入口见 [目录规划](development/repository-layout.md)。Android 原生工程已生成并同步资源；用户确认没有 SDK，APK 与真机测试待按 [环境指南](development/android-environment.md) 配置后进行。Linux CI runner 检查已通过，Linux 生产部署、独立浏览器编辑端到端与性能未验证。新决定获用户确认后更新本页及对应有效说明，再补入 [历史决策记录](../history/decisions/decision-log.md)。已有明确决定不反复询问，候选不自动转为已确认。
+后端、共享界面和 Android 主线已确认，细节见 [后端技术](architecture/backend-stack.md)、[前端技术](architecture/frontend-stack.md) 和 [Android 方向](architecture/android-stack.md)。工程入口见 [目录规划](development/repository-layout.md)。Android 原生工程已生成并同步资源；用户确认没有 SDK，APK 与真机测试待按 [环境指南](development/android-environment.md) 配置后进行。Linux CI runner 检查已通过，Chrome 已完成本机编辑/冲突操作并由用户确认刷新/关闭提醒出现；原生弹窗选择分支、其他浏览器、Linux 生产部署与性能仍未完整验证。新决定获用户确认后更新本页及对应有效说明，再补入 [历史决策记录](../history/decisions/decision-log.md)。已有明确决定不反复询问，候选不自动转为已确认。
 
 返回 [当前文档索引](README.md) 或 [总导航](../README.md)。

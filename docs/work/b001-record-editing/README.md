@@ -1,6 +1,6 @@
 # B001：记录编辑与自动检查
 
-状态：T01 更新接口、T02 自动检查已合并；T03 编辑界面待开始，前置已满足。整批尚未验收完成。更新日期：2026 年 10 月 25 日。
+状态：T01/T02/T03 全部已合并，本批验收完成；验证范围与限制见末节。更新日期：2026 年 10 月 25 日。
 
 阅读时机：启动本批任务、检查范围与依赖、接收交付或整合时。长期规则见 [AI 协作](../../current/development/ai-collaboration.md) 与 [Git 工作流](../../current/development/git-workflow.md)。
 
@@ -24,7 +24,7 @@
 
 第一轮 T01 和 T02 已由用户在两个独立工作树中完成，均从上述派工基线建立任务分支。原工作树保留，可顺序领取下一项任务。不要切换或写入其他工作树占用的 main。
 
-T03 的前置已满足。推荐复用原 T01 会话和工作树；确认旧任务成果已合并、保留已有修改，fetch 后从最新 `origin/main` 建立 `feat/b001-t03-record-editor`。记录实际完整基线 SHA；不从旧任务分支继续提交，也不必在工作树中检出 main。也可以新建工作树。本批只剩 T03，暂不另派 T02 会话新功能。
+T03 实际复用了原 T01 会话和工作树，从 `a7878684c1d2ee004e235e20e9e0d3d6a4386656` 新建任务分支并完成交付。全部任务已结束，不重复使用本批提示词派工；新任务仍从最新 main 建立独立分支。
 
 ## 任务索引与文件归属
 
@@ -32,8 +32,8 @@ T03 的前置已满足。推荐复用原 T01 会话和工作树；确认旧任�
 | --- | --- | --- | --- | --- |
 | [T01 更新接口与双端传输](t01-update-api.md)，实现/验收数据更新链路时读 | 后端、共享 API 契约、Web/Electron 传输、后端测试 | 前置已交付 | `feat/b001-t01-record-update-api` | 已合并，PR #4 |
 | [T02 自动检查](t02-ci.md)，配置/审查 CI 时读 | `.github/workflows`、PR 标题检查脚本和操作说明 | 前置已交付 | `ci/b001-t02-quality-checks` | 已合并，PR #3 |
-| [T03 编辑界面与离开提醒](t03-editor.md)，实现/验收 UI 与退出时读 | 共享 UI、Electron 退出适配、实际流程验证 | T01 已合并 | `feat/b001-t03-record-editor` | 待开始，可领取 |
-| [派工提示词](prompts.md)，用户准备启动对应 AI 时读 | 可直接复制的指令 | 遵守每段启动条件 | 不另设分支 | 已准备 |
+| [T03 编辑界面与离开提醒](t03-editor.md)，实现/验收 UI 与退出时读 | 共享 UI、Electron 退出适配、实际流程验证 | T01 已合并 | `feat/b001-t03-record-editor` | 已合并，PR #6 |
+| [派工提示词](prompts.md)，追溯原派工范围时读 | 可直接复制的指令 | 遵守每段启动条件 | 不另设分支 | 本批已结束 |
 
 公共文件按任务卡划定。T01 独占 `shared/contracts/src/api.ts` 与 API 传输，T03 仅在 T01 之后扩展必要的桌面窄桥契约。迁移/schema、根 package.json/锁文件本批默认不改；如确实需要，由整合者协调单独明确。CI 不能自行改业务逻辑来消除失败。全局文档、决策日志、批次总表由规划整合者更新。
 
@@ -64,7 +64,7 @@ T03 的前置已满足。推荐复用原 T01 会话和工作树；确认旧任�
 | --- | --- | --- | --- | --- |
 | T01 | `5656991a26f38ffe053e8cddbf0b4e7537174052`；[PR #4](https://github.com/ISQIShI/Recorder/pull/4)；同步 CI 后 HEAD 为 `848782b30ae28c4d1e9762264878321d71364860` | `3115e5d1556910ebad8cced7c60bcb2ff0d26dcd` | 组合 `pnpm check` 18 项测试、两组 Electron smoke、真实更新 IPC 与持久化检查均通过；[PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40203843719) 三项成功 | UI 编辑/离开提醒由 T03 完成 |
 | T02 | `7db3db034bd9c9f32f4815990b9f4d5925f750c7`；[PR #3](https://github.com/ISQIShI/Recorder/pull/3) | `675fa4aee916bbcf1949503c8037134a2431bf54` | [最终 PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40202901462) 三项成功；标题脚本 6 组通过 | 必需检查已启用；无 T02 阻塞 |
-| T03 | 尚未交付 | 未合并 | 未执行编辑界面场景 | 前置已满足，等待用户启动实现会话 |
+| T03 | `2272442b12fdbf6bbeeedd97778dcf47fec64fe7`；[PR #6](https://github.com/ISQIShI/Recorder/pull/6) | `999f3f3132660ca5fbc6acd802c0e7d52778b885` | [PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40208319366) 三项成功；本机复验 26 项测试、基础 Electron、四阶段编辑/退出及真实更新 IPC 通过 | Chrome 提醒出现由用户确认，原生弹窗选择分支未自动验收；Android 继续延后 |
 
 整合者于 2026 年 10 月 25 日先合并 T02，再在自己的审查分支将新 main 合入 T01 并推送原 PR；未修改实现者的工作树。T01 当前提交检查成功后正常 squash 合并，未绕过保护。合并后的 main 与本机复验的组合树完全一致；没有 schema、依赖或额外应用代码变更。
 
@@ -74,4 +74,16 @@ T01 合并后的 main 提交 `3115e5d1556910ebad8cced7c60bcb2ff0d26dcd` 的 [pus
 
 本机组合复验为 Windows / Node 24.14.1 / pnpm 10.33.0：`pnpm check`、`node --test scripts/check-pr-title.test.mjs`、`pnpm test:desktop`、`pnpm test:records:desktop`、`node backend/test/record-edit-desktop.mjs` 和 `git diff --check` 均通过。真实更新检查证据在整合工作区忽略目录 `artifacts/t01-update-jIIkwE/`，验证两个 PUT、旧 revision 的 409、renderer 隔离及重启后 revision 2。CI 的 Linux 检查已通过，Linux 生产部署、独立浏览器编辑、Android APK/真机仍未验证。
 
-两个实现工作树及其原有 `.codex/` 均保留，未归档或删除任务分支；任务卡记录了各自路径。用户可将 [T03 提示词](prompts.md) 交给原 T01 会话继续工作。返回 [工作台账](../README.md)。
+### T03 与整批验收
+
+上述 18 项检查为第一轮历史结果。T03 合并前，整合者在其完整 HEAD 上执行 pnpm check（26 项测试）、pnpm test:desktop、pnpm test:records:desktop（四阶段）及 node backend/test/record-edit-desktop.mjs，全部通过。实际复验关闭/退出取消后继续保存、批准后进程终止、重启 revision 5 读回与会话撤销；原生确认框仅替换选择结果，保留真实事件链。合并前确认 HEAD、目标基线与三项必需检查未变，正常 squash 合并，main 的应用树与复验版本一致。
+
+独立 Chrome 编辑、双标签页竞争及查看最新的证据来自实现者实际操作，整合者已核对任务卡、冲突截图和原会话中用户对刷新/关闭提醒的人工确认。未将这些证据写成整合者再次执行的浏览器流程，也未声称 Chrome 原生弹窗取消/确认分支自动通过。Linux 图形 Electron、生产部署、其他浏览器与 Android 原生/真机仍未验收。
+
+本批已完成，下一批尚未派工。CI 说明同时改名为 .github/CI.md 并更新引用，避免替代根 README 的仓库主页展示。
+
+### 工作树清理核对
+
+目前有两个实现工作树：31a4/Recorder（T02）与 b74a/Recorder（T01 后复用为 T03）。两者交付提交均已通过 PR 合入 main，会话空闲，无未提交业务代码；仍有未跟踪 .codex/，不要用强制删除丢弃配置。
+
+整合者已将 T02 两份 Actions 日志、T03 三份验证日志、两张截图及四阶段结果 JSON 复制到主工作区忽略目录 artifacts/b001-handoff-20261025/，未复制运行数据库或凭据，也未提交本机证据。两个工作树不再是保留成果的必要条件，可以由各自会话/用户通过 Codex 归档；本主会话没有其工作树附件，未绕过归属手工删除。归档前仍应保全用户另外需要的忽略文件，详见 [Git 工作流](../../current/development/git-workflow.md)。返回 [工作台账](../README.md)。

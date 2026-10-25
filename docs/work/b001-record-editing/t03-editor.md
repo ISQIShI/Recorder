@@ -1,6 +1,6 @@
 # B001-T03：编辑界面、草稿冲突与离开提醒
 
-状态：待整合；实现及本机验收完成，尚未合并。阅读时机：实现/验收编辑界面与正常退出时；先读 [批次计划](README.md)、[编辑契约](../../current/interfaces/record-editing.md)、shared/desktop/web README 和 T01 实际交付。
+状态：已合并，PR #6；交付与整合结果见末节。阅读时机：实现/验收编辑界面与正常退出时；先读 [批次计划](README.md)、[编辑契约](../../current/interfaces/record-editing.md)、shared/desktop/web README 和 T01 实际交付。
 
 分支建议 `feat/b001-t03-record-editor`，PR 目标 `main`。基线必须是已包含 T01 的最新 main，记录完整 SHA；不能基于 T01 的未合并任务分支，不提前实现不同接口。
 
@@ -81,4 +81,10 @@
 
 ### 请整合者汇总的文档事实
 
-合并后请更新批次总表、`docs/current/technical-status.md`、`docs/current/interfaces/record-editing.md`、`docs/current/development/first-record-flow.md`、工程基线与 AGENTS 中“T03 尚待实现”的状态：共享手动编辑、冲突内存草稿及 Web/Electron 正常离开提醒已实现；注明 Chrome 的自动操作证据与用户人工提醒确认、Windows Electron 真实退出检查范围及上述未验证项。无需修改 API、schema、数据保留决定或扩展下一批范围。当前任务等待整合，不自行开始下一项。
+实现者交付时请求更新全局状态；整合者已据实际结果落实。
+
+## 整合结果
+
+整合者审阅的完整 HEAD 为 `2272442b12fdbf6bbeeedd97778dcf47fec64fe7`，基线为 `a7878684c1d2ee004e235e20e9e0d3d6a4386656`。本机 `pnpm check`（26 项测试）、基础 Electron、四阶段记录编辑/退出及真实更新 IPC 检查均通过；[PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40208319366) 的 Windows/Linux/标题检查成功后正常 squash 合并为 `999f3f3132660ca5fbc6acd802c0e7d52778b885`。未改应用代码、接口、schema 或依赖来完成整合。
+
+Chrome 操作与截图来自实现者验收；整合者已核对原会话中用户对刷新/关闭提醒的明确确认，保留上述未执行范围。选定日志、截图及四阶段 JSON 已复制到主工作区忽略目录 `artifacts/b001-handoff-20261025/t03/`。本任务及 B001 均已完成；工作树清理情况见 [批次记录](README.md)。

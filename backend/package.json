@@ -1,0 +1,26 @@
+{
+  "name": "@recorder/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json",
+    "dev": "tsx src/main.ts",
+    "start": "node dist/main.js",
+    "verify:generate": "drizzle-kit generate --config drizzle.validation.config.ts --name validation"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6",
+    "@deepseek-ai/cordis-plugin-include": "1.0.10",
+    "node-addon-require-builtin": "0.1.9",
+    "@recorder/contracts": "workspace:*",
+    "fastify": "5.12.7",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.11"
+  }
+}

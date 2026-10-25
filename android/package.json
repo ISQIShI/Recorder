@@ -1,0 +1,20 @@
+{
+  "name": "@recorder/android",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "native:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@recorder/client": "workspace:*",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/android": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "vite": "8.3.5"
+  }
+}

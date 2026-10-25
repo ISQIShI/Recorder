@@ -1,0 +1,17 @@
+{
+  "name": "@recorder/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "vite --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@recorder/client": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "8.3.5"
+  }
+}

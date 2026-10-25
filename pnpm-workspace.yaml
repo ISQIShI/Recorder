@@ -1,0 +1,9 @@
+packages:
+  - backend
+  - desktop
+  - web
+  - android
+  - shared/*
+onlyBuiltDependencies:
+  - electron
+  - esbuild

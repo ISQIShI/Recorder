@@ -42,4 +42,47 @@
 
 使用 Conventional Commits，推送任务分支并创建 PR，不自行合并。按 [交付模板](../templates/task-brief.md) 输出任务分支、完整 HEAD、PR、工作树绝对路径、修改文件、检查结果与未执行项。记录应更新的全局说明，留给整合者落实。
 
-实际开工基线/会话/工作树：待领取后填写。实现说明与验证：尚未执行。返回 [批次计划](README.md)。
+### 实际交付（2026 年 10 月 25 日）
+
+状态：待整合；T01 必需 API/传输验收通过，未自行合并或启动下一任务。
+
+- 已同步并核验的完整 main 基线：`fb3e552024f732460dd86c8a6933e7f501f4ecda`。开工时 HEAD/main/origin/main 一致，计划和任务卡齐全；detached HEAD 上建立任务分支，未改动其他工作树或 main。
+- 分支：`feat/b001-t01-record-update-api`。
+- 完整实现/验证提交：`31e35326766b9a7d63219affcb778fdbd3e5b9f1`。本交付区在其后以文档提交补充；最终完整 HEAD 见交付报告和 PR 的 headRefOid，避免在自身提交内记录自指 SHA。
+- PR：[Recorder #4](https://github.com/ISQIShI/Recorder/pull/4)，目标 main，非 Draft，待整合者审查。
+- 会话：本次用户指定的 B001-T01 实现会话；没有可核验的会话 ID，不虚构。
+- 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`。
+- 开工时已有未跟踪 `.codex/environments/`，保留且未提交；运行样本、会话和截图在忽略目录，不纳入 PR。
+
+实现范围：
+
+- `shared/contracts/src/api.ts`：`RecordUpdateInput`、updateRecord 输入/响应、PUT 路由、路径与正文 schema；共用固定路由编码 `encodeApiRequest`。
+- `backend/src/domain.ts` 与允许的四个插件：更新服务契约、业务输入校验、注册操作、immediate 事务内 owner/id/revision 条件更新；成功递增 revision，过期 409，无记录/他人记录 404，失败不写入。
+- `api-http` 补齐 PUT 的 Origin/CSRF/凭据通道、严格 JSON 类型、路径参数和 OpenAPI。保留记录创建摘要、创建请求 ID、身份、来源与创建时间，原始创建重放返回当前表示。
+- Web fetch 与 Electron 连接共用编码，id 只进入路径，正文为 expectedRevision/title/body/format；既有 ApiError/IPC 错误码与主进程 Bearer 隔离不变。
+- 新增 `backend/test/record-edit.test.ts`、`shared/client/test/api-transport.test.ts`；另以 `backend/test/record-edit-desktop.mjs` 和 `record-edit-electron.mjs` 提供需要桌面环境的手动端到端检查。
+- backend/shared/web/desktop README 仅补充局部事实。未改 schema、初始迁移、根依赖/锁文件、UI、CI、批次总表或全局技术状态。
+
+实际验收环境：Windows、Node 24.14.1、pnpm 10.33.0。所有数据库、userData 与端口均隔离。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| `pnpm check` | 通过：全部工程构建和类型检查、18/18 测试（原有 10、新增 8）、文档检查 |
+| `pnpm test:desktop` | 通过：真实 Electron HTTP/IPC/UI 链路、界面插件生命周期和 renderer 隔离 |
+| `pnpm test:records:desktop` | 两阶段通过：账号初始化、保存查询、重启会话保持、退出撤销 |
+| `node backend/test/record-edit-desktop.mjs` | 通过：真实 renderer → preload →主进程 → HTTP 更新、代理核对 PUT 路径/正文/native Bearer、旧 revision 409、renderer 无 token/require、后端重启持久化 revision 2 |
+| 更新持久化与竞争 | plain/markdown 互换、标题/正文保存、身份/来源/创建时间/创建摘要不变；两个数据库连接使用相同 revision 恰好一次 200、一次 409；超时语义下原 revision 重试不再次覆盖，原始创建请求重放不新增记录 |
+| 权限与输入 | 无会话/已撤销会话 401；他人/不存在记录 404；非法 revision、路径、未知/只读字段、正文空白/超长、标题长度、格式均拒绝且不写入；Cookie Origin/CSRF、Host、请求标记、混合凭据与通道隔离通过 |
+| 插件与 OpenAPI | records-api/records/record-store 卸载后更新 503，恢复后数据保留；认证撤回后 HTTP 不可用；OpenAPI 方法/路径参数/四字段正文/错误语义检查通过 |
+| 双端正文检查 | Web 检查实际 fetch 的 PUT/JSON/same-origin Cookie/CSRF；真实 Electron 连接插件单测仅替换宿主 IPC，验证正文、主进程 Bearer、sender/frame、固定操作白名单、错误码与清理；另有真实 Electron 端到端证据 |
+| 文档与源码检查 | 局部 README 更新后 `pnpm check:docs` 通过；两份新增 `.mjs` 的 `node --check` 与 `git diff --check` 通过；交付区更新后再检查文档链接 |
+
+真实 Electron 更新证据目录：`artifacts/t01-update-1pgBaR/`，包含隔离数据库、profile 和 result.json；常规两组 smoke 的结果位于 artifacts。测试脚本已纳入本任务允许的 backend/test，可由整合者重跑，不依赖未提交的临时 harness。
+
+环境重试说明：首次沙箱依赖安装遇网络解析/链接失败，权限重试后按冻结锁文件安装成功；Electron 基础 smoke 首次在沙箱内以 2147483651 退出，获桌面运行权限后通过。补充端到端 harness 调试中修正过观测时机和 Electron ready 调用；提交版已重跑通过，以上失败不视为功能通过证据。
+
+未执行：Linux、独立浏览器编辑界面、Android APK/真机、生产部署/性能；T03 的编辑表单、草稿及离开提醒未实现。Web 本任务仅验收 fetch 编码和真实后端 Cookie 安全路径，不声称已有独立浏览器编辑端到端。当前无新增产品/数据选择，无已知 T01 阻塞。
+
+希望整合者更新的全局事实：记录更新 API 与双端传输已实现且验收；编辑契约、账号记录流程和技术状态应区分“API/传输完成”与“T03 UI/离开提醒尚未完成”；批次总表记录实际 PR/最终合并 SHA 与组合验证。本实现者未改这些文件。
+
+返回 [批次计划](README.md)。

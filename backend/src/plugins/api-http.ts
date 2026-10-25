@@ -37,14 +37,30 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
         const route = apiRoutes[method];
         const path = route.path.replace(':id', '{id}');
         const properties = (route.input as { properties: Record<string, object>; required: readonly string[] });
+        const writes = route.method !== 'GET';
+        const parameters = (schema: { properties: Record<string, object>; required: readonly string[] }, location: 'path' | 'query') =>
+          Object.entries(schema.properties).map(([name, value]) => ({ name, in: location, required: schema.required.includes(name), schema: value }));
         (paths[path] ??= {})[route.method.toLowerCase()] = {
           operationId: method, security: route.authenticated ? [{ cookieSession: [] }, { bearerSession: [] }] : [],
-          ...(route.method === 'POST' ? { requestBody: { required: true, content: { 'application/json': { schema: route.input } } } }
-            : { parameters: Object.entries(properties.properties).map(([name, schema]) => ({ name, in: method === 'getRecord' ? 'path' : 'query', required: properties.required.includes(name), schema })) }),
-          responses: { '200': { description: 'Success', content: { 'application/json': { schema: apiResponses[method] } } }, '401': { description: 'Missing, expired or revoked session' }, '503': { description: 'Required plugin unavailable' } },
+          parameters: [...('params' in route ? parameters(route.params, 'path') : []), ...(!writes ? parameters(properties, 'query') : [])],
+          ...(writes ? { requestBody: { required: true, content: { 'application/json': { schema: route.input } } } } : {}),
+          responses: { '200': { description: 'Success', content: { 'application/json': { schema: apiResponses[method] } } },
+            '400': { description: 'Invalid input or ambiguous credentials' }, '401': { description: 'Missing, expired or revoked session' },
+            '403': { description: 'Host, Origin, request marker or CSRF rejected' },
+            ...(method === 'getRecord' || method === 'updateRecord' ? { '404': { description: 'NOT_FOUND: record missing or owned by another account' } } : {}),
+            ...(method === 'updateRecord' ? { '409': { description: 'REVISION_CONFLICT: expectedRevision is stale; no changes written' } } : {}),
+            '503': { description: 'Required plugin unavailable' } },
         };
         server.route({ method: route.method, url: route.path,
-          schema: { ...(route.method === 'POST' ? { body: route.input } : method === 'getRecord' ? { params: route.input } : { querystring: route.input }), response: { 200: apiResponses[method] } },
+          schema: { ...('params' in route ? { params: route.params } : {}), ...(writes ? { body: route.input } : { querystring: route.input }), response: { 200: apiResponses[method] } },
+          preValidation: async request => {
+            // Reject coercion of JSON update fields; GET query coercion remains unchanged.
+            if (method === 'updateRecord') {
+              const body = request.body as Record<string, unknown> | null;
+              if (!body || !Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1
+                || !['title', 'body', 'format'].every(key => typeof body[key] === 'string')) throw failure(400, 'INVALID_INPUT', '输入格式不正确');
+            }
+          },
           async handler(request, reply) {
             const authorization = request.headers.authorization;
             const cookies = (request.headers.cookie ?? '').split(';').map(s => s.trim()).filter(s => s.startsWith('recorder_session='));
@@ -52,11 +68,11 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
             const channel: Channel = request.headers['x-recorder-client'] === 'native' && !request.headers.origin ? 'native' : 'web';
             if (channel === 'web' && authorization) throw failure(400, 'INVALID_CREDENTIALS_MODE', '浏览器应使用会话 Cookie');
             if (channel === 'native' && cookies.length) throw failure(400, 'INVALID_CREDENTIALS_MODE', '原生客户端应使用独立会话');
-            if (channel === 'web' && route.method === 'POST' && !request.headers.origin) throw failure(403, 'ORIGIN_REQUIRED', '浏览器写请求需要来源校验');
+            if (channel === 'web' && writes && !request.headers.origin) throw failure(403, 'ORIGIN_REQUIRED', '浏览器写请求需要来源校验');
             const token = channel === 'native' ? (authorization?.startsWith('Bearer ') ? authorization.slice(7) : '') : cookies[0]?.slice('recorder_session='.length) ?? '';
             const principal = route.authenticated ? ctx.recorderAuth.authenticate(token, channel) : undefined;
-            if (principal && channel === 'web' && route.method === 'POST' && request.headers['x-csrf-token'] !== ctx.recorderAuth.csrf(token)) throw failure(403, 'CSRF_REJECTED', '会话校验失败，请刷新后重试');
-            const input = route.method === 'POST' ? request.body : method === 'getRecord' ? request.params : request.query;
+            if (principal && channel === 'web' && writes && request.headers['x-csrf-token'] !== ctx.recorderAuth.csrf(token)) throw failure(403, 'CSRF_REJECTED', '会话校验失败，请刷新后重试');
+            const input = { ...(writes ? request.body as object : request.query as object), ...('params' in route ? request.params as object : {}) };
             const result = await ctx.recorderApiOperations.call(method, { input, channel, ...(principal ? { principal } : {}) });
             if (result.token) {
               if (channel === 'web') reply.header('set-cookie', `recorder_session=${result.token}; HttpOnly; SameSite=Strict; Path=/api${result.remember ? '; Max-Age=2592000' : ''}`);

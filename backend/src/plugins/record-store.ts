@@ -13,6 +13,18 @@ export function apply(ctx: Context) {
   const instanceId = ctx.recorderIdentityStore.instanceId;
   ctx.provide('recorderRecordStore', {
     instanceId,
+    update(ownerId, input, now) {
+      return db.transaction(tx => {
+        const owned = and(eq(records.ownerId, ownerId), eq(records.id, input.id));
+        const previous = tx.select().from(records).where(owned).get();
+        if (!previous) throw failure(404, 'NOT_FOUND', '记录不存在');
+        const row = tx.update(records).set({ title: input.title, body: input.body, format: input.format,
+          revision: sql`${records.revision} + 1`, updatedAt: now })
+          .where(and(owned, eq(records.revision, input.expectedRevision))).returning().get();
+        if (!row) throw failure(409, 'REVISION_CONFLICT', '记录已被修改，请获取最新版本并保留自己的草稿');
+        return expose(row);
+      }, { behavior: 'immediate' });
+    },
     create(ownerId, input, hash, id, now) {
       return db.transaction(tx => {
         const previous = tx.select().from(records).where(and(eq(records.ownerId, ownerId), eq(records.requestId, input.requestId))).get();

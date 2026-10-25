@@ -1,6 +1,6 @@
 # B001-T01：记录更新 API 与双端传输
 
-状态：待开始。阅读时机：实现或验收本任务时；先读 [批次计划](README.md)、[编辑契约](../../current/interfaces/record-editing.md)、backend/shared/desktop/web 工程 README。
+状态：已合并，PR #4；实际交付与整合结果见末节。阅读时机：实现或验收本任务时；先读 [批次计划](README.md)、[编辑契约](../../current/interfaces/record-editing.md)、backend/shared/desktop/web 工程 README。
 
 分支建议 `feat/b001-t01-record-update-api`，PR 目标 `main`；从包含本计划的已同步 main 开始，记录实际完整起点。可与 T02 并行，不依赖 T03。
 
@@ -44,7 +44,7 @@
 
 ### 实际交付（2026 年 10 月 25 日）
 
-状态：待整合；T01 必需 API/传输验收通过，未自行合并或启动下一任务。
+交付当时状态：待整合；T01 必需 API/传输验收通过，实现者未自行合并或启动下一任务。以下保留实现者原验收范围，后续整合结果另记于末节。
 
 - 已同步并核验的完整 main 基线：`fb3e552024f732460dd86c8a6933e7f501f4ecda`。开工时 HEAD/main/origin/main 一致，计划和任务卡齐全；detached HEAD 上建立任务分支，未改动其他工作树或 main。
 - 分支：`feat/b001-t01-record-update-api`。
@@ -85,4 +85,8 @@
 
 希望整合者更新的全局事实：记录更新 API 与双端传输已实现且验收；编辑契约、账号记录流程和技术状态应区分“API/传输完成”与“T03 UI/离开提醒尚未完成”；批次总表记录实际 PR/最终合并 SHA 与组合验证。本实现者未改这些文件。
 
-返回 [批次计划](README.md)。
+### 整合结果（2026 年 10 月 25 日）
+
+原交付完整 HEAD 为 `5656991a26f38ffe053e8cddbf0b4e7537174052`。整合者在自己的分支合入 T02 的 CI 基线，得到 `848782b30ae28c4d1e9762264878321d71364860` 并推送原 PR；没有修改实现者工作树。该 HEAD 的 [Windows/Linux/标题检查](https://github.com/ISQIShI/Recorder/actions/runs/40203843719) 全部通过；本机另复验 18 项测试、6 组标题检查和三组真实 Electron 检查，均通过。
+
+PR #4 已正常 squash 合入 main，最终提交 `3115e5d1556910ebad8cced7c60bcb2ff0d26dcd`；组合树与本机复验版本一致。Linux runner 检查现已补齐，生产部署、独立浏览器编辑和 Android 验证仍未执行。T03 可基于最新 main 开始；API 完成不代表编辑界面已完成。完整整合证据见 [批次计划](README.md)。

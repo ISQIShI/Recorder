@@ -1,12 +1,12 @@
 # B001：记录编辑与自动检查
 
-状态：规划已建立，任务待开始；应用和 CI 均未在本轮实现。更新日期：2026 年 10 月 25 日。
+状态：T01 更新接口、T02 自动检查已合并；T03 编辑界面待开始，前置已满足。整批尚未验收完成。更新日期：2026 年 10 月 25 日。
 
 阅读时机：启动本批任务、检查范围与依赖、接收交付或整合时。长期规则见 [AI 协作](../../current/development/ai-collaboration.md) 与 [Git 工作流](../../current/development/git-workflow.md)。
 
 ## 当前起点与选择理由
 
-审阅起点为 `10ee409da81c3745536d859030fdac8e712e61b3`。已实现账号、创建、查询及 Electron 保存重启流程；当前记录表已有 revision/updatedAt，却没有更新接口和编辑界面。仓库已要求 PR，但尚无 CI。此前 10 项测试通过是上批验证事实，本轮没有重跑应用测试。
+规划时审阅起点为 `10ee409da81c3745536d859030fdac8e712e61b3`：当时已有账号、创建、查询及 Electron 保存重启流程，记录表已有 revision/updatedAt，没有更新接口、编辑界面或 CI。派工基线为计划合并后的 `fb3e552024f732460dd86c8a6933e7f501f4ecda`。此段保留选择背景；当前更新接口与 CI 已完成，实际结果见末节整合记录。
 
 本批先补齐“已有记录可以安全修改”，同时为多 AI 的 PR 建立自动检查。这样无需改动 schema，能独立验收用户价值。回收站需要新增删除状态，而迁移器仅允许 revision 1 初始化 DDL；安全升级与恢复先于该类 schema 扩展，另列后续工作，不塞进本批。
 
@@ -22,17 +22,17 @@
 
 各任务通过 PR 独立合入 `main`，本批无需 integration 分支。供派工的起点是**本计划合并后的 main**，不是上述审阅起点；规划者交付时公布实际 SHA。
 
-第一轮启动 T01 和 T02：用户在 Codex 创建两个工作树，起始分支均选已同步的 `main`。各 AI 检查 HEAD、任务卡及未知修改，然后建立自己的分支；如果 Codex 已建立任务专属 `codex/...` 分支，登记实际名称即可。不要切换或写入其他工作树占用的 main。
+第一轮 T01 和 T02 已由用户在两个独立工作树中完成，均从上述派工基线建立任务分支。原工作树保留，可顺序领取下一项任务。不要切换或写入其他工作树占用的 main。
 
-T03 必须等 T01 已合入 main，再从更新后的 main 创建工作树；不能从旧任务分支开始，不能提前猜接口。最多同时两个实现者足够本批；可以让完成第一轮任务的会话领取 T03，但必须使用已更新的独立任务分支。
+T03 的前置已满足。推荐复用原 T01 会话和工作树；确认旧任务成果已合并、保留已有修改，fetch 后从最新 `origin/main` 建立 `feat/b001-t03-record-editor`。记录实际完整基线 SHA；不从旧任务分支继续提交，也不必在工作树中检出 main。也可以新建工作树。本批只剩 T03，暂不另派 T02 会话新功能。
 
 ## 任务索引与文件归属
 
 | 任务与阅读时机 | 责任 | 前置/并行 | 建议分支 | 状态 |
 | --- | --- | --- | --- | --- |
-| [T01 更新接口与双端传输](t01-update-api.md)，实现/验收数据更新链路时读 | 后端、共享 API 契约、Web/Electron 传输、后端测试 | 可与 T02 并行 | `feat/b001-t01-record-update-api` | 待开始 |
-| [T02 自动检查](t02-ci.md)，配置/审查 CI 时读 | `.github/workflows`、PR 标题检查脚本和操作说明 | 可与 T01 并行 | `ci/b001-t02-quality-checks` | 待开始 |
-| [T03 编辑界面与离开提醒](t03-editor.md)，实现/验收 UI 与退出时读 | 共享 UI、Electron 退出适配、实际流程验证 | 等 T01 合并；可与仍未完成的 T02 并行 | `feat/b001-t03-record-editor` | 待前置合并 |
+| [T01 更新接口与双端传输](t01-update-api.md)，实现/验收数据更新链路时读 | 后端、共享 API 契约、Web/Electron 传输、后端测试 | 前置已交付 | `feat/b001-t01-record-update-api` | 已合并，PR #4 |
+| [T02 自动检查](t02-ci.md)，配置/审查 CI 时读 | `.github/workflows`、PR 标题检查脚本和操作说明 | 前置已交付 | `ci/b001-t02-quality-checks` | 已合并，PR #3 |
+| [T03 编辑界面与离开提醒](t03-editor.md)，实现/验收 UI 与退出时读 | 共享 UI、Electron 退出适配、实际流程验证 | T01 已合并 | `feat/b001-t03-record-editor` | 待开始，可领取 |
 | [派工提示词](prompts.md)，用户准备启动对应 AI 时读 | 可直接复制的指令 | 遵守每段启动条件 | 不另设分支 | 已准备 |
 
 公共文件按任务卡划定。T01 独占 `shared/contracts/src/api.ts` 与 API 传输，T03 仅在 T01 之后扩展必要的桌面窄桥契约。迁移/schema、根 package.json/锁文件本批默认不改；如确实需要，由整合者协调单独明确。CI 不能自行改业务逻辑来消除失败。全局文档、决策日志、批次总表由规划整合者更新。
@@ -62,8 +62,16 @@ T03 必须等 T01 已合入 main，再从更新后的 main 创建工作树；不
 
 | 任务 | 原始 HEAD / PR | 最终合并提交 | 实际验证 | 遗留事项 |
 | --- | --- | --- | --- | --- |
-| T01 | 尚未交付 | 未合并 | 未执行本任务检查 | 待实现 |
-| T02 | 尚未交付 | 未合并 | 未运行 Actions | CI 门槛待启用 |
-| T03 | 尚未交付 | 未合并 | 未执行编辑场景 | 等 T01 合并 |
+| T01 | `5656991a26f38ffe053e8cddbf0b4e7537174052`；[PR #4](https://github.com/ISQIShI/Recorder/pull/4)；同步 CI 后 HEAD 为 `848782b30ae28c4d1e9762264878321d71364860` | `3115e5d1556910ebad8cced7c60bcb2ff0d26dcd` | 组合 `pnpm check` 18 项测试、两组 Electron smoke、真实更新 IPC 与持久化检查均通过；[PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40203843719) 三项成功 | UI 编辑/离开提醒由 T03 完成 |
+| T02 | `7db3db034bd9c9f32f4815990b9f4d5925f750c7`；[PR #3](https://github.com/ISQIShI/Recorder/pull/3) | `675fa4aee916bbcf1949503c8037134a2431bf54` | [最终 PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40202901462) 三项成功；标题脚本 6 组通过 | 必需检查已启用；无 T02 阻塞 |
+| T03 | 尚未交付 | 未合并 | 未执行编辑界面场景 | 前置已满足，等待用户启动实现会话 |
 
-本批尚未派出 AI 或创建实现工作树。规划文档合并只说明任务可领取，不说明功能已完成。返回 [工作台账](../README.md)。
+整合者于 2026 年 10 月 25 日先合并 T02，再在自己的审查分支将新 main 合入 T01 并推送原 PR；未修改实现者的工作树。T01 当前提交检查成功后正常 squash 合并，未绕过保护。合并后的 main 与本机复验的组合树完全一致；没有 schema、依赖或额外应用代码变更。
+
+T01 合并后的 main 提交 `3115e5d1556910ebad8cced7c60bcb2ff0d26dcd` 的 [push CI](https://github.com/ISQIShI/Recorder/actions/runs/40204292128) 也已成功。后续整合文档通过独立 PR 更新；T03 开工时获取最新 main，不固定在上述应用合并提交。
+
+主分支已要求 `Quality (Windows)`、`Quality (Linux)`、`PR title`，来源限定 GitHub Actions（app ID 15368），并要求分支跟上目标。T02 合并后 [main 首次运行](https://github.com/ISQIShI/Recorder/actions/runs/40203761642) 的 Windows job 在下载 Action 时连接超时，尚未执行项目代码；只重试失败 job 后成功。此环境失败保留记录，不归作应用测试失败或略过检查。
+
+本机组合复验为 Windows / Node 24.14.1 / pnpm 10.33.0：`pnpm check`、`node --test scripts/check-pr-title.test.mjs`、`pnpm test:desktop`、`pnpm test:records:desktop`、`node backend/test/record-edit-desktop.mjs` 和 `git diff --check` 均通过。真实更新检查证据在整合工作区忽略目录 `artifacts/t01-update-jIIkwE/`，验证两个 PUT、旧 revision 的 409、renderer 隔离及重启后 revision 2。CI 的 Linux 检查已通过，Linux 生产部署、独立浏览器编辑、Android APK/真机仍未验证。
+
+两个实现工作树及其原有 `.codex/` 均保留，未归档或删除任务分支；任务卡记录了各自路径。用户可将 [T03 提示词](prompts.md) 交给原 T01 会话继续工作。返回 [工作台账](../README.md)。

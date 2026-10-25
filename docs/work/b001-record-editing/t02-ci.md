@@ -1,6 +1,6 @@
 # B001-T02：Windows/Linux 自动检查与 PR 标题
 
-状态：待整合。阅读时机：实现或审查本任务时；先读 [批次计划](README.md)、[Git 工作流](../../current/development/git-workflow.md)、[工程基线](../../current/development/engineering-baseline.md) 与根 package.json。
+状态：已合并，PR #3；main 必需检查已启用，整合结果见末节。阅读时机：实现或审查本任务时；先读 [批次计划](README.md)、[Git 工作流](../../current/development/git-workflow.md)、[工程基线](../../current/development/engineering-baseline.md) 与根 package.json。
 
 分支建议 `ci/b001-t02-quality-checks`，PR 目标 `main`；从包含本计划的已同步 main 开始，记录完整起点。可与 T01 并行，也可与后续 T03 并行。
 
@@ -54,11 +54,15 @@
 
 另实测将此 Draft PR 标题改为 `B001 T02 title rejection probe`，edited 事件触发 [运行 40202749452](https://github.com/ISQIShI/Recorder/actions/runs/40202749452)，其中 [PR title](https://github.com/ISQIShI/Recorder/actions/runs/40202749452/job/121197180306) 按预期 failure；已恢复规范标题并触发重检。这是有意的拒绝用例，不以删除检查或放宽规则解决。恢复/后续提交可能按并发策略取消旧质量 job，以对应运行日志为准。
 
-### 交接与未执行项
+### 交付当时的交接与未执行项
 
 - 建议整合者核验最终 PR 后，启用实际必需检查名称 `Quality (Windows)`、`Quality (Linux)`、`PR title`；本任务未修改 main 保护，也未自批或合并。
 - workflow 的 main push / 手动触发分支已配置，合并前未对 main push 或 workflow_dispatch 事件做远端执行；非 PR 事件无需标题的行为已由独立脚本测试覆盖。
 - 未运行 Electron GUI smoke、Android APK/真机、Linux 生产部署或性能测试；CI 没有下载 Electron 运行二进制。此处只证明实际 hosted runner 上的检查结果。
 - 无跨任务业务/迁移/依赖修改需求；全局技术状态、工程基线、批次总表仍由整合者依据验收更新。工作树保留原有 `.codex/`，忽略的 node_modules、dist 和 `.tmp/` 验证日志不提交；交付时没有应用常驻进程。
 
-返回 [批次计划](README.md)。
+### 整合结果（2026 年 10 月 25 日）
+
+整合者核验交付 HEAD `7db3db034bd9c9f32f4815990b9f4d5925f750c7` 的 [最终 PR 运行](https://github.com/ISQIShI/Recorder/actions/runs/40202901462) 三项成功后，将 PR #3 正常 squash 合并为 `675fa4aee916bbcf1949503c8037134a2431bf54`。随后启用 main 必需检查 `Quality (Windows)`、`Quality (Linux)`、`PR title`，限定 GitHub Actions 来源并要求分支跟上目标，保留其余保护。
+
+main push 事件已实际执行：[运行 40203761642](https://github.com/ISQIShI/Recorder/actions/runs/40203761642) 的 Windows job 首次下载 Action 连接超时，在执行项目代码之前失败；重试该 job 后成功。Linux 成功，非 PR 事件的标题 job 按设计跳过。workflow_dispatch 仍未执行。整合者在后续 T01 组合版本另补齐本机 Electron 检查；不扩展本 CI 的 GUI、Android 或部署验证范围。返回 [批次计划](README.md)。

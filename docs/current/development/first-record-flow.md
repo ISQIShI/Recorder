@@ -6,9 +6,9 @@
 
 ## 用户已确认与本轮范围
 
-正文支持纯文本和 Markdown，格式明确保存；首次设置账号密码，之后可记住登录、主动退出并撤销其他会话。当前实现账号初始化、登录、会话查询/撤销、创建记录、列表/分页、标题正文关键字查询和详情。Markdown 本轮以源码编辑和查看，不执行 HTML，也未加入富文本或 Markdown 渲染器。
+正文支持纯文本和 Markdown，格式明确保存；首次设置账号密码，之后可记住登录、主动退出并撤销其他会话。当前实现账号初始化、登录、会话查询/撤销、创建记录、列表/分页、标题正文关键字查询和详情；已补齐记录更新 API、版本冲突保护与 Web/Electron 传输，编辑界面仍待 T03。Markdown 本轮以源码输入和查看，不执行 HTML，也未加入富文本或 Markdown 渲染器。
 
-本轮默认连接 Node.js 本机后端。Android 真机验证按用户要求延后；Android 本地后端、云盘同步、附件、修改删除、标签分类、SSE、提醒、完整备份恢复均未作为本轮已完成项。公开仓库不等于后端已可直接公开部署。
+本轮默认连接 Node.js 本机后端。Android 真机验证按用户要求延后；Android 本地后端、云盘同步、附件、编辑界面/离开提醒、删除、标签分类、SSE、提醒、完整备份恢复均未作为本轮已完成项。公开仓库不等于后端已可直接公开部署。
 
 ## 本机启动和首次设置
 
@@ -50,8 +50,11 @@
 | POST `/api/v1/records` | `requestId`、`title`、`body`、`format` 创建 |
 | GET `/api/v1/records?q=&limit=&offset=` | 分页查询，默认 30、最多 100；按创建时间和 ID 倒序 |
 | GET `/api/v1/records/{id}` | 仅返回当前账号的记录；不属于本人等同不存在 |
+| PUT `/api/v1/records/{id}` | 正文为 `expectedRevision`、`title`、`body`、`format`；原子更新，过期版本返回 409 `REVISION_CONFLICT` |
 
 记录包含全局随机 UUID、owner、来源实例 ID、正文格式/格式版本、修订号和 UTC 毫秒时间。`requestId` 按 owner 唯一，并与内容摘要同事务保存：同键同内容返回原记录，同键不同内容返回 409。重启后仍有效。查询使用参数化 SQL 与字面子串匹配，`%` / `_` 不作为通配符；中文可按子串查找，ASCII 不区分大小写，未实现全文分词或完整 Unicode 大小写折叠。
+
+更新在 immediate 事务内按 owner/id/revision 条件执行，只改标题、正文、格式与 revision/updatedAt；创建请求 ID/摘要、归属、来源与创建时间不变。重复原始创建请求返回同一记录的当前表示。具体更新契约和待实现的交互见 [编辑与版本冲突](../interfaces/record-editing.md)。
 
 SQLite 使用 foreign_keys、WAL、FULL synchronous、5 秒 busy timeout。身份与记录各有 Kit 生成的初始 SQL；运行时不调用 schema push。统一 `recorder_migrations` 记录 namespace/revision/SHA-256/应用时间，在 `BEGIN IMMEDIATE` 事务内按依赖顺序应用并检查外键。重启校验已应用摘要，拒绝历史被改写和代码落后于 schema。
 
@@ -69,8 +72,10 @@ HTTP 校验 Host，拒绝未知 Origin 和 Cookie/Bearer 混用。当前允许 W
 
 ## 验证与已知限制
 
-构建和类型检查通过；`pnpm test` 当前 10 项通过，新增覆盖实际账号初始化、跨重启记录/会话、幂等冲突、账号归属、撤销、插件撤回、Cookie/CSRF/Origin、OpenAPI 输入契约，以及初始迁移回滚、摘要和依赖拒绝。`pnpm test:records:desktop` 实际运行 Electron 完成创建账号、Markdown 保存和查询，然后重启后端及客户端、恢复加密凭据与记录，最后退出并核验会话已撤销；检查通过。基础插件检查 `pnpm test:desktop` 也通过，界面截图已查看。
+构建和类型检查通过；整合者在 T01/T02 组合版本执行 `pnpm check`，当前 18 项测试通过，覆盖账号与记录原有 10 项，以及更新、并发冲突、输入与安全校验、插件撤回和双端传输新增 8 项。独立标题脚本测试另有 6 组通过。Windows/Linux 的 GitHub Actions 检查已通过，并作为 main 合并门槛。
 
-Android 真机和本地运行、Linux 实机、远程 HTTPS、浏览器独立进程端到端与完整恢复仍未验证。账号认证并不能替代备份，当前仍处于早期开发，不应存入唯一一份重要资料。下一批 [B001](../../work/b001-record-editing/README.md) 规划记录修改与自动检查，[编辑契约](../interfaces/record-editing.md) 是待实现依据；安全迁移/恢复与回收站随后推进，再扩大正式使用。
+`pnpm test:records:desktop` 复验账号初始化、Markdown 保存查询、后端/客户端重启后恢复加密凭据与记录、退出撤销；`pnpm test:desktop` 复验基础插件与 renderer 隔离，均通过。`node backend/test/record-edit-desktop.mjs` 实际通过 renderer → preload → 主进程 → HTTP 更新，验证 PUT 路径/正文、旧 revision 的 409、凭据隔离和重启后 revision 2。证据及提交映射见 [B001 台账](../../work/b001-record-editing/README.md)，CI 操作见 [自动检查指南](../../../.github/README.md)。
+
+Linux 目前验证的是 CI runner 上的安装、构建、类型和测试；Linux 生产部署、Android 真机和本地运行、远程 HTTPS、独立浏览器端到端与完整恢复仍未验证。当前仍处于早期开发，不应存入唯一一份重要资料。[B001](../../work/b001-record-editing/README.md) 的 T01/T02 已合并，T03 编辑界面、草稿与离开提醒待实现；安全迁移/恢复与回收站随后推进，再扩大正式使用。
 
 返回 [当前索引](../README.md) 或 [总导航](../../README.md)。

@@ -10,7 +10,7 @@
 Recorder/
   AGENTS.md
   README.md
-  .github/         # PR 交付模板；当前尚无 CI workflow
+  .github/         # PR 交付模板、Windows/Linux CI 与操作说明
   .githooks/       # Conventional Commits 标题检查
   package.json / pnpm-workspace.yaml / pnpm-lock.yaml
   backend/          # src/plugins、src/data、migrations、test、validation/migrations
@@ -46,7 +46,7 @@ Recorder/
 - shared 内不同包分别声明用途；数据契约不反向依赖 Vue，Vue 组件经注入接口使用设备能力，不直接引用平台 SDK。
 - Android 原生代码遵循同一网络契约，具体类型生成方式未定；不要为了“共享”把 Kotlin 代码强行放入前端 TS 包。
 
-依赖声明以实际 package.json 和 workspace 为准。统一脚本、起步版本及验证范围见 [工程基线](engineering-baseline.md)。发布和 CI 策略尚未实施；客户端不为调用诊断接口而打包整个 backend。
+依赖声明以实际 package.json 和 workspace 为准。统一脚本、起步版本及验证范围见 [工程基线](engineering-baseline.md)。CI 已实施，说明见 [自动检查](../../../.github/README.md)；发布策略尚未实施。客户端不为调用诊断接口而打包整个 backend。
 
 ## 插件与运行数据放在哪里
 

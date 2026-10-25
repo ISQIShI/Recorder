@@ -16,7 +16,7 @@
 
 质量检查超时 20 分钟，标题检查 5 分钟；同一 PR 的新运行取消旧运行，两个平台互不因另一平台失败而提前取消。没有 continue-on-error。PR 默认检查 GitHub 生成的合并提交，运行详情中的 head SHA 与实际 checkout SHA 应一同核对。Runner 镜像会更新，交付以每次日志的 Set up job 和 Report runner and toolchain 为准。
 
-整合者核实真实成功运行及检查名称后，再配置必需检查；此提交不修改 main 保护、不自动发布或合并。失败应阅读具体步骤日志，业务/基础测试问题交给对应负责人，不删测试或跳过平台。
+整合者已于 2026 年 10 月 25 日核验 PR #3 的成功运行，并将这三项配置为 main 必需检查，限定 GitHub Actions 来源（app ID 15368）、要求任务分支跟上目标；工作流本身不修改保护、不自动发布或合并。配置与证据见 [Git 工作流](../docs/current/development/git-workflow.md) 和 [B001 整合记录](../docs/work/b001-record-editing/README.md)。失败应阅读具体步骤日志，业务/基础测试问题交给对应负责人，不删测试或跳过平台。仅因 Action 下载超时等基础设施问题失败时，可重试失败 job，保留原失败记录。
 
 ## 锁定工具链与 Action 来源
 

@@ -47,7 +47,7 @@
 - 分支：`feat/b001-t03-record-editor`，目标 `main`；完整 HEAD 见最终交付消息和 PR。
 - 完整开工基线：`a7878684c1d2ee004e235e20e9e0d3d6a4386656`；开工前与交付前均 fetch 核对，T01 PR #4 与 T02 PR #3 已合并，交付时 `origin/main` 仍为此 SHA。
 - 旧 T01 成果及远端提交已保全；本任务从 `origin/main` 新建分支，不在旧任务分支继续提交。原有未跟踪 `.codex/` 保留且不提交；样本、截图、日志及运行库均在忽略目录中。
-- PR：待创建，链接将在交付时补齐；不自行合并。
+- PR：[PR #6](https://github.com/ISQIShI/Recorder/pull/6)，目标 `main`；不自行合并。
 
 ### 实现事实
 
@@ -70,7 +70,7 @@
 | 独立 Chrome 实际操作 | 在本工作树构建的 Web + 隔离后端同源服务完成登录、创建、修改标题/正文/格式、手动保存至版本 2；第二标签页先保存版本 3，原标签页提交得到真实冲突并保留版本 2 草稿，查看版本 3 后原基线仍为 2 |
 | Chrome 刷新/关闭提醒 | **用户人工确认**：“我可以确认刷新和关闭时有弹窗提醒”。自动化曾观察到退出登录 confirm，但取消后的页面核对被工具中断，不能据此声称已自动验证原生弹窗选择分支 |
 
-证据相对本工作树：`artifacts/t03-check.log`、`artifacts/t03-desktop.log`、`artifacts/t03-records-desktop.log`、`artifacts/records-desktop.png`、`artifacts/t03-chrome-conflict.png`；四阶段结果文件位于本次 `artifacts/records-smoke-*` 的 create/resume/discard-quit/discard-close JSON 中。Chrome 样本使用 `artifacts/t03-web-*`，只提交说明，不提交运行数据。
+证据相对本工作树：`artifacts/t03-check.log`、`artifacts/t03-desktop.log`、`artifacts/t03-records-desktop.log`、`artifacts/records-desktop.png`、`artifacts/t03-chrome-conflict.png`；最终四阶段结果文件位于 `artifacts/records-smoke-snTEpk/` 的 create/resume/discard-quit/discard-close JSON 中。Chrome 样本使用 `artifacts/t03-web-*`，只提交说明，不提交运行数据；四个临时浏览器验收服务均已停止。
 
 ### 未执行项与遗留限制
 

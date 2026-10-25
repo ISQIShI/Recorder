@@ -1,6 +1,6 @@
 # B001-T03：编辑界面、草稿冲突与离开提醒
 
-状态：待 T01 合并后开始。阅读时机：实现/验收编辑界面与正常退出时；先读 [批次计划](README.md)、[编辑契约](../../current/interfaces/record-editing.md)、shared/desktop/web README 和 T01 实际交付。
+状态：待开始；T01 已通过 PR #4 合并，启动前置已满足。阅读时机：实现/验收编辑界面与正常退出时；先读 [批次计划](README.md)、[编辑契约](../../current/interfaces/record-editing.md)、shared/desktop/web README 和 T01 实际交付。
 
 分支建议 `feat/b001-t03-record-editor`，PR 目标 `main`。基线必须是已包含 T01 的最新 main，记录完整 SHA；不能基于 T01 的未合并任务分支，不提前实现不同接口。
 
@@ -38,4 +38,4 @@
 
 按 [交付模板](../templates/task-brief.md) 输出完整 HEAD、PR、工作树路径、验证命令/结果、未执行范围、所需全局文档更新。提交与 PR 标题使用 Conventional Commits，不自行合并。
 
-实际开工基线/会话/工作树：等待 T01 合并后填写。实现说明与验证：尚未执行。返回 [批次计划](README.md)。
+可复用原 T01 会话/工作树，保留已有修改后从最新 `origin/main` 建立新的 T03 分支；不能继续使用已 squash 的旧任务分支。具体提示词见 [派工说明](prompts.md)。实际开工基线/会话/工作树由实现者领取时填写。实现说明与验证：尚未执行。返回 [批次计划](README.md)。

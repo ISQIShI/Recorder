@@ -1,10 +1,10 @@
 # B001 可复制的派工提示词
 
-状态：已准备，未启动实现 AI。阅读时机：用户在 Codex 为本批创建工作树并布置任务时。范围与验收以 [批次计划](README.md) 和对应任务卡为准。
+状态：T01/T02 已合并，其提示词仅供追溯；当前可领取 T03，尚未启动。阅读时机：用户在 Codex 布置本批任务时。范围与验收以 [批次计划](README.md) 和对应任务卡为准。
 
-先确保本计划已合入本地同步的 main。第一轮开两个独立工作树，都从 main 开始，分别粘贴 T01/T02；每个 AI 在自己的任务分支提交。Codex 可能使用 detached HEAD，任务提示词会要求核对并建立分支。T03 要等 T01 已合入 main 再开新的工作树。[Codex 工作树说明](https://learn.chatgpt.com/docs/environments/git-worktrees)（核对日期：2026 年 10 月 25 日）。
+第一轮已完成。现在只需将下面 T03 提示词交给原 T01 会话，继续使用其工作树并建立新任务分支；也可用新工作树。先获取最新 main 及本次整合文档，不复用旧任务分支。原 T02 会话暂不需要启动新功能。[Codex 工作树说明](https://learn.chatgpt.com/docs/environments/git-worktrees)（核对日期：2026 年 10 月 25 日）。
 
-## AI 1：T01（现在可领取，前提是规划已合并）
+## AI 1：T01（已合并，保留原派工提示词）
 
 ```text
 你是 Recorder 的实现者，请完成 B001-T01：记录更新 API 与双端传输。
@@ -28,7 +28,7 @@
 遗留问题以及希望整合者更新的文档事实。不要自行开始下一项任务。
 ```
 
-## AI 2：T02（可与 T01 同时开始）
+## AI 2：T02（已合并，保留原派工提示词）
 
 ```text
 你是 Recorder 的实现者，请完成 B001-T02：Windows/Linux 自动检查与 PR 标题检查。
@@ -51,18 +51,24 @@ ci/b001-t02-quality-checks，已有本任务专属 codex 分支可沿用并报�
 本地验证、失败或未执行项；由整合者核验后启用必需检查，不自行合并。
 ```
 
-## AI 3：T03（等 T01 合并后再使用）
+## T03：现在可领取，推荐交给原 AI 1 会话
 
 ```text
 你是 Recorder 的实现者，请完成 B001-T03：编辑界面、冲突草稿与离开提醒。
-先读 AGENTS.md、docs/README.md、docs/current/technical-status.md，
+可以继续使用本会话原来的工作树，无需新建会话或检出 main。
+先读当前 AGENTS.md，检查 git status、分支和 HEAD；保留 .codex/ 等已有内容。
+有未提交成果或旧任务新增提交时先辨明归属，不自动 stash/reset/clean。
+T01 的 PR #4 和 T02 的 PR #3 已合并；核对远端状态并执行 git fetch origin。
+在旧任务成果已保全、切换不会带入无关修改时执行：
+git switch --no-track -c feat/b001-t03-record-editor origin/main
+若该分支已经存在，先核对是否属于本任务，不覆盖或强制重建。
+记录完整基线 SHA，不在已合并的 T01/T02 分支上继续提交。
+
+切换后重新读取最新版 AGENTS.md、docs/README.md、docs/current/technical-status.md，
 再读 docs/work/b001-record-editing/README.md、t03-editor.md，
 docs/current/interfaces/record-editing.md 和 shared/desktop/web README。
-
-先确认 T01 已通过 PR 合入 main，实际 updateRecord 接口和传输已经存在。
-从更新后的 main 建立独立工作树/任务分支 feat/b001-t03-record-editor，
-记录完整基线 SHA；若前置尚未合并，不猜接口开工，报告启动条件不满足。
-已有本任务专属 codex 分支可沿用；保留未知改动，不修改其他工作树。
+确认 updateRecord 的实际契约和双端传输已存在；基线或文档不符先报告。
+只在本工作树和任务分支工作，不修改其他工作树或 main。
 
 按任务卡实现手动编辑、版本冲突保留草稿、错误状态、Web/Electron 离开确认。
 界面与设备行为均为 Cordis 插件；重点验证 Electron 正常退出不会绕过草稿提醒。

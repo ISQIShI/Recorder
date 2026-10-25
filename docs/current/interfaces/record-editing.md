@@ -1,6 +1,6 @@
 # 记录编辑与版本冲突契约
 
-状态：保存方式与冲突原则已获用户确认；下列 API 和任务边界由规划者据此确定，尚未实现。更新日期：2026 年 10 月 25 日。
+状态：保存方式与冲突原则已获用户确认；更新 API、Web/Electron 传输与并发保护已实现并验证，编辑界面、草稿交互和离开提醒待 T03。更新日期：2026 年 10 月 25 日。
 
 阅读时机：实现或验收已有记录的编辑、更新 API、客户端传输、草稿与离开提醒时。当前已实现能力见 [账号与第一条记录流程](../development/first-record-flow.md)，本次任务见 [B001 计划](../../work/b001-record-editing/README.md)。
 
@@ -34,7 +34,7 @@
 
 ## 通信与安全
 
-Web Cookie/CSRF、Electron 主进程 Bearer 共用此操作。当前 HTTP 和客户端传输多处只把 POST 当作带 body 的写操作：实现时必须同时补齐 PUT 的 body、路径参数、OpenAPI、Origin/CSRF 校验和 Electron 转发，不能只新增一个路由。
+Web Cookie/CSRF、Electron 主进程 Bearer 共用此操作。T01 已补齐 PUT 的 body、路径参数、OpenAPI、Origin/CSRF 校验和 Electron 转发，双方使用共享固定路由编码；UI 通过现有 `updateRecord` 调用，不再另写一套请求拼装。
 
 路径 id 与 body 校验分开，客户端将操作输入 id 填入路径，不重复混入 body；HTTP 层组合校验后的参数再调用 Cordis 操作。OpenAPI 清楚区分路径参数和请求体，并记录 400/401/403/404/409/503 等响应语义。保持未知属性拒绝、Host/Origin 校验、凭据通道隔离、IPC sender/frame 校验和 renderer 不接触 token。
 
@@ -69,4 +69,4 @@ HTTP 只分发认证后的调用；`records-api` 注册更新操作，`records` 
 
 真实后端覆盖保存、持久化、竞争更新、归属隔离、输入拒绝、PUT 的 Cookie/CSRF 和 native 通道、插件撤回，以及原创建幂等不变。真实界面覆盖编辑成功、错误保留、两处界面冲突、未保存离开取消/确认、保存后离开、正常 Electron 退出。用隔离样本执行，不用真实资料。
 
-当前以上均为待实现和待验证行为；完成后由整合者在本页及业务流程说明中记录结果。返回 [当前文档索引](../README.md)。
+T01 已通过 [PR #4](https://github.com/ISQIShI/Recorder/pull/4) 合并：真实后端、双端请求编码与安全校验、插件撤回及原创建幂等检查通过；Windows 本机与 Windows/Linux CI 的 18 项测试通过，真实 Electron 更新 IPC、409 与后端重启持久化也已复验。T03 的编辑表单、草稿及离开交互尚未实现，独立浏览器编辑端到端未验证，不能将 API 通过视为整个编辑体验完成。证据见 [B001 整合记录](../../work/b001-record-editing/README.md)。返回 [当前文档索引](../README.md)。

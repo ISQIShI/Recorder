@@ -36,7 +36,7 @@ Conventional Commits 继续约束提交消息；它与分支工作流分别解�
 - `main` 要求 PR，禁止强制推送和删除，要求线性历史，管理员也遵守。
 - 仓库只开启 squash 合并，默认取 PR 标题作为最终提交标题。
 - GitHub 必需审批人数暂设为 0：目前多个 AI 使用同一个用户账号，无法形成独立账号审批。整合者仍必须检查代码、测试和验收项，记录证据；这不等同于独立人员审查。
-- PR 讨论须解决。当前没有配置 GitHub Actions 必需检查，不能声称 CI 已通过；以后 CI 成功运行并确认检查名称后，再设为合并门槛。
+- PR 讨论须解决。已在 T02 成功运行后启用必需检查 `Quality (Windows)`、`Quality (Linux)`、`PR title`，来源限定 GitHub Actions（app ID 15368），且要求任务分支跟上目标分支。操作说明见 [CI 指南](../../../.github/README.md)，实际证据见 [B001 台账](../../work/b001-record-editing/README.md)。
 - 不自动删除远端任务分支；整合者确认交付映射、无后续依赖和工作树保留情况后再清理，防止提前失去任务定位信息。
 
 本地 `commit-msg` 钩子仅检查提交标题，需执行 `git config core.hooksPath .githooks`；它不是服务端保护，也不能阻止他人绕过检查。若规范与线上设置发生漂移，先查明原因并报告，不悄悄放宽保护来合并。[分支保护](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) · [Squash 设置](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/configuring-commit-squashing-for-pull-requests)
@@ -48,6 +48,8 @@ Conventional Commits 继续约束提交消息；它与分支工作流分别解�
 Codex 管理的工作树可能从 detached HEAD 开始。实现者应先检查 `git status`、`git branch --show-current`、`git rev-parse HEAD`，在当前提交上建立任务分支并记录起点，不强制切换到另一分支覆盖已有内容。以实际工作树状态为准，不假定未提交修改、依赖或忽略文件已随工作树准备完毕。[Codex 工作树文档](https://learn.chatgpt.com/docs/environments/git-worktrees)
 
 每张任务卡记录基线的完整提交 SHA、实际起点、任务分支、PR 和工作树路径。新任务从已同步并核验的 `main` 开始；本地目录有用户修改时，先保留并辨明范围，不自动 stash、reset 或清理。
+
+同一会话和工作树可以顺序处理多个任务；一项任务一条短期分支，不要求每项任务新建目录或会话。主仓库更新 main 只更新共享引用，不会把改动自动合入其他工作树当前检出的任务分支。前项已合并且成果保全后，在原工作树 `git fetch origin`，核对修改，再用 `git switch --no-track -c <新任务分支> origin/main` 建立新基线；无需检出被主仓库占用的 main。已有同名分支时先核对归属，不强制重建。切换后重新阅读最新指导、技术状态和任务卡，不能只依靠会话中的旧上下文。
 
 各工作树自行安装锁定依赖。运行实例必须隔离端口、数据库目录、Electron 测试配置和临时文件；不能让多个 AI 共用真实 `.recorder/` 或用户桌面资料。业务测试优先使用项目已有的隔离测试脚本；不要把凭据和用户数据复制进新工作树。
 
@@ -68,7 +70,7 @@ Codex 管理的工作树可能从 detached HEAD 开始。实现者应先检查 `
 5. **验证合并结果。** 纯文档运行 `pnpm check:docs`、`git diff --check`。代码变更根据范围运行构建、类型检查和相关测试；批次最终通常运行 `pnpm check`。影响 Electron/账号记录流程时增加相应 smoke。Android 真机仍按用户要求延后，明确未执行范围。
 6. **通过 PR 合并。** 检查远端 PR 的 HEAD 与已审查版本一致、目标没有新增未经验证的变化；变化后重新评估并补测。使用正常 squash 合并，不以管理员绕过失败条件。按顺序处理多个 PR，并对组合结果验收。
 7. **更新台账。** 记录任务原 HEAD、最终主分支提交、PR、检查结果和遗留事项；同步当前技术状态、受影响的架构/运行说明，让用户获得一份整合报告。
-8. **保留与清理。** 确认主分支和远端包含预期成果，保留需要的测试证据，再清理已完成分支与工作树。新的批次基于最终主分支提交启动。
+8. **保留与清理。** 确认主分支和远端包含预期成果，保留需要的测试证据；计划复用的会话和工作树继续保留，仅在不再需要时清理。新的任务基于最新主分支建立新任务分支，不沿用已 squash 的任务分支。
 
 预演成功不等于 PR 已合并；PR 合并不等于产品已发布。若 GitHub 无法访问，可完成本地审查和验证，保留任务分支，恢复访问后再完成 PR 流程。
 

@@ -1,6 +1,6 @@
 # B001：记录编辑与自动检查
 
-状态：T01/T02/T03 全部已合并，本批验收完成；验证范围与限制见末节。更新日期：2026 年 10 月 25 日。
+状态：T01/T02/T03 全部已合并，本批验收完成；验证范围与限制见末节。更新日期：2026 年 10 月 26 日。
 
 阅读时机：启动本批任务、检查范围与依赖、接收交付或整合时。长期规则见 [AI 协作](../../current/development/ai-collaboration.md) 与 [Git 工作流](../../current/development/git-workflow.md)。
 
@@ -80,9 +80,11 @@ T01 合并后的 main 提交 `3115e5d1556910ebad8cced7c60bcb2ff0d26dcd` 的 [pus
 
 独立 Chrome 编辑、双标签页竞争及查看最新的证据来自实现者实际操作，整合者已核对任务卡、冲突截图和原会话中用户对刷新/关闭提醒的人工确认。未将这些证据写成整合者再次执行的浏览器流程，也未声称 Chrome 原生弹窗取消/确认分支自动通过。Linux 图形 Electron、生产部署、其他浏览器与 Android 原生/真机仍未验收。
 
-本批已完成，下一批尚未派工。CI 说明同时改名为 .github/CI.md 并更新引用，避免替代根 README 的仓库主页展示。
+本批已完成；2026 年 10 月 26 日后续已编制 [B002](../b002-migration-recovery/README.md)，实施状态见工作台账。CI 说明同时改名为 .github/CI.md 并更新引用，避免替代根 README 的仓库主页展示。
 
 ### 工作树清理核对
+
+2026 年 10 月 26 日用户澄清本次仅删除远端分支。整合者核对 PR #3/#4/#5/#6/#7 均已合并及远端 HEAD 后，删除 `ci/b001-t02-quality-checks`、`feat/b001-t01-record-update-api`、`docs/b001-first-wave-integration`、`feat/b001-t03-record-editor`、`docs/b001-completion-and-ci-guide` 五条远端分支；该次清理后远端仅剩 main。没有删除本地分支或工作树。下述可归档结论仅为条件说明，不代表执行了归档；复用时从最新 main 建立新任务分支。
 
 目前有两个实现工作树：31a4/Recorder（T02）与 b74a/Recorder（T01 后复用为 T03）。两者交付提交均已通过 PR 合入 main，会话空闲，无未提交业务代码；仍有未跟踪 .codex/，不要用强制删除丢弃配置。
 

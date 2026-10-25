@@ -1,6 +1,6 @@
 # Recorder 当前技术状态
 
-状态：当前工作入口，严格区分已确认与候选。更新日期：2026 年 10 月 25 日。
+状态：当前工作入口，严格区分已确认与候选。更新日期：2026 年 10 月 26 日。
 
 阅读时机：开始新工作、选择实现依据或判断是否需要用户决定时。完整需求与职责分别见 [需求](product/requirements.md)、[架构概览](architecture/overview.md)。
 
@@ -16,9 +16,9 @@
 | HTTP 框架 | Fastify；不替代 Cordis 的业务插件生命周期 |
 | 数据库与驱动 | SQLite + better-sqlite3，在集中后端使用 |
 | 数据访问 | Drizzle 的 SQL 风格查询 + better-sqlite3；基础工程已锁定版本并验证隔离样本 |
-| 迁移工具与执行 | Drizzle Kit 辅助生成迁移，由后端统一协调执行；采用 Recorder 统一命名空间账本 + 受控 SQL 执行适配，具体格式与实现未冻结 |
+| 迁移工具与执行 | Drizzle Kit 辅助生成迁移，由后端统一协调执行；采用 Recorder 统一命名空间账本 + 受控 SQL 执行适配；初始版本已实现，B002 [多版本与恢复实施契约](storage/migration-recovery-contract.md) 已规划但未实现 |
 | 插件卸载 | 默认保留数据；清除数据为另行设计的操作 |
-| 结构升级体验 | 可以暂停业务写入并显示维护状态，完成后恢复；优先数据完整与可靠恢复 |
+| 结构升级体验 | 先说明，由用户点击确认后升级；暂停业务写入并先创建恢复点，优先数据完整与可靠恢复；普通启动不自动同意升级 |
 | 日常备份体验 | 尽量保持可用，只接受很短的快照窗口；不能把大文件复制和异地上传变成全程停写 |
 | 备份副本方向 | 本地独立副本 + 加密异地副本；具体目标、频率和保留期限未定 |
 | 备份恢复主线 | 统一恢复集合 + 后台复制；数据库快照、对应附件、插件数据与必要恢复材料作为一套管理，范围见 [已确认备份主线](storage/backup-baseline.md) |
@@ -29,6 +29,7 @@
 | Windows | Electron；起步版本已锁定，实际窗口验证通过 |
 | 共享 Web 界面 | Vue 3 + TypeScript + Vite；起步版本已锁定，路由等配套仍按需选择 |
 | Android | Capacitor + Vue，必要时用 Kotlin 补充原生能力 |
+| 客户端推进顺序 | 先完善 Windows Electron；Web/Android 根据桌面成果与工作记录后续补齐，不要求功能同步推进；保留现有构建和契约检查，见 [前端技术](architecture/frontend-stack.md) |
 | Android 收集暂存 | 后端不可达时先存手机，连通后自动重试，明确标为尚未保存到后端 |
 | Android 提醒目标 | 尽量准点；短时断网或 PC 后端关机时，已有提醒仍希望继续触发 |
 | 数据归属 | 保存到后端设备；文件默认托管，也保留关联原文件的需求 |
@@ -55,7 +56,7 @@
 | 网络契约细节 | 在已选 HTTP/REST、OpenAPI、SSE 上细化独立文件通道、插件操作入口及并发/幂等协议 | [API 与认证主线](architecture/api-auth-baseline.md) → [接口设计](../design/interfaces/unified-api.md)；完整路径和 schema 未冻结 |
 | 认证后续 | 当前 Cookie / Electron Bearer 已实现；Android 凭据、改密找回、配对、HTTPS 与刷新继续设计 | [已实现账号流程](development/first-record-flow.md) 与 [身份提案](../design/security/identity-device-access.md) |
 | 数据模型细节 | 按已确认模型细化字段、约束、索引、附件对象和少量版本化 JSON | [数据模型主线](storage/data-model-baseline.md) → [模型细化](../design/storage/data-model.md)；具体表结构未冻结 |
-| 迁移机制细节 | 在已选 Recorder 账本与受控执行适配上细化维护独占、版本摘要、依赖排序、逐步事务及显式恢复 | [数据访问主线](storage/data-access-baseline.md) → [核心与插件迁移提案](../design/storage/plugin-migrations.md)；账本格式、执行适配实现、锁与清除契约未冻结 |
+| 迁移后续细节 | B002 独占的具体实现须验证；完整在线维护、恢复启用、复杂表变换与清除操作继续设计 | 已供实现的 B002 子集见 [迁移恢复契约](storage/migration-recovery-contract.md)；更广范围见 [迁移提案](../design/storage/plugin-migrations.md) |
 | 存储生命周期 | 同库业务表、托管文件目录、分阶段提交、回收站与可恢复清理 | [存储设计](../design/storage/storage-lifecycle.md)；SQLite 参数、索引、文件清理与备份策略待定 |
 | 备份与恢复细节 | 细化已确认的统一恢复集合 + 后台复制：短协调窗口、在线数据库快照、不可变附件保留 | [备份恢复提案](../design/storage/backup-recovery.md)；窗口预算、保留保护、清单、恢复切换与密钥管理待定 |
 | restic 集成 | 工具已选；建议由 Cordis 适配插件调用受控子进程，Recorder 统一管理任务 | [restic 集成设计](../design/storage/restic-integration.md)；版本、双目标复制、保留映射、密钥与分发方式未冻结 |
@@ -80,7 +81,7 @@
 
 ## 使用与维护
 
-[B001 记录编辑与自动检查](../work/b001-record-editing/README.md) 已完成：T02（PR #3）、T01（PR #4）和 T03（PR #6）均已合并，验证证据与局限见批次记录。下一批尚未派工；建议先落实后续迁移与最小恢复演练，再实现需要 schema 扩展的回收站。此建议不是完整 MVP 或排期。
+[B001 记录编辑与自动检查](../work/b001-record-editing/README.md) 已完成：T02（PR #3）、T01（PR #4）和 T03（PR #6）均已合并，验证证据与局限见批次记录。[B002](../work/b002-migration-recovery/README.md) 已规划多版本迁移、升级恢复点、维护 CLI 与隔离恢复演练，三项顺序实施；尚未启动实现会话。后续再接桌面升级确认界面与需要 schema 扩展的回收站，不要求 Web/Android 同步推进。此安排不是完整 MVP 或排期。
 
 当前完成基础工程及账号初始化、登录、会话撤销、记录保存、列表/关键字查询、带版本保护的更新 API 与双端传输。验证范围见 [账号与第一条记录流程](development/first-record-flow.md)；版本和首轮插件验证保留在 [工程基线](development/engineering-baseline.md)。手动编辑与离开提醒已完成，草稿仅保存在当前会话内存；初始命名空间迁移已实现，历史版本升级、完整恢复、附件和 restic 集成仍未实现，不冻结完整 MVP 或排期。
 

@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：待开始，T01 已合并，前置已满足。负责会话：由用户启动。更新日期：2026 年 10 月 26 日。
+状态：待整合；PR #11 审查修复已通过本机与 Windows/Linux CI，最终 HEAD 复核见 PR checks 与最终交付。此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 27 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -27,10 +27,58 @@
 
 ## 交付记录
 
-- 实际开工基线 / 工作树 / PR：待填写；完整 HEAD 在交付消息与 PR 提供。
-- 独占实现、支持/拒绝的文件系统与别名、关闭顺序证据：待填写。
-- 恢复点服务契约、清单格式、封存和失败行为：待填写，供 T03 读取。
-- 验证命令、环境、结果及未执行项：尚未执行。
-- 未提交文件、运行进程、需要保留的证据、全局文档更新建议：待填写。
+- 实际基线：`fc11275640bbc631587ee5e61650aa99811ff81c`；已 fetch，核验 PR #9 的 T01 squash `762e98cb3cd2151b9f88a6167dfc218f8b0fdc88` 是 origin/main 的祖先，且迁移实现与 T01 交付相符，包含最新交接/相关文档检查规则。
+- 分支：`feat/b002-t02-upgrade-recovery-points`，从该 origin/main 新建；工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`。原任务成果已提交/推送且已合并；本次切换前仅未跟踪 `.codex/`，已保留，无 stash/reset/clean 或其他工作树操作。
+- [PR #11](https://github.com/ISQIShI/Recorder/pull/11)，目标 main；完整 HEAD 在最终交付及 PR 提供，避免在提交中自引用。
+
+### 实现与 T03 服务交接
+
+类型见 `backend/src/storage-contract.ts`，由 domain 重导出；实现和明确支持限制见 [后端 README](../../../backend/README.md#资料库独占与恢复点b002-t02)。
+
+| 服务/材料 | 实际接口和边界 |
+| --- | --- |
+| `recorderDatabaseOwnership` | `filename/controlFile/assertHeld/retain`；独立控制 SQLite 的 DELETE/EXCLUSIVE 事务，busy_timeout=0。retain 返回 filename/assertHeld/release 租约，停止新租约后等待旧租约释放再 close 控制库；不删除控制文件、强夺或按时间过期 |
+| `recorderDatabase.use(async raw => ...)` / `close()` | 数据库依赖所有权，打开前校验目标相同并 retain；撤回拒绝新 use、等待在途 use、确认 raw 关闭才 release 租约。关闭失败诊断 DATABASE_CLOSE_FAILED 并保留独占，结束阻止关闭的迭代器后可通过停止前保留的服务引用重试 close。业务同步 raw 仍按原生命周期使用，异步快照必须注册 use |
+| `recorderMigrationPlanner.capture?()` | 已向用户说明的可选兼容增补；读取同一份完整安装/保留 SQL 后复用 T01 inspect 算法，返回 `{ plan, installed, retained }`，未重写计划/执行算法。原仅 inspect 替身继续可用，恢复点缺 capture 或任一已应用 SQL 则明确拒绝 |
+| `recorderRecoveryPoints.create(expectedPlanDigest)` | 与源库所有权/数据库/只读计划依赖；驱动 native backup 后核对完整性、外键、成功账本、SQL 原材料摘要、原计划；只有完整封存后返回 RecoveryPoint。普通业务不装配该插件/执行器，不自动为真实旧库升级 |
+| `verify(id)` / `list()` | 重读 manifest/seal、SQL 文件、快照 hash/大小；拒绝未封存 SQLite 旁路文件，在私有同摘要主文件副本检查 integrity/FK/账本；list 区分 valid/invalid/incomplete。T03 仍须匹配当前源库、计划和维护运行，verify 自身不授权升级或恢复 |
+
+恢复目录默认 `<实际 filename>.recovery-points`，可配置独立本地 directory（父目录须已存在，不包含源库）。内部 UUID；`.pending-<id>` → 完整材料/数据库/manifest/seal 校验 → 同父目录 rename 为 UUID。失败保留 pending，不返回可用点、不自动清理。manifest v1 包含源路径、计划与材料摘要、完整计划/成功账本、程序与依赖版本、安装/保留 SQL 元数据和逐文件摘要、数据库大小/hash、校验结果；seal 绑定 manifest SHA-256。明确未归档可执行程序，不承诺仅凭版本号就能重启旧版。
+
+Windows 使用系统 PowerShell/.NET 在创建时设当前 SID 的受保护独占 DACL 并核验；Linux 0700 目录/0600 文件并检查 uid/权限。既有过宽目录拒绝，不改用户 ACL。管理员/root、同一用户、备份权限不被隔离；没有加密/上传。文件 fsync；Linux 目录 fsync，Windows 不声称 Node 目录 fsync 或断电持久性已验证。
+
+实际 filename 优先 realpath，未建库先规范化父目录；不同 dataDir 不影响同一文件的独占。支持 Windows 固定 NTFS 与 Linux 指定本地文件系统类型，实测平台见下表。拒绝网络/映射网络盘、URI/设备/ADS、未知文件系统、多硬链接/非普通库、链接控制文件、悬空文件链接、Linux 文件 bind mount；不能可靠识别的任意别名不宣称支持。目录 symlink/junction 与相对路径已实测；其他文件系统、卷挂载等限制在后端 README。旧版本/第三方工具须停用，协议不防御外部有目录修改权者删除/替换控制文件。
+
+### 验证与证据
+
+Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；样本全部在独立临时目录，未操作真实 `.recorder/`。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| Windows 初轮隔离测试 | 沙箱中 junction/硬链接被 EPERM 拒绝，私有 DACL 目录受 token 限制；不计通过。沙箱外首轮 14/14 通过，见 `artifacts/b002-t02-storage-elevated.log` |
+| 最终 `pnpm check` | 通过：构建、类型、57/57 项测试（原 41 项 + 新增 16 项）、相关文档检查；日志 `artifacts/b002-t02-check.log` |
+| 新增真实 Node 跨进程检查 | 争用立即 DATABASE_BUSY；正常 close、SIGKILL 后重新取得；在途 use 时第二进程仍忙；真实关闭事件顺序 use-finished → database-closed → ownership-closed；不同 dataDir、相对路径和 Windows junction 同锁，硬链接拒绝 |
+| 新增恢复点检查 | 源含已提交 WAL；保留账号/会话/记录值和原生产 SQL；SQL/DB/manifest 篡改、hash 正确但 FK/账本/坏库异常拒绝；备份/材料写入 ENOSPC、封存 EACCES、半成品不可用；进行中撤回、原生 backup 取消与提供者替换；现有过宽 ACL 不被静默修改 |
+| 旧连接竞争测试适配 | 原两个 createApplication 宿主共享库的假设已不成立；改为同一所有权下两条受管理连接与实际 record-store，保留原 200/409、revision、创建身份、重启持久化断言。初次全仓检查因此失败，修复后该文件 4/4 已通过，没有放宽独占或删断言 |
+| Windows `pnpm test:records:desktop` | 四阶段 create/resume/discard-quit/discard-close 均通过；日志 `artifacts/b002-t02-records-desktop.log`，JSON `artifacts/records-smoke-f1ZMFq/`；含正常 app.quit/window.close 取消/批准和重启持久化 |
+| Linux/Windows PR CI | [验证 CI](https://github.com/ISQIShI/Recorder/actions/runs/40338540907)：提交 `fb1f9559cdd01d23351ceb45cc52871046d8ea09` 的 Ubuntu 24.04 与 Windows 2025 均完成 57/57、构建/类型/相关文档和标题检查；日志 `artifacts/b002-t02-verified-ci.log`。初轮 Linux 57/57、Windows 55/57，Windows 临时目录 RUNNER~1 短路径导致两项旧测试按原始输入路径比较失败；已改为规范路径，未放松摘要绑定/真实 close 断言或修改 T01 算法；本机迁移回归 15/15 通过。最后仅补本交付说明，最终 HEAD 复跑以 PR checks 与最终交付链接为准 |
+| 范围与文档 | `git diff --check`、`pnpm check:docs --base fc11275640bbc631587ee5e61650aa99811ff81c` 通过（7 份相关文档，164 个内部链接）；生产 schema/SQL、根依赖/锁文件、CI、shared HTTP、全局文档、批次总表及其他任务卡未改 |
+
+### PR #11 审查修复（审查基线 a36944b）
+
+- 沿用本任务分支；审查起点完整 HEAD 为 `a36944b01fd85cda0dfdb148b260e4b83da1453c`，已 fetch 并核验远端 PR HEAD 相同。未切换 main、未覆盖其他修改，`.codex/` 保留；修复验证期间 PR 暂转 Draft。
+- 数据库 close 不再在 finally 中释放租约：确认真实 raw 已关闭后才 release。`DATABASE_CLOSE_FAILED` 保留底层 cause 并由 Cordis logger 诊断；关闭失败仍独占且拒绝新 use。新增后端生命周期 `recorderDatabase.close()`，结束阻止关闭的迭代器后可重试，不启用新业务；所有权清理等待租约，未恢复前不超时放锁。真实未结束 SELECT 迭代器和独立 Node 宿主证明：失败时 raw.open=true、第二进程 DATABASE_BUSY，结束迭代器并成功重试后才按 database-closed → ownership-closed 释放并允许新宿主。
+- 恢复点创建/verify 共用主文件验证：拒绝未封存 WAL/SHM/journal（包括链接），在新的私有临时目录校验主文件的同摘要副本，再核对原文件未变化。不会把 readonly 误当忽略 WAL；不改变封存格式、不改业务 schema/SQL、不引入依赖或全局 URI 开关。临时副本增加数据库大小的额外空间和复制 I/O；异常中断的 `.pending-validation-*` 只列 incomplete。
+- 回归构造主文件哈希不变但 WAL 含额外业务行，先证明普通 readonly 确实读取额外行，再要求 verify/list 拒绝且不 checkpoint/删除 WAL；另测 native backup 后出现 WAL 时不得封存。保留所有原数据/有效点断言：旧 WAL 快照数据检查改读同摘要隔离副本，避免测试自身以 readonly 打开封存目录后产生 WAL/SHM；新增反复验证不在封存目录创建旁路文件的断言。
+- 本轮 Windows `pnpm check` 通过：构建/类型、60/60 测试（T02 共 19 项，比审查基线新增 3 项）、相关文档检查；日志 `artifacts/b002-t02-review-check.log`。两项定向回归也已通过（`artifacts/b002-t02-review-targeted.log`）。第一轮 T02 全套 18/19，原因是上述旧测试自身生成 WAL/SHM，保持原断言并调整其隔离读取后完整复跑通过；失败记录保留在 `artifacts/b002-t02-review-storage.log`。
+- 真实 Windows Electron `pnpm test:records:desktop` 四阶段 create/resume/discard-quit/discard-close 通过，包括取消正常 app.quit/window.close 后资源仍可用、批准后真正退出、重启持久化；日志 `artifacts/b002-t02-review-electron.log`，JSON `artifacts/records-smoke-YO8BPC/`，截图 `artifacts/records-desktop.png`（脚本的共用输出路径，本轮已刷新）。`pnpm check:docs --base a36944b01fd85cda0dfdb148b260e4b83da1453c` 及 `git diff --check` 通过，仅检查两份变更文档及相关导航。
+- 本轮修复提交 `e12b90da0a9f42ee582fabe20e5b712de6987218` 的 [Windows/Linux CI](https://github.com/ISQIShI/Recorder/actions/runs/40354014784) 已全部成功：Ubuntu 24.04 与 Windows 2025 各 60/60，构建/类型/相关文档及 PR 标题检查通过；日志 `artifacts/b002-t02-review-ci.log`。随后只补充本交付证据，最终 HEAD 的 CI 复核以 PR checks 和最终交付链接为准；此前 57/57 仅代表审查前版本。未自行合并或开始 T03。
+
+### 遗留、未执行与整合建议
+
+- T03 接续：在同一独占下明确确认、创建并核验匹配的恢复点、再次检查计划、维护运行记录和未完成运行启动门禁、逐步执行、最终验证与隔离恢复。T02 没有 CLI、覆盖恢复、真实旧库升级或恢复启用。
+- 未执行真实断电、真实介质写满/损坏、网络/非支持文件系统兼容、Linux 图形 Electron、生产部署、Android 原生/真机、附件/restic/日常备份或性能基准。ENOSPC/EACCES 是受控 API 故障注入，SIGKILL 不等于真实断电。
+- 保留未跟踪 `.codex/` 及忽略 artifacts 中日志/历史证据，不提交本机资料或凭据；失败沙箱临时样本保留为环境证据，未清理用户资料或其他工作树。所有测试/子进程已结束，无常驻业务实例；本任务提交后仅原 `.codex/` 保持未跟踪。
+- 请整合者合并后汇总全局状态、批次台账、迁移恢复契约与存储说明：普通后端独占及可校验恢复点能力已实现，生产仍 identity/records v1；完整维护协调/恢复演练仍待 T03，桌面确认和日常备份不在本任务。
 
 实现完成标“待整合”，只提交自己的分支并开 PR；不自行开始 T03。提示词见 [派工入口](prompts.md)。

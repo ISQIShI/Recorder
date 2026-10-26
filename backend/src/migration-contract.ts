@@ -28,7 +28,11 @@ export interface MigrationPlan {
   steps: MigrationStep[];
   reasons: MigrationReason[];
 }
-export interface MigrationPlanner { inspect(): MigrationPlan }
+export interface MigrationPlanner {
+  inspect(): MigrationPlan;
+  /** Optional, compatible addition: complete SQL materials and plan inspected from the same bytes. */
+  capture?(): { plan: MigrationPlan; installed: Migration[]; retained: Migration[] };
+}
 export interface MigrationExecutionResult { committed: MigrationKey[]; plan: MigrationPlan }
 /** Low-level capability for an explicitly assembled maintenance/test profile, never the business profile. */
 export interface MigrationExecutor { execute(expectedDigest: string): MigrationExecutionResult }

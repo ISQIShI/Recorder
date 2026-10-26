@@ -20,9 +20,13 @@ export function apply(ctx: Context, config: MigrationConfig) {
   if (config.mode !== undefined && !['startup', 'inspect'].includes(config.mode)) throw new MigrationError('INVALID_MANIFEST', 'Unknown migration profile');
   let active = true;
   const raw = ctx.recorderDatabase.raw;
-  const planner: MigrationPlanner = { inspect() {
+  const planner: MigrationPlanner = { capture() {
     if (!active) throw new MigrationError('SERVICE_WITHDRAWN', 'Migration planner has been withdrawn');
-    try { return inspectMigrations(raw, load(config.sources), load(config.retainedSources ?? [])); }
+    const installed = load(config.sources), retained = load(config.retainedSources ?? []);
+    return { plan: inspectMigrations(raw, installed, retained), installed, retained };
+  }, inspect() {
+    if (!active) throw new MigrationError('SERVICE_WITHDRAWN', 'Migration planner has been withdrawn');
+    try { return planner.capture!().plan; }
     catch {
       // Material loading cannot create tables. Keep a structured blocked result for read-only callers.
       const plan = inspectMigrations(raw, []);

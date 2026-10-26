@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Context } from '@deepseek-ai/cordis';
 import Database from 'better-sqlite3';
 import { mkdtemp, copyFile, readFile, writeFile, readdir, unlink, rmdir } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -13,6 +13,7 @@ import { MigrationError, type Migration, type MigrationPlanner, type MigrationSo
 import { createApplication } from '../dist/application.js';
 import { installedMigrations } from '../dist/data/migration-manifest.js';
 import * as database from '../dist/plugins/database.js';
+import * as ownership from '../dist/plugins/database-ownership.js';
 import * as migrations from '../dist/plugins/migrations.js';
 import * as executor from '../dist/plugins/migration-executor.js';
 import { inspectMigrations, ledgerSql } from '../dist/plugins/migrations/plan.js';
@@ -39,6 +40,7 @@ async function fixture(steps: Migration[]) {
     const { sql, ...step } = steps[at]!, path = join(dir.path, at + '.sql');
     await writeFile(path, sql); sources.push({ ...step, file: pathToFileURL(path).href });
   }
+  await ctx.plugin(ownership, { filename: join(dir.path, 'fixture.sqlite') });
   const dbPlugin = await ctx.plugin(database, { filename: join(dir.path, 'fixture.sqlite') });
   const planPlugin = await ctx.plugin(migrations, { sources, mode: 'inspect' });
   const executePlugin = await ctx.plugin(executor);
@@ -225,10 +227,12 @@ test('execution rechecks source SQL/dependencies, schema, ledger and database lo
     f.ctx.recorderDatabase.raw.prepare('UPDATE recorder_migrations SET applied_at = applied_at + 1').run();
     assert.throws(() => runner.execute(external.digest), { code: 'STALE_PLAN' });
     const final = planner.inspect();
+    const canonicalFilename = f.ctx.recorderDatabaseOwnership.filename;
     await f.ctx.fiber.dispose();
     // Copy only after all handles close: identical contents must still require a new location-bound confirmation.
     await copyFile(join(f.dir.path, 'fixture.sqlite'), join(f.dir.path, 'different.sqlite'));
-    const peer = new Database(join(f.dir.path, 'different.sqlite')), reopened = new Database(join(f.dir.path, 'fixture.sqlite'));
+    // The managed provider opens the native canonical path, including Windows 8.3 expansion.
+    const peer = new Database(join(f.dir.path, 'different.sqlite')), reopened = new Database(canonicalFilename);
     try {
       assert.deepEqual(inspectMigrations(peer, [v1, v2]).applied, final.applied);
       assert.equal(inspectMigrations(reopened, [v1, v2]).digest, final.digest);
@@ -324,8 +328,9 @@ test('safe startup refuses an existing database needing a new namespace and clos
   const dir = await directory(), filename = join(dir.path, 'recorder.sqlite');
   const raw = new Database(filename);
   try { execute(raw, production.slice(0, 1)); raw.exec("INSERT INTO identity_users VALUES ('owner','owner','isolated-hash',1,5)"); } finally { raw.close(); }
+  const canonicalFilename = realpathSync.native(filename);
   const closed: Database.Database[] = [], originalClose = Database.prototype.close;
-  t.mock.method(Database.prototype, 'close', function(this: Database.Database) { if (this.name === filename) closed.push(this); return originalClose.call(this); });
+  t.mock.method(Database.prototype, 'close', function(this: Database.Database) { if (this.name === canonicalFilename) closed.push(this); return originalClose.call(this); });
   try {
     await assert.rejects(createApplication({ filename, dataDir: dir.path, http: { port: 0 } }), (error: unknown) => error instanceof MigrationError && error.code === 'UPGRADE_REQUIRED');
     assert.equal(closed.length, 1); assert.equal(closed[0]!.open, false);

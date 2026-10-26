@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：待整合；PR #11 审查修复验证中（暂为 Draft），此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
+状态：待整合；PR #11 审查修复已通过本机与 Windows/Linux CI，最终 HEAD 复核见 PR checks 与最终交付。此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -71,7 +71,8 @@ Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；�
 - 恢复点创建/verify 共用主文件验证：拒绝未封存 WAL/SHM/journal（包括链接），在新的私有临时目录校验主文件的同摘要副本，再核对原文件未变化。不会把 readonly 误当忽略 WAL；不改变封存格式、不改业务 schema/SQL、不引入依赖或全局 URI 开关。临时副本增加数据库大小的额外空间和复制 I/O；异常中断的 `.pending-validation-*` 只列 incomplete。
 - 回归构造主文件哈希不变但 WAL 含额外业务行，先证明普通 readonly 确实读取额外行，再要求 verify/list 拒绝且不 checkpoint/删除 WAL；另测 native backup 后出现 WAL 时不得封存。保留所有原数据/有效点断言：旧 WAL 快照数据检查改读同摘要隔离副本，避免测试自身以 readonly 打开封存目录后产生 WAL/SHM；新增反复验证不在封存目录创建旁路文件的断言。
 - 本轮 Windows `pnpm check` 通过：构建/类型、60/60 测试（T02 共 19 项，比审查基线新增 3 项）、相关文档检查；日志 `artifacts/b002-t02-review-check.log`。两项定向回归也已通过（`artifacts/b002-t02-review-targeted.log`）。第一轮 T02 全套 18/19，原因是上述旧测试自身生成 WAL/SHM，保持原断言并调整其隔离读取后完整复跑通过；失败记录保留在 `artifacts/b002-t02-review-storage.log`。
-- 真实 Windows Electron `pnpm test:records:desktop` 四阶段 create/resume/discard-quit/discard-close 通过，包括取消正常 app.quit/window.close 后资源仍可用、批准后真正退出、重启持久化；日志 `artifacts/b002-t02-review-electron.log`，JSON/截图 `artifacts/records-smoke-YO8BPC/`。`pnpm check:docs --base a36944b01fd85cda0dfdb148b260e4b83da1453c` 及 `git diff --check` 通过，仅检查两份变更文档及相关导航。新 HEAD 的 Windows/Linux CI 待推送后补充；此前 57/57 和 CI 仅代表审查前版本，不代替本轮检查。
+- 真实 Windows Electron `pnpm test:records:desktop` 四阶段 create/resume/discard-quit/discard-close 通过，包括取消正常 app.quit/window.close 后资源仍可用、批准后真正退出、重启持久化；日志 `artifacts/b002-t02-review-electron.log`，JSON/截图 `artifacts/records-smoke-YO8BPC/`。`pnpm check:docs --base a36944b01fd85cda0dfdb148b260e4b83da1453c` 及 `git diff --check` 通过，仅检查两份变更文档及相关导航。
+- 本轮修复提交 `e12b90da0a9f42ee582fabe20e5b712de6987218` 的 [Windows/Linux CI](https://github.com/ISQIShI/Recorder/actions/runs/40354014784) 已全部成功：Ubuntu 24.04 与 Windows 2025 各 60/60，构建/类型/相关文档及 PR 标题检查通过；日志 `artifacts/b002-t02-review-ci.log`。随后只补充本交付证据，最终 HEAD 的 CI 复核以 PR checks 和最终交付链接为准；此前 57/57 仅代表审查前版本。未自行合并或开始 T03。
 
 ### 遗留、未执行与整合建议
 

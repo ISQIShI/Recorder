@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：待整合；本机实现与 Windows/Linux PR CI 已通过。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
+状态：待整合；PR #11 审查修复验证中（暂为 Draft），此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -38,10 +38,10 @@
 | 服务/材料 | 实际接口和边界 |
 | --- | --- |
 | `recorderDatabaseOwnership` | `filename/controlFile/assertHeld/retain`；独立控制 SQLite 的 DELETE/EXCLUSIVE 事务，busy_timeout=0。retain 返回 filename/assertHeld/release 租约，停止新租约后等待旧租约释放再 close 控制库；不删除控制文件、强夺或按时间过期 |
-| `recorderDatabase.use(async raw => ...)` | 数据库依赖所有权，打开前校验目标相同并 retain；撤回拒绝新 use、等待在途 use、close raw、release 租约。业务同步 raw 仍按原生命周期使用，异步快照必须注册 use |
+| `recorderDatabase.use(async raw => ...)` / `close()` | 数据库依赖所有权，打开前校验目标相同并 retain；撤回拒绝新 use、等待在途 use、确认 raw 关闭才 release 租约。关闭失败诊断 DATABASE_CLOSE_FAILED 并保留独占，结束阻止关闭的迭代器后可通过停止前保留的服务引用重试 close。业务同步 raw 仍按原生命周期使用，异步快照必须注册 use |
 | `recorderMigrationPlanner.capture?()` | 已向用户说明的可选兼容增补；读取同一份完整安装/保留 SQL 后复用 T01 inspect 算法，返回 `{ plan, installed, retained }`，未重写计划/执行算法。原仅 inspect 替身继续可用，恢复点缺 capture 或任一已应用 SQL 则明确拒绝 |
 | `recorderRecoveryPoints.create(expectedPlanDigest)` | 与源库所有权/数据库/只读计划依赖；驱动 native backup 后核对完整性、外键、成功账本、SQL 原材料摘要、原计划；只有完整封存后返回 RecoveryPoint。普通业务不装配该插件/执行器，不自动为真实旧库升级 |
-| `verify(id)` / `list()` | 重读 manifest/seal、SQL 文件、快照 hash/大小、integrity/FK/账本；list 区分 valid/invalid/incomplete。T03 仍须匹配当前源库、计划和维护运行，verify 自身不授权升级或恢复 |
+| `verify(id)` / `list()` | 重读 manifest/seal、SQL 文件、快照 hash/大小；拒绝未封存 SQLite 旁路文件，在私有同摘要主文件副本检查 integrity/FK/账本；list 区分 valid/invalid/incomplete。T03 仍须匹配当前源库、计划和维护运行，verify 自身不授权升级或恢复 |
 
 恢复目录默认 `<实际 filename>.recovery-points`，可配置独立本地 directory（父目录须已存在，不包含源库）。内部 UUID；`.pending-<id>` → 完整材料/数据库/manifest/seal 校验 → 同父目录 rename 为 UUID。失败保留 pending，不返回可用点、不自动清理。manifest v1 包含源路径、计划与材料摘要、完整计划/成功账本、程序与依赖版本、安装/保留 SQL 元数据和逐文件摘要、数据库大小/hash、校验结果；seal 绑定 manifest SHA-256。明确未归档可执行程序，不承诺仅凭版本号就能重启旧版。
 
@@ -63,6 +63,15 @@ Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；�
 | Windows `pnpm test:records:desktop` | 四阶段 create/resume/discard-quit/discard-close 均通过；日志 `artifacts/b002-t02-records-desktop.log`，JSON/截图 `artifacts/records-smoke-f1ZMFq/`；含正常 app.quit/window.close 取消/批准和重启持久化 |
 | Linux/Windows PR CI | [验证 CI](https://github.com/ISQIShI/Recorder/actions/runs/40338540907)：提交 `fb1f9559cdd01d23351ceb45cc52871046d8ea09` 的 Ubuntu 24.04 与 Windows 2025 均完成 57/57、构建/类型/相关文档和标题检查；日志 `artifacts/b002-t02-verified-ci.log`。初轮 Linux 57/57、Windows 55/57，Windows 临时目录 RUNNER~1 短路径导致两项旧测试按原始输入路径比较失败；已改为规范路径，未放松摘要绑定/真实 close 断言或修改 T01 算法；本机迁移回归 15/15 通过。最后仅补本交付说明，最终 HEAD 复跑以 PR checks 与最终交付链接为准 |
 | 范围与文档 | `git diff --check`、`pnpm check:docs --base fc11275640bbc631587ee5e61650aa99811ff81c` 通过（7 份相关文档，164 个内部链接）；生产 schema/SQL、根依赖/锁文件、CI、shared HTTP、全局文档、批次总表及其他任务卡未改 |
+
+### PR #11 审查修复（审查基线 a36944b）
+
+- 沿用本任务分支；审查起点完整 HEAD 为 `a36944b01fd85cda0dfdb148b260e4b83da1453c`，已 fetch 并核验远端 PR HEAD 相同。未切换 main、未覆盖其他修改，`.codex/` 保留；修复验证期间 PR 暂转 Draft。
+- 数据库 close 不再在 finally 中释放租约：确认真实 raw 已关闭后才 release。`DATABASE_CLOSE_FAILED` 保留底层 cause 并由 Cordis logger 诊断；关闭失败仍独占且拒绝新 use。新增后端生命周期 `recorderDatabase.close()`，结束阻止关闭的迭代器后可重试，不启用新业务；所有权清理等待租约，未恢复前不超时放锁。真实未结束 SELECT 迭代器和独立 Node 宿主证明：失败时 raw.open=true、第二进程 DATABASE_BUSY，结束迭代器并成功重试后才按 database-closed → ownership-closed 释放并允许新宿主。
+- 恢复点创建/verify 共用主文件验证：拒绝未封存 WAL/SHM/journal（包括链接），在新的私有临时目录校验主文件的同摘要副本，再核对原文件未变化。不会把 readonly 误当忽略 WAL；不改变封存格式、不改业务 schema/SQL、不引入依赖或全局 URI 开关。临时副本增加数据库大小的额外空间和复制 I/O；异常中断的 `.pending-validation-*` 只列 incomplete。
+- 回归构造主文件哈希不变但 WAL 含额外业务行，先证明普通 readonly 确实读取额外行，再要求 verify/list 拒绝且不 checkpoint/删除 WAL；另测 native backup 后出现 WAL 时不得封存。保留所有原数据/有效点断言：旧 WAL 快照数据检查改读同摘要隔离副本，避免测试自身以 readonly 打开封存目录后产生 WAL/SHM；新增反复验证不在封存目录创建旁路文件的断言。
+- 本轮 Windows `pnpm check` 通过：构建/类型、60/60 测试（T02 共 19 项，比审查基线新增 3 项）、相关文档检查；日志 `artifacts/b002-t02-review-check.log`。两项定向回归也已通过（`artifacts/b002-t02-review-targeted.log`）。第一轮 T02 全套 18/19，原因是上述旧测试自身生成 WAL/SHM，保持原断言并调整其隔离读取后完整复跑通过；失败记录保留在 `artifacts/b002-t02-review-storage.log`。
+- 真实 Windows Electron `pnpm test:records:desktop` 四阶段 create/resume/discard-quit/discard-close 通过，包括取消正常 app.quit/window.close 后资源仍可用、批准后真正退出、重启持久化；日志 `artifacts/b002-t02-review-electron.log`，JSON/截图 `artifacts/records-smoke-YO8BPC/`。`pnpm check:docs --base a36944b01fd85cda0dfdb148b260e4b83da1453c` 及 `git diff --check` 通过，仅检查两份变更文档及相关导航。新 HEAD 的 Windows/Linux CI 待推送后补充；此前 57/57 和 CI 仅代表审查前版本，不代替本轮检查。
 
 ### 遗留、未执行与整合建议
 

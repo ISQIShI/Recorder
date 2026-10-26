@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import type { Migration, MigrationPlan, MigrationLedgerEntry } from './migration-contract.js';
 
 export class StorageError extends Error {
-  constructor(public readonly code: 'DATABASE_BUSY' | 'PATH_UNSUPPORTED' | 'OWNERSHIP_LOST' | 'SERVICE_WITHDRAWN' |
+  constructor(public readonly code: 'DATABASE_BUSY' | 'DATABASE_CLOSE_FAILED' | 'PATH_UNSUPPORTED' | 'OWNERSHIP_LOST' | 'SERVICE_WITHDRAWN' |
     'RECOVERY_FAILED' | 'RECOVERY_INVALID' | 'RECOVERY_CANCELLED' | 'STALE_PLAN' | 'MATERIALS_UNAVAILABLE' | 'PERMISSION_DENIED', message: string, options?: ErrorOptions) {
     super(message, options); this.name = 'StorageError';
   }
@@ -14,7 +14,11 @@ export interface DatabaseOwnership {
   assertHeld(): void;
   retain(): OwnershipLease;
 }
-export interface DatabaseUse { use<T>(operation: (raw: Database.Database) => Promise<T>): Promise<T> }
+export interface DatabaseUse {
+  use<T>(operation: (raw: Database.Database) => Promise<T>): Promise<T>;
+  /** Withdraw use and close the handle; retry after ending an iterator that prevented shutdown. */
+  close(): Promise<void>;
+}
 export interface MigrationCapture { plan: MigrationPlan; installed: Migration[]; retained: Migration[] }
 export interface RecoveryMaterial extends Omit<Migration, 'sql'> { file: string; digest: string; role: 'installed' | 'retained' }
 export interface RecoveryManifest {

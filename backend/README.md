@@ -69,7 +69,8 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 | 服务 | 契约与释放边界 |
 | --- | --- |
 | `recorderDatabaseOwnership` | 一个 filename 的所有权；`filename` 是实际规范路径，`controlFile` 是独立控制库路径，`assertHeld()` 检查有效，`retain()` 返回必须 release 的句柄租约。`:memory:` 仅按提供者隔离，无跨进程文件锁 |
-| `recorderDatabase.use(async raw => ...)` | 注册异步数据库使用；开始时检查所有权，数据库撤回后拒绝新使用，等全部在途使用结束再关闭 raw，最后释放所有权租约。快照/异步句柄必须经此入口注册；原 raw 只供生命周期内的同步业务访问，不能在撤回后缓存使用 |
+| `recorderDatabase.use(async raw => ...)` | 注册异步数据库使用；开始时检查所有权，数据库撤回后拒绝新使用，等全部在途使用结束再关闭 raw，确认 raw.open 为 false 后释放所有权租约。快照/异步句柄必须经此入口注册；原 raw 只供生命周期内的同步业务访问，不能在撤回后缓存使用 |
+| `recorderDatabase.close()` | 供宿主停止/插件生命周期清理使用，与 dispose 共用关闭路径，不重新启用服务。未结束的真实查询迭代器可使 close 失败：返回 DATABASE_CLOSE_FAILED（含 cause），Cordis 清理错误进入 logger，独占继续保留且拒绝新 use；结束迭代器后可用此前保留的服务引用重试 close。成功重试确认句柄关闭才释放租约；不自动轮询、超时解锁或吞掉错误。故障未排除时所有权清理会继续等待，须明确诊断后人工处理或停止宿主 |
 | `recorderRecoveryPoints.create(expectedPlanDigest)` | 仅维护 profile 装配。重新 capture 同一计划，归档完整材料，调用驱动原生 backup，完整验证后才返回 RecoveryPoint；不确认、不执行升级 |
 | `verify(id)` / `list()` | 重新校验封存清单、所有 SQL、数据库摘要/大小、integrity/FK/账本；list 分开返回 valid、invalid、incomplete。verify 证明该恢复点内容可校验，不替代 T03 对当前源库/计划/维护记录的匹配 |
 
@@ -83,7 +84,9 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 
 `manifest.json` 保存格式/封存状态、ID/时间、实际源路径与计划/materials 摘要、完整计划与账本、Recorder/Node/SQLite/驱动版本、安装/保留 SQL 元数据及文件摘要、数据库摘要/大小、校验结果；`seal.json` 绑定完整 manifest 的 SHA-256。README.txt 明示没有归档旧版可执行程序，不能仅凭版本号承诺恢复后可启动。文件先 fsync，Linux 再 fsync 子目录；在同一父目录将 pending 原子 rename 为 UUID 是可用性边界，list 从不把 pending 当有效。Windows Node 不提供这里需要的目录 fsync，未验证真实断电持久性；即使有完整封存目录，读取时也必须再次 verify。[better-sqlite3 backup](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md#backupdestination-options---promise) 使用及故障行为按锁定 13.0.3 实测，官方资料核对日期 2026-10-26。
 
-恢复插件撤回时停止接收新调用，让在途 backup 取消/结束并等待清理；数据库 use 和所有权 retain 确保快照完成前 raw/控制库不关闭。默认快照传输超时 60 秒，可配置正整数 `timeoutMs`，最高 300 秒；不是性能承诺。StorageError 的 code 包含 DATABASE_BUSY、PATH_UNSUPPORTED、OWNERSHIP_LOST、SERVICE_WITHDRAWN、RECOVERY_FAILED、RECOVERY_INVALID、RECOVERY_CANCELLED、STALE_PLAN、MATERIALS_UNAVAILABLE、PERMISSION_DENIED；日志仅输出原因，不输出数据库正文、密码摘要或会话秘密。
+封存前和 verify 都拒绝快照相邻的 `-wal`、`-shm`、`-journal`（包括链接）；不删除、checkpoint 或吸收这些未封存文件。readonly SQLite 仍可读 WAL，故验证不会直接打开恢复点原路径：在私有根目录新建 `.pending-validation-<随机值>/`，只复制已核对摘要的快照主文件，再核对副本摘要后以 readonly SQLite 检查 integrity/FK/账本；复核原文件摘要/大小与无旁路文件，确保校验读取与封存主文件一致。正常删除本次已知临时文件和空目录，中断遗留目录按 incomplete 展示，不成为恢复点。校验需要额外一个数据库副本的临时空间及复制 I/O；空间不足明确失败。此复制只针对已由 native backup 生成的恢复点文件，不复制活跃源库/WAL；支持既有 WAL 模式主文件，不改变封存格式。驱动 13.0.3 默认关闭 URI 支持，因此没有依赖进程级 URI 开关来启用 immutable；[SQLite WAL 只读规则](https://www.sqlite.org/wal.html#read_only_databases) 与锁定驱动源码于 2026-10-26 核对。
+
+恢复插件撤回时停止接收新调用，让在途 backup 取消/结束并等待清理；数据库 use 和所有权 retain 确保快照完成前 raw/控制库不关闭。默认快照传输超时 60 秒，可配置正整数 `timeoutMs`，最高 300 秒；不是性能承诺。StorageError 的 code 包含 DATABASE_BUSY、DATABASE_CLOSE_FAILED、PATH_UNSUPPORTED、OWNERSHIP_LOST、SERVICE_WITHDRAWN、RECOVERY_FAILED、RECOVERY_INVALID、RECOVERY_CANCELLED、STALE_PLAN、MATERIALS_UNAVAILABLE、PERMISSION_DENIED；日志仅输出原因，不输出数据库正文、密码摘要或会话秘密。
 
 T03 最小装配顺序为 ownership（filename）→ database（相同 filename）→ migrations（完整 sources/retainedSources，mode inspect）→ recovery-points → 维护协调。维护协调在独占下展示/确认计划，先 `await recorderRecoveryPoints.create(plan.digest)`，再核对计划/恢复点后才能调用独立执行器；失败必须中止。协调者还须保证无业务写入、记录维护运行、核对恢复点与当前资料库/计划的对应关系，并实现隔离恢复，不能把此样本当现成 CLI 或绕过确认的旧库升级入口。普通 createApplication 装配独占，不装配 recovery/executor，不自动创建恢复点或升级旧库。多客户端仍可访问同一业务后端。
 

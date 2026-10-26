@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import Database from 'better-sqlite3';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
-import { closeSync, lstatSync, mkdirSync, openSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync } from 'node:fs';
+import { closeSync, copyFileSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { StorageError, type MigrationCapture, type RecoveryManifest, type RecoveryMaterial, type RecoveryPoint, type RecoveryPoints } from '../storage-contract.js';
 import type { Migration, MigrationLedgerEntry } from '../migration-contract.js';
@@ -55,6 +55,37 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
     pending.add(task); void task.finally(() => pending.delete(task)).catch(() => {}); return task;
   }
   function checkRoot() { assertActive(); return privateDirectory(root); }
+  function rejectSidecars(filename: string) {
+    for (const suffix of ['-wal', '-shm', '-journal']) {
+      try { lstatSync(filename + suffix); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
+      throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot has an unsealed SQLite sidecar');
+    }
+  }
+  async function validateSnapshot(filename: string, ledger: MigrationLedgerEntry[], expected?: RecoveryManifest['snapshot']) {
+    rejectSidecars(filename);
+    const snapshotDigest = await fileDigest(filename), bytes = statSync(filename).size;
+    if (expected && (snapshotDigest !== expected.digest || bytes !== expected.bytes)) throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot checksum mismatch');
+    // readonly SQLite still reads adjacent WAL. Validate an exact main-file copy in a fresh,
+    // private directory instead; no unsealed sidecar can contribute to this connection.
+    const directory = mkdtempSync(join(root, '.pending-validation-')), copy = join(directory, 'database.sqlite');
+    try {
+      copyFileSync(filename, copy);
+      if (await fileDigest(copy) !== snapshotDigest) throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot changed while copying');
+      assertActive();
+      const snapshot = new Database(copy, { readonly: true, fileMustExist: true });
+      try { validateDatabase(snapshot, ledger); } finally { snapshot.close(); }
+      rejectSidecars(filename);
+      if (await fileDigest(filename) !== snapshotDigest || statSync(filename).size !== bytes) throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot changed during validation');
+      return { digest: snapshotDigest, bytes };
+    } finally {
+      // Only remove our own known scratch files; a crash leaves a distinguishable pending directory.
+      for (const suffix of ['', '-wal', '-shm', '-journal']) {
+        try { unlinkSync(copy + suffix); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      }
+      rmdirSync(directory);
+    }
+  }
   async function verify(id: string): Promise<RecoveryPoint> {
     if (!uuid.test(id)) throw new StorageError('RECOVERY_INVALID', 'Invalid recovery point identifier');
     checkRoot();
@@ -82,10 +113,7 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
     }
     checkMaterials({ plan: manifest.plan, installed, retained });
     const filename = join(directory, 'database.sqlite');
-    if (statSync(filename).size !== manifest.snapshot.bytes || await fileDigest(filename) !== manifest.snapshot.digest) throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot checksum mismatch');
-    assertActive();
-    const snapshot = new Database(filename, { readonly: true, fileMustExist: true });
-    try { validateDatabase(snapshot, manifest.ledger); } finally { snapshot.close(); }
+    await validateSnapshot(filename, manifest.ledger, manifest.snapshot);
     return { id, directory, manifestDigest: seal.manifestDigest, manifest };
   }
   const service: RecoveryPoints = {
@@ -113,18 +141,16 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
           return 100;
         } });
         assertActive();
-        const snapshot = new Database(filename, { readonly: true, fileMustExist: true });
-        try { validateDatabase(snapshot, plan.applied); } finally { snapshot.close(); }
+        const snapshot = await validateSnapshot(filename, plan.applied);
         // Re-read every SQL file, not just the database; a corrupt archive is never sealed.
         for (const material of materials) if (digest(readPrivate(join(directory, material.file))) !== material.digest) throw new StorageError('RECOVERY_INVALID', 'Archived migration SQL changed before sealing');
-        const snapshotDigest = await fileDigest(filename);
         assertActive();
         if (planner.inspect().digest !== plan.digest) throw new StorageError('STALE_PLAN', 'Migration plan changed during snapshot');
         validateDatabase(raw, plan.applied);
         const manifest: RecoveryManifest = { formatVersion: 1, state: 'sealed', id, createdAt: new Date().toISOString(),
           source: { filename: owner.filename, planDigest: plan.digest, materialsDigest: plan.materialsDigest }, plan, ledger: plan.applied,
           versions: { ...versions, sqlite: (raw.prepare('SELECT sqlite_version() AS version').get() as { version: string }).version },
-          materials, snapshot: { file: 'database.sqlite', digest: snapshotDigest, bytes: statSync(filename).size },
+          materials, snapshot: { file: 'database.sqlite', ...snapshot },
           validation: { integrity: 'ok', foreignKeys: 'ok', ledger: 'ok', materials: 'ok' }, executableArchived: false };
         const manifestText = JSON.stringify(manifest, null, 2), manifestDigest = digest(manifestText);
         writePrivate(join(directory, 'README.txt'), 'Recorder upgrade recovery point. Contains account/session secrets; keep private.\nNo executable is archived. Version labels alone do not guarantee an older program can start.\nT02 does not restore or replace a database. Use a separately verified isolated recovery procedure.\n');

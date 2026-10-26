@@ -47,7 +47,7 @@ async function fixture(steps = [initial, next], applied = [initial]) {
     return { dir, filename, ctx, owner, db, planner, points, async cleanup() { await ctx.fiber.dispose(); await dir.cleanup(); } };
   } catch (error) { await ctx.fiber.dispose(); await dir.cleanup(); throw error; }
 }
-type Message = { event: string; code?: string; filename?: string; controlFile?: string; events?: string[] };
+type Message = { event: string; code?: string; filename?: string; controlFile?: string; events?: string[]; open?: boolean; cause?: string };
 function host(filename: string, mode = 'hold', dataDir?: string) {
   const child = spawn(process.execPath, ['backend/test/fixtures/storage-host.mjs', filename, mode, ...(dataDir ? [dataDir] : [])], {
     cwd: new URL('../../', import.meta.url), stdio: ['ignore', 'pipe', 'pipe', 'ipc'], windowsHide: true,
@@ -105,6 +105,22 @@ test('relative filenames, distinct dataDirs and real directory symlink/junction 
   } finally { await first.stop(); await dir.cleanup(); }
 });
 
+test('a real unfinished iterator prevents close and retains cross-process ownership until a successful close retry', async () => {
+  const dir = await temp(), filename = join(dir.path, 'library.sqlite'), first = host(filename, 'iterator');
+  try {
+    await first.wait('ready'); first.child.send('close');
+    const failure = await first.wait('close-failed');
+    assert.equal(failure.code, 'DATABASE_CLOSE_FAILED'); assert.equal(failure.open, true);
+    assert.match(failure.cause!, /busy|executing/i);
+    assert.equal((await rejected(filename)).code, 'DATABASE_BUSY');
+    first.child.send('finish-iterator'); const closed = await first.wait('closed'); await first.exit;
+    assert.deepEqual(closed.events, ['database-closed', 'ownership-closed']);
+    const peer = host(filename);
+    try { await peer.wait('ready'); peer.child.send('close'); await peer.wait('closed'); await peer.exit; }
+    finally { await peer.stop(); }
+  } finally { await first.stop(); await dir.cleanup(); }
+});
+
 test('hard links, control-file links and unsupported network/URI paths are explicitly refused', async () => {
   const dir = await temp(), filename = join(dir.path, 'library.sqlite');
   fs.writeFileSync(filename, ''); await link(filename, join(dir.path, 'alias.sqlite'));
@@ -139,13 +155,45 @@ test('WAL-aware native backup seals a private, complete recovery set and leaves 
     assert.equal(verified.manifestDigest, point.manifestDigest); assert.equal(verified.manifest.source.planDigest, plan.digest);
     assert.equal(verified.manifest.materials.length, 2); assert.equal(verified.manifest.executableArchived, false);
     assert.ok(verified.manifest.versions.sqlite); assert.ok(verified.manifest.versions.betterSqlite3);
-    const snap = new Database(join(point.directory, 'database.sqlite'), { readonly: true });
+    // Even readonly inspection can create WAL/SHM beside a WAL-mode file. Inspect an exact
+    // isolated copy so this data assertion does not mutate the sealed recovery directory.
+    const inspection = join(f.dir.path, 'inspect.sqlite'); fs.copyFileSync(join(point.directory, 'database.sqlite'), inspection);
+    assert.equal(hash(await readFile(inspection)), point.manifest.snapshot.digest);
+    const snap = new Database(inspection, { readonly: true });
     try { assert.deepEqual(snap.prepare('SELECT * FROM sample').all(), [{ id: 17, body: 'isolated secret body' }]); } finally { snap.close(); }
     assert.deepEqual(raw.prepare('SELECT * FROM sample').all(), [{ id: 17, body: 'isolated secret body' }]);
     assert.equal((raw.pragma('table_info(sample)') as unknown[]).length, 2);
     const list = await f.ctx.recorderRecoveryPoints.list(); assert.equal(list.valid.length, 1); assert.deepEqual(list.incomplete, []);
+    for (const suffix of ['-wal', '-shm', '-journal']) assert.equal(fs.existsSync(join(point.directory, 'database.sqlite') + suffix), false);
     if (process.platform === 'linux') assert.equal(fs.statSync(point.directory).mode & 0o077, 0);
   } finally { await f.cleanup(); }
+});
+
+test('verify rejects unsealed WAL business rows even when the sealed main-file hash is unchanged', async () => {
+  const f = await fixture(); let writer: Database.Database | undefined;
+  try {
+    f.ctx.recorderDatabase.raw.prepare('INSERT INTO sample VALUES(?,?)').run(1, 'sealed row');
+    const point = await f.ctx.recorderRecoveryPoints.create(f.ctx.recorderMigrationPlanner.inspect().digest);
+    const filename = join(point.directory, 'database.sqlite');
+    // Establish a valid sealed WAL-mode main file before introducing unsealed WAL transactions.
+    const setup = new Database(filename);
+    try { setup.pragma('journal_mode=WAL'); } finally { setup.close(); }
+    await refreshSnapshotHash(point);
+    await f.ctx.recorderRecoveryPoints.verify(point.id);
+    const mainHash = hash(await readFile(filename));
+    writer = new Database(filename); writer.pragma('wal_autocheckpoint=0');
+    writer.prepare('INSERT INTO sample VALUES(?,?)').run(2, 'unsealed WAL row');
+    assert.ok(fs.statSync(filename + '-wal').size > 0);
+    assert.equal(hash(await readFile(filename)), mainHash, 'The manifest-bound main bytes have not changed');
+    const readonly = new Database(filename, { readonly: true, fileMustExist: true });
+    try { assert.deepEqual(readonly.prepare('SELECT body FROM sample ORDER BY id').all(), [{ body: 'sealed row' }, { body: 'unsealed WAL row' }]); }
+    finally { readonly.close(); }
+    await assert.rejects(f.ctx.recorderRecoveryPoints.verify(point.id), { code: 'RECOVERY_INVALID' });
+    const listed = await f.ctx.recorderRecoveryPoints.list();
+    assert.equal(listed.valid.length, 0); assert.deepEqual(listed.invalid, [{ id: point.id, code: 'RECOVERY_INVALID' }]);
+    assert.equal(hash(await readFile(filename)), mainHash, 'Verification must not checkpoint the unsealed WAL');
+    assert.ok(fs.existsSync(filename + '-wal'), 'Verification must not remove unsealed sidecars');
+  } finally { writer?.close(); await f.cleanup(); }
 });
 
 test('snapshot preserves existing identity, session and record values with the original production migration SQL', async () => {
@@ -219,6 +267,24 @@ test('an archive damaged after a successful native backup is rejected before the
     assert.equal((await f.ctx.recorderRecoveryPoints.list()).valid.length, 0);
     assert.equal((raw.pragma('table_info(sample)') as unknown[]).length, 2);
   } finally { t.mock.restoreAll(); await f.cleanup(); }
+});
+
+test('a WAL sidecar introduced after native backup prevents sealing and remains an incomplete recovery point', async t => {
+  const f = await fixture(); let writer: Database.Database | undefined;
+  try {
+    const raw = f.ctx.recorderDatabase.raw, originalBackup = raw.backup.bind(raw);
+    t.mock.method(raw, 'backup', async (filename: string, options: Database.BackupOptions) => {
+      const result = await originalBackup(filename, options);
+      writer = new Database(filename); writer.pragma('journal_mode=WAL'); writer.pragma('wal_autocheckpoint=0');
+      writer.prepare('INSERT INTO sample VALUES(?,?)').run(9, 'unsealed backup row');
+      return result;
+    });
+    await assert.rejects(f.ctx.recorderRecoveryPoints.create(f.ctx.recorderMigrationPlanner.inspect().digest), { code: 'RECOVERY_INVALID' });
+    const listed = await f.ctx.recorderRecoveryPoints.list();
+    assert.equal(listed.valid.length, 0); assert.equal(listed.incomplete.length, 1);
+    assert.equal(fs.existsSync(join(f.filename + '.recovery-points', listed.incomplete[0]!, 'seal.json')), false);
+    assert.deepEqual(raw.prepare('SELECT * FROM sample').all(), []);
+  } finally { writer?.close(); t.mock.restoreAll(); await f.cleanup(); }
 });
 
 test('changed confirmation or incomplete retained migration materials cannot create a usable recovery point', async () => {

@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：待开始，等待 T01 合并。负责会话：由用户启动。更新日期：2026 年 10 月 26 日。
+状态：待开始，T01 已合并，前置已满足。负责会话：由用户启动。更新日期：2026 年 10 月 26 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -8,6 +8,7 @@
 
 - 分支：`feat/b002-t02-upgrade-recovery-points`；PR 目标 `main`。
 - 起点：T01 已合并且通过验证的最新 main；不从 T01 尚未 squash 的任务 HEAD 开始。
+- T01 合并提交为 `762e98cb3cd2151b9f88a6167dfc218f8b0fdc88`；实际起点还须包含本轮交接与相关文档检查规则，从最新 origin/main 记录完整 SHA。可消费 `recorderMigrationPlanner.inspect()` 与独立维护 profile 的 `recorderMigrationExecutor.execute(expectedDigest)`，具体边界见 T01 卡和后端 README。
 - 目标：普通业务后端和维护宿主对同一资料库共享跨进程独占机制；提供可封存、可校验的升级前数据库恢复点。
 - 非目标：完整维护 CLI、桌面 UI、覆盖式恢复、附件/restic/日常备份、自动清理历史恢复点、加密异地上传。
 

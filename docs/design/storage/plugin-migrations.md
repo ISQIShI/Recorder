@@ -6,7 +6,7 @@
 
 ## 1. 前提与总体建议
 
-后续实施更新（2026 年 10 月 26 日）：已实现 namespace revision 1 初始化的摘要账本、依赖排序与事务回滚，见 [当前业务流程](../../current/development/first-record-flow.md)。用户进一步确认先说明升级、手动确认后执行，并先创建恢复点。[B002 实施契约](../../current/storage/migration-recovery-contract.md) 已提炼多版本、独占、恢复点和离线维护/隔离恢复子集，尚未实现；本页其余完整升级、恢复启用与插件清除仍为提案。
+后续实施更新（2026 年 10 月 26 日）：T01 已实现多版本只读计划、版本依赖、摘要/旧账本验证、逐步事务和安全启动，见 [当前业务流程](../../current/development/first-record-flow.md)。用户确认先说明升级、手动确认后执行，并先创建恢复点。[B002 实施契约](../../current/storage/migration-recovery-contract.md) 的独占、恢复点和离线维护/隔离恢复仍待 T02/T03；本页其余完整升级、恢复启用与插件清除仍为提案。
 
 已确认 Drizzle SQL 风格查询 + better-sqlite3，Drizzle Kit 辅助生成迁移，后端以 Recorder 统一命名空间账本 + 受控 SQL 执行适配协调执行；插件卸载默认保留数据。用户可以接受升级期间暂停业务写入并显示维护状态，优先保证数据完整和恢复可靠。日常备份仅接受很短的快照窗口，另见 [备份恢复提案](backup-recovery.md)，不能套用全程停写假设。
 

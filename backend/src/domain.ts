@@ -2,6 +2,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import type Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { ApiMethod, Credentials, Identity, RecordData, RecordInput, RecordUpdateInput, SessionData } from '@recorder/contracts';
+import type { MigrationPlanner, MigrationExecutor } from './migration-contract.js';
+export * from './migration-contract.js';
 export type Channel = 'web' | 'native';
 export interface User { id: string; username: string; passwordHash: string; createdAt: number }
 export interface Principal extends Identity { channel: Channel }
@@ -41,6 +43,8 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     recorderDatabase: { raw: Database.Database; db: BetterSQLite3Database };
     recorderMigrations: { ready: true };
+    recorderMigrationPlanner: MigrationPlanner;
+    recorderMigrationExecutor: MigrationExecutor;
     recorderCrypto: CryptoProvider;
     recorderIdentityStore: IdentityStore;
     recorderAuth: AuthService;

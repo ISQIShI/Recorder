@@ -1,6 +1,6 @@
 # 账号认证与第一条记录流程
 
-状态：本轮实现范围与使用说明；验证结果在末节记录。更新日期：2026 年 10 月 25 日。
+状态：当前实现范围与使用说明；验证结果在末节记录。更新日期：2026 年 10 月 26 日。
 
 阅读时机：运行账号和记录功能，修改认证、会话、记录 API、迁移、客户端连接或验收本轮功能时。架构扩展方向见 [本地宿主与同步](../architecture/local-runtime-sync.md)，所有能力遵守 [全面插件化](../architecture/plugin-everything.md)。
 
@@ -29,7 +29,7 @@
 | 能力 | 提供者与消费者 |
 | --- | --- |
 | 数据库 | `database` 维护 SQLite/Drizzle 连接，effect 关闭资源；业务服务不直接导入该提供者 |
-| 初始迁移 | `migrations` 在统一账本中应用已安装的命名空间清单；完成后才提供 ready 服务 |
+| 迁移与安全启动 | `migrations` 提供只读多版本计划，仅空库初始化或兼容库启动才提供 ready；低层执行器另以维护/测试插件装配 |
 | 身份数据与记录数据 | `identity-store`、`record-store` 实现 repository 契约，当前用 Drizzle；可替换适配不要求重写 UI |
 | 密码学和认证 | `crypto` 提供 Node 密码学适配；`auth` 提供账号、会话、初始化，停止后不能继续完成异步认证写入 |
 | 记录业务 | `records` 校验正文并调用存储契约；API 只接受认证上下文中的 owner |
@@ -60,7 +60,7 @@
 
 SQLite 使用 foreign_keys、WAL、FULL synchronous、5 秒 busy timeout。身份与记录各有 Kit 生成的初始 SQL；运行时不调用 schema push。统一 `recorder_migrations` 记录 namespace/revision/SHA-256/应用时间，在 `BEGIN IMMEDIATE` 事务内按依赖顺序应用并检查外键。重启校验已应用摘要，拒绝历史被改写和代码落后于 schema。
 
-**当前迁移适配仅支持每个命名空间 revision 1 的初始化 DDL**，保留未加载命名空间数据，不自动降级。尚无历史版本升级、备份前置、维护 UI、跨文件恢复或清除数据操作；首次后续 schema 升级前必须补齐这些流程，不能把本次初始化器当完整恢复系统。
+**B002-T01 已支持多 revision 计划与逐步事务，但生产迁移仍只有 revision 1。** 普通启动只自动初始化空库，拒绝需要升级、历史/摘要不可信或数据版本高于代码的已有库；不自动降级。低层执行器由独立 Cordis 插件提供，生产 profile 不加载，当前仅验证隔离样本。真实旧库升级仍需 T02/T03 的独占、恢复点、确认与维护协调，不代表完整恢复系统已完成，见 [实施契约](../storage/migration-recovery-contract.md)。
 
 ## 认证与访问边界
 
@@ -74,10 +74,10 @@ HTTP 校验 Host，拒绝未知 Origin 和 Cookie/Bearer 混用。当前允许 W
 
 ## 验证与已知限制
 
-构建和类型检查通过；整合者在 B001 最终组合版本执行 `pnpm check`，当前 26 项测试通过：原有账号/记录/传输 18 项，以及编辑、守卫、身份变化与退出生命周期新增 8 项。独立标题脚本 6 组由本批 CI 验证，Windows/Linux 及 PR 标题检查均为 main 合并门槛。
+构建和类型检查通过；B001 的 26 项测试保留。2026 年 10 月 26 日整合者在 T01 原始 HEAD 执行 `pnpm build`、`pnpm typecheck`、`pnpm test`，41 项通过（新增迁移测试 15 项），Windows Electron 四阶段复验通过；文档仅查本项相关文件。Windows/Linux 及 PR 标题检查均成功且继续作为 main 合并门槛，具体证据见 [B002 整合记录](../../work/b002-migration-recovery/README.md)。
 
 `pnpm test:records:desktop` 的 create/resume/discard-quit/discard-close 四阶段复验通过，覆盖手动保存、真实 409、失败草稿、正常关闭/退出取消后继续保存、批准后进程终止、重启 revision 5 读回与会话撤销。仅替换原生确认框的选择结果，实际事件链保留。`pnpm test:desktop` 与 `node backend/test/record-edit-desktop.mjs` 也通过。独立 Chrome 编辑、双标签页冲突证据来自实现者实际操作；用户人工确认刷新/关闭提醒出现。证据与范围见 [B001 台账](../../work/b001-record-editing/README.md)，CI 说明见 [自动检查](../../../.github/CI.md)。
 
-Linux 目前验证的是 CI runner 上的安装、构建、类型和测试。Chrome 原生离开弹窗的选择分支未自动验收；其他浏览器、Linux 图形 Electron/生产部署、Android 原生/真机/本地后端、远程 HTTPS 与完整恢复仍未验证。草稿仅在当前窗口内存中，不支持强杀/断电后的恢复。B001 已完成；后续迁移/恢复和回收站尚未派工，当前仍先使用可丢弃样本。
+Linux 目前验证的是 CI runner 上的安装、构建、类型和测试。Chrome 原生离开弹窗的选择分支未自动验收；其他浏览器、Linux 图形 Electron/生产部署、Android 原生/真机/本地后端、远程 HTTPS 与完整恢复仍未验证。草稿仅在当前窗口内存中，不支持强杀/断电后的恢复。B001 及 B002-T01 已完成；T02/T03 与回收站尚未完成，当前仍先使用可丢弃样本。
 
 返回 [当前索引](../README.md) 或 [总导航](../../README.md)。

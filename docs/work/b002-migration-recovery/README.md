@@ -1,6 +1,6 @@
 # B002：多版本迁移与升级恢复演练
 
-状态：待开始；仅规划文档，没有实现或启动其他 AI。更新日期：2026 年 10 月 26 日。
+状态：进行中；T01 已合并并完成本项验收，T02 待开始，T03 等待 T02。更新日期：2026 年 10 月 26 日。
 
 阅读时机：领取、审查、整合本批任务时。入口：[工作台账](../README.md)。长期依据：[升级与恢复演练契约](../../current/storage/migration-recovery-contract.md)、[数据访问主线](../../current/storage/data-access-baseline.md)、[桌面优先交付](../../current/architecture/frontend-stack.md)。
 
@@ -29,8 +29,8 @@
 
 | 任务 | 内容与何时阅读 | 前置 | 分支 | 状态 |
 | --- | --- | --- | --- | --- |
-| [B002-T01](t01-versioned-migrations.md) | 多版本迁移与安全启动；实现/审查计划与执行器时 | 本计划合入 main | `feat/b002-t01-versioned-migrations` | 待开始 |
-| [B002-T02](t02-upgrade-recovery-points.md) | 资料库独占与升级恢复点；实现/审查锁、快照与清单时 | T01 已合并；读取其实际服务契约 | `feat/b002-t02-upgrade-recovery-points` | 待开始，等待 T01 |
+| [B002-T01](t01-versioned-migrations.md) | 多版本迁移与安全启动；实现/审查计划与执行器时 | 本计划合入 main | `feat/b002-t01-versioned-migrations` | 已合并，PR #9 |
+| [B002-T02](t02-upgrade-recovery-points.md) | 资料库独占与升级恢复点；实现/审查锁、快照与清单时 | T01 已合并；读取其实际服务契约 | `feat/b002-t02-upgrade-recovery-points` | 待开始，前置已满足 |
 | [B002-T03](t03-maintenance-recovery-drill.md) | 维护 CLI、恢复演练与组合故障测试；集成/验收时 | T02 已合并；读取前两项交付 | `feat/b002-t03-maintenance-recovery-drill` | 待开始，等待 T02 |
 | [提示词](prompts.md) | 用户向实现会话派发指定任务时复制；每次只发当前可开工的一项 | 核对依赖已进入 main | 不单独建立实现分支 | 已准备 |
 
@@ -59,8 +59,10 @@
 
 | 任务 | HEAD / PR | main 合并提交 | 验证结果 | 遗留 |
 | --- | --- | --- | --- | --- |
-| T01 | 尚未交付 | 尚未合并 | 未执行 | 待开始 |
-| T02 | 尚未交付 | 尚未合并 | 未执行 | 等待 T01 |
+| T01 | `d2a5c369074640455505b4233a933d5e2528881f`；[PR #9](https://github.com/ISQIShI/Recorder/pull/9) | `762e98cb3cd2151b9f88a6167dfc218f8b0fdc88` | [最终 PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40326517187) 三项成功；整合者 Windows 构建、类型、41 项测试、Electron 四阶段和相关文档复验通过 | 独占/恢复点/维护协调仍属 T02/T03 |
+| T02 | 尚未交付 | 尚未合并 | 未执行 | 前置已满足，等待用户启动 |
 | T03 | 尚未交付 | 尚未合并 | 未执行 | 等待 T02 |
 
-组合验收尚未执行。规划文档检查不能证明迁移或恢复能力已实现。完成时由整合者更新当前数据访问/工程/业务状态，并保留具体失败和修复证据。后续建议为桌面升级确认与回收站，届时再细化任务和需要用户决定的体验，不自动启动下一批。
+整合者对 T01 原始 HEAD 核对代码和生产 SQL/schema、依赖、公共 HTTP 契约未变化；Windows 本机执行 `pnpm build`、`pnpm typecheck`、`pnpm test`（41/41）、`pnpm test:records:desktop` 及 `git diff --check`。桌面 smoke 首次在受限沙箱中进程提前退出、无应用结果，放开桌面进程执行权限后四阶段通过，保留为环境失败记录。文档只校验 backend README、T01 卡及批次索引（3 份、39 个内部链接），并人工检查相关契约。最终 CI HEAD 与基线未变后正常 squash 合并，合并树与复验树一致，未修改实现者工作树。
+
+T01 提供多版本计划/执行器和安全启动，不提供真实旧库的维护升级入口。T02/T03 的组合验收尚未执行，恢复点、独占、维护运行记录与隔离恢复未实现。T02 从包含 PR #9 和本轮交接文档的最新 main 开始；继续使用原会话时须新建任务分支。后续桌面升级确认与回收站仍按实际任务细化，不自动启动下一批。

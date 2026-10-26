@@ -1,6 +1,6 @@
 # B002-T01：多版本迁移与安全启动
 
-状态：待整合；本机检查及 Windows/Linux PR CI 已通过。负责会话：原 B001-T03 实现会话顺序复用，由用户明确派发本任务。更新日期：2026 年 10 月 26 日。
+状态：已合并；PR #9 已经整合者审查复验并完成本项验收。负责会话：原 B001-T03 实现会话顺序复用，由用户明确派发本任务。更新日期：2026 年 10 月 26 日。
 
 阅读时机：实现、审查或整合本任务时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[数据访问主线](../../current/storage/data-access-baseline.md) 和 [后端 README](../../../backend/README.md)。Git/协作按根 AGENTS 执行。
 
@@ -26,6 +26,8 @@
 `pnpm test` 覆盖：已有 v1 库及账号/记录不变、空库、非空无账本、多个版本/命名空间拓扑、重复执行、SQL/FK 失败、跨步提交后再次计划、摘要/依赖/降级拒绝，以及启动失败资源释放。使用 fixture 证明 v1→v2→v3，不为测试增加真实业务 migration。执行 `pnpm check`、`git diff --check`；安全启动接线后 Windows 运行 `pnpm test:records:desktop`。Linux 结果以 PR CI 为证，不能由 Windows 通过推断。
 
 ## 交付记录
+
+整合结果：原始 HEAD `d2a5c369074640455505b4233a933d5e2528881f` 经 [PR #9](https://github.com/ISQIShI/Recorder/pull/9) squash 为 `762e98cb3cd2151b9f88a6167dfc218f8b0fdc88`。最终 CI、本机复验、相关文档检查及环境失败记录见 [批次整合记录](README.md)。以下保留实现者交付事实；其中“待整合”的流程说明不再代表当前状态。
 
 - 实际开工基线：`c853abd56070deb148bc1bf546da71082cd64d00`；开工与交付前均 fetch 核对 `origin/main`，包含本批计划、任务卡与契约。
 - 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；仅在本工作树操作，保留原 B001 成果与未跟踪 `.codex/`，未操作主仓库或其他工作树。

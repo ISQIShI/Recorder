@@ -2,7 +2,7 @@
 
 本文件使用 `CI.md` 命名，避免 `.github` 下的 README 覆盖根目录 README 在 GitHub 仓库主页的展示。项目入口见 [根 README](../README.md)。
 
-状态：B001-T02 的 CI 配置与操作说明；实际运行证据见 [任务卡](../docs/work/b001-record-editing/t02-ci.md)。核对日期：2026 年 10 月 25 日。
+状态：当前 CI 配置与操作说明；初始实现证据见 [B001-T02](../docs/work/b001-record-editing/t02-ci.md)，后续变更见工作台账。核对日期：2026 年 10 月 26 日。
 
 阅读时机：审查 [CI workflow](workflows/ci.yml)、排查 Actions 失败或准备配置必需检查时。协作规则见 [Git 工作流](../docs/current/development/git-workflow.md)，工程命令见 [工程基线](../docs/current/development/engineering-baseline.md)。
 
@@ -12,7 +12,7 @@
 
 | 实际配置的 job 名称 | Runner 标签 | 内容 |
 | --- | --- | --- |
-| `Quality (Windows)` | `windows-2025` | 冻结依赖安装、标题脚本测试、`pnpm check` |
+| `Quality (Windows)` | `windows-2025` | 冻结依赖安装、标题及文档范围脚本测试、`pnpm check` |
 | `Quality (Linux)` | `ubuntu-24.04` | 同上 |
 | `PR title` | `ubuntu-24.04` | PR 事件 JSON 中的 Conventional Commits 标题；push/手动事件跳过此 job |
 
@@ -34,6 +34,19 @@ Node 来自 `.node-version`（当前 24.14.1），pnpm 来自根 package.json �
 
 构建只使用 Electron 包和类型，不执行 install-electron 下载运行二进制。`pnpm check` 包含 workspace 构建、类型、现有 Node 测试与文档检查；Electron GUI smoke 和 Android APK/真机验证仍由相应任务单独执行。Linux runner 成功不代表生产部署验证。
 
+## 相关文档检查
+
+用户于 2026 年 10 月 26 日明确以后只检查相关文档。[检查脚本](../scripts/check-docs.mjs) 不遍历整个目录验证全部 Markdown，而是选择本次变更文件、代码所属工程 README、对应上级 README/AGENTS 导航。检查选中文档的 UTF-8、代码围栏、内部链接目标和导航登记；人工再核对受影响的状态事实。索引改动只追加已移除条目对应的文档，不递归审计所有链接页面。
+
+删除/移动文件时搜索潜在引用，再按实际解析到旧路径的链接选择受影响文档；搜索引用不等于全量验证所有文档。未跟踪的用户 `.codex/`、`.agents/` 和构建/运行产物不纳入范围。
+
+- 本地明确基线：`pnpm check:docs --base origin/main`；显式范围：`pnpm check:docs backend/README.md docs/work/b002-migration-recovery/t01-versioned-migrations.md`。两种方式分别使用。
+- 本地无参数：选择 HEAD 与 origin/main 共同祖先以来的提交差异，再加暂存、未暂存及未跟踪文件；若共同祖先已是 HEAD，则比较上一提交。首次提交比较本次新增文件。输出实际基线和文件清单；指定基线缺失会报错，不回退为全仓扫描。
+- CI 质量 job 获取 Git 历史，由 `RECORDER_DOCS_BASE` 传递 PR 的 base SHA 或 push 的 before SHA；手动运行使用上述默认范围。基线作为 Git 参数处理，不插入 shell 命令文本。PR/title 检查权限和必需检查名称不变。
+- [范围脚本测试](../scripts/check-docs.test.mjs) 用隔离 Git 样本覆盖无关坏文档不触发、新文档登记、路径含空格、重命名断链、导航移除、多个提交和错误基线；不接触真实资料库。
+
+`pnpm check` 仍执行构建、类型及业务测试，其中的文档步骤使用上述范围。需要审查较早提交时显式传入相应基线或文件，不能用当前默认输出宣称覆盖了全部旧文档。
+
 ## 标题规则与安全边界
 
 [PR 标题脚本](../scripts/check-pr-title.mjs) 从 GITHUB_EVENT_PATH 读取 JSON，复用 [commit-msg 规则](../scripts/check-commit-message.mjs)。格式为小写字母 type、可选非空 scope、可选 `!`、冒号和一个空格、非空描述；不限制 type 白名单。接受中文描述。拒绝缺少前缀/描述、空 scope、嵌套括号、多行及控制字符。提交钩子仍只检查提交消息第一行。
@@ -44,6 +57,7 @@ Node 来自 `.node-version`（当前 24.14.1），pnpm 来自根 package.json �
 
 ```powershell
 node --test scripts/check-pr-title.test.mjs
+node --test scripts/check-docs.test.mjs
 pnpm check:docs
 pnpm check
 git diff --check

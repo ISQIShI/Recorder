@@ -92,12 +92,13 @@ test('Web cookie, CSRF, origin and ambiguous-credential checks protect mutations
     assert.equal(limited, 429, 'query strings must not bypass login rate limits');
   } finally { await ctx.fiber.dispose(); }
 });
-test('initial namespace migrations roll back, reject checksum edits and preserve retained namespaces', () => {
+test('namespace migrations retain committed steps, reject checksum edits and preserve retained namespaces', () => {
   const db = new Database(':memory:');
   const first = { namespace: 'identity', revision: 1, requires: [], sql: 'CREATE TABLE sample(id INTEGER PRIMARY KEY);' };
   try {
     assert.throws(() => applyMigrations(db, [first, { namespace: 'records', revision: 1, requires: ['identity'], sql: 'CREATE TABLE broken(' }]));
-    assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name='sample'").get(), undefined);
+    assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name='sample'").get(), 'a failed later step cannot roll back the committed prefix');
+    assert.equal(db.prepare<[], { n: number }>('SELECT count(*) AS n FROM recorder_migrations').get()!.n, 1);
     applyMigrations(db, [first]);
     applyMigrations(db, [first]);
     assert.throws(() => applyMigrations(db, [{ ...first, sql: first.sql + ' ' }]), /checksum/);

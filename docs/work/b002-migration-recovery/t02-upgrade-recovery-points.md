@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：待整合；PR #11 审查修复已通过本机与 Windows/Linux CI，最终 HEAD 复核见 PR checks 与最终交付。此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
+状态：待整合；PR #11 审查修复已通过本机与 Windows/Linux CI，最终 HEAD 复核见 PR checks 与最终交付。此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 27 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -60,7 +60,7 @@ Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；�
 | 新增真实 Node 跨进程检查 | 争用立即 DATABASE_BUSY；正常 close、SIGKILL 后重新取得；在途 use 时第二进程仍忙；真实关闭事件顺序 use-finished → database-closed → ownership-closed；不同 dataDir、相对路径和 Windows junction 同锁，硬链接拒绝 |
 | 新增恢复点检查 | 源含已提交 WAL；保留账号/会话/记录值和原生产 SQL；SQL/DB/manifest 篡改、hash 正确但 FK/账本/坏库异常拒绝；备份/材料写入 ENOSPC、封存 EACCES、半成品不可用；进行中撤回、原生 backup 取消与提供者替换；现有过宽 ACL 不被静默修改 |
 | 旧连接竞争测试适配 | 原两个 createApplication 宿主共享库的假设已不成立；改为同一所有权下两条受管理连接与实际 record-store，保留原 200/409、revision、创建身份、重启持久化断言。初次全仓检查因此失败，修复后该文件 4/4 已通过，没有放宽独占或删断言 |
-| Windows `pnpm test:records:desktop` | 四阶段 create/resume/discard-quit/discard-close 均通过；日志 `artifacts/b002-t02-records-desktop.log`，JSON/截图 `artifacts/records-smoke-f1ZMFq/`；含正常 app.quit/window.close 取消/批准和重启持久化 |
+| Windows `pnpm test:records:desktop` | 四阶段 create/resume/discard-quit/discard-close 均通过；日志 `artifacts/b002-t02-records-desktop.log`，JSON `artifacts/records-smoke-f1ZMFq/`；含正常 app.quit/window.close 取消/批准和重启持久化 |
 | Linux/Windows PR CI | [验证 CI](https://github.com/ISQIShI/Recorder/actions/runs/40338540907)：提交 `fb1f9559cdd01d23351ceb45cc52871046d8ea09` 的 Ubuntu 24.04 与 Windows 2025 均完成 57/57、构建/类型/相关文档和标题检查；日志 `artifacts/b002-t02-verified-ci.log`。初轮 Linux 57/57、Windows 55/57，Windows 临时目录 RUNNER~1 短路径导致两项旧测试按原始输入路径比较失败；已改为规范路径，未放松摘要绑定/真实 close 断言或修改 T01 算法；本机迁移回归 15/15 通过。最后仅补本交付说明，最终 HEAD 复跑以 PR checks 与最终交付链接为准 |
 | 范围与文档 | `git diff --check`、`pnpm check:docs --base fc11275640bbc631587ee5e61650aa99811ff81c` 通过（7 份相关文档，164 个内部链接）；生产 schema/SQL、根依赖/锁文件、CI、shared HTTP、全局文档、批次总表及其他任务卡未改 |
 
@@ -71,7 +71,7 @@ Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；�
 - 恢复点创建/verify 共用主文件验证：拒绝未封存 WAL/SHM/journal（包括链接），在新的私有临时目录校验主文件的同摘要副本，再核对原文件未变化。不会把 readonly 误当忽略 WAL；不改变封存格式、不改业务 schema/SQL、不引入依赖或全局 URI 开关。临时副本增加数据库大小的额外空间和复制 I/O；异常中断的 `.pending-validation-*` 只列 incomplete。
 - 回归构造主文件哈希不变但 WAL 含额外业务行，先证明普通 readonly 确实读取额外行，再要求 verify/list 拒绝且不 checkpoint/删除 WAL；另测 native backup 后出现 WAL 时不得封存。保留所有原数据/有效点断言：旧 WAL 快照数据检查改读同摘要隔离副本，避免测试自身以 readonly 打开封存目录后产生 WAL/SHM；新增反复验证不在封存目录创建旁路文件的断言。
 - 本轮 Windows `pnpm check` 通过：构建/类型、60/60 测试（T02 共 19 项，比审查基线新增 3 项）、相关文档检查；日志 `artifacts/b002-t02-review-check.log`。两项定向回归也已通过（`artifacts/b002-t02-review-targeted.log`）。第一轮 T02 全套 18/19，原因是上述旧测试自身生成 WAL/SHM，保持原断言并调整其隔离读取后完整复跑通过；失败记录保留在 `artifacts/b002-t02-review-storage.log`。
-- 真实 Windows Electron `pnpm test:records:desktop` 四阶段 create/resume/discard-quit/discard-close 通过，包括取消正常 app.quit/window.close 后资源仍可用、批准后真正退出、重启持久化；日志 `artifacts/b002-t02-review-electron.log`，JSON/截图 `artifacts/records-smoke-YO8BPC/`。`pnpm check:docs --base a36944b01fd85cda0dfdb148b260e4b83da1453c` 及 `git diff --check` 通过，仅检查两份变更文档及相关导航。
+- 真实 Windows Electron `pnpm test:records:desktop` 四阶段 create/resume/discard-quit/discard-close 通过，包括取消正常 app.quit/window.close 后资源仍可用、批准后真正退出、重启持久化；日志 `artifacts/b002-t02-review-electron.log`，JSON `artifacts/records-smoke-YO8BPC/`，截图 `artifacts/records-desktop.png`（脚本的共用输出路径，本轮已刷新）。`pnpm check:docs --base a36944b01fd85cda0dfdb148b260e4b83da1453c` 及 `git diff --check` 通过，仅检查两份变更文档及相关导航。
 - 本轮修复提交 `e12b90da0a9f42ee582fabe20e5b712de6987218` 的 [Windows/Linux CI](https://github.com/ISQIShI/Recorder/actions/runs/40354014784) 已全部成功：Ubuntu 24.04 与 Windows 2025 各 60/60，构建/类型/相关文档及 PR 标题检查通过；日志 `artifacts/b002-t02-review-ci.log`。随后只补充本交付证据，最终 HEAD 的 CI 复核以 PR checks 和最终交付链接为准；此前 57/57 仅代表审查前版本。未自行合并或开始 T03。
 
 ### 遗留、未执行与整合建议

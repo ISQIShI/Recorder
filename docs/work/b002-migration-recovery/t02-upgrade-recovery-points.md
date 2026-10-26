@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：待整合；本机实现与验收完成，等待 PR 双平台 CI。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
+状态：待整合；本机实现与 Windows/Linux PR CI 已通过。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 26 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -29,7 +29,7 @@
 
 - 实际基线：`fc11275640bbc631587ee5e61650aa99811ff81c`；已 fetch，核验 PR #9 的 T01 squash `762e98cb3cd2151b9f88a6167dfc218f8b0fdc88` 是 origin/main 的祖先，且迁移实现与 T01 交付相符，包含最新交接/相关文档检查规则。
 - 分支：`feat/b002-t02-upgrade-recovery-points`，从该 origin/main 新建；工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`。原任务成果已提交/推送且已合并；本次切换前仅未跟踪 `.codex/`，已保留，无 stash/reset/clean 或其他工作树操作。
-- PR：待创建，目标 main；完整 HEAD 在最终交付及 PR 提供，避免在提交中自引用。
+- [PR #11](https://github.com/ISQIShI/Recorder/pull/11)，目标 main；完整 HEAD 在最终交付及 PR 提供，避免在提交中自引用。
 
 ### 实现与 T03 服务交接
 
@@ -61,7 +61,7 @@ Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；�
 | 新增恢复点检查 | 源含已提交 WAL；保留账号/会话/记录值和原生产 SQL；SQL/DB/manifest 篡改、hash 正确但 FK/账本/坏库异常拒绝；备份/材料写入 ENOSPC、封存 EACCES、半成品不可用；进行中撤回、原生 backup 取消与提供者替换；现有过宽 ACL 不被静默修改 |
 | 旧连接竞争测试适配 | 原两个 createApplication 宿主共享库的假设已不成立；改为同一所有权下两条受管理连接与实际 record-store，保留原 200/409、revision、创建身份、重启持久化断言。初次全仓检查因此失败，修复后该文件 4/4 已通过，没有放宽独占或删断言 |
 | Windows `pnpm test:records:desktop` | 四阶段 create/resume/discard-quit/discard-close 均通过；日志 `artifacts/b002-t02-records-desktop.log`，JSON/截图 `artifacts/records-smoke-f1ZMFq/`；含正常 app.quit/window.close 取消/批准和重启持久化 |
-| Linux/Windows PR CI | 待创建 PR 后执行，不由本机结果推断 |
+| Linux/Windows PR CI | [验证 CI](https://github.com/ISQIShI/Recorder/actions/runs/40338540907)：提交 `fb1f9559cdd01d23351ceb45cc52871046d8ea09` 的 Ubuntu 24.04 与 Windows 2025 均完成 57/57、构建/类型/相关文档和标题检查；日志 `artifacts/b002-t02-verified-ci.log`。初轮 Linux 57/57、Windows 55/57，Windows 临时目录 RUNNER~1 短路径导致两项旧测试按原始输入路径比较失败；已改为规范路径，未放松摘要绑定/真实 close 断言或修改 T01 算法；本机迁移回归 15/15 通过。最后仅补本交付说明，最终 HEAD 复跑以 PR checks 与最终交付链接为准 |
 | 范围与文档 | `git diff --check`、`pnpm check:docs --base fc11275640bbc631587ee5e61650aa99811ff81c` 通过（7 份相关文档，164 个内部链接）；生产 schema/SQL、根依赖/锁文件、CI、shared HTTP、全局文档、批次总表及其他任务卡未改 |
 
 ### 遗留、未执行与整合建议

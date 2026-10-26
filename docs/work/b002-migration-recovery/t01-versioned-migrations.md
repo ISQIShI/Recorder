@@ -1,6 +1,6 @@
 # B002-T01：多版本迁移与安全启动
 
-状态：待整合；本机实现与检查已完成，远端检查结果在交付时补齐。负责会话：原 B001-T03 实现会话顺序复用，由用户明确派发本任务。更新日期：2026 年 10 月 26 日。
+状态：待整合；本机检查及 Windows/Linux PR CI 已通过。负责会话：原 B001-T03 实现会话顺序复用，由用户明确派发本任务。更新日期：2026 年 10 月 26 日。
 
 阅读时机：实现、审查或整合本任务时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[数据访问主线](../../current/storage/data-access-baseline.md) 和 [后端 README](../../../backend/README.md)。Git/协作按根 AGENTS 执行。
 
@@ -29,7 +29,7 @@
 
 - 实际开工基线：`c853abd56070deb148bc1bf546da71082cd64d00`；开工与交付前均 fetch 核对 `origin/main`，包含本批计划、任务卡与契约。
 - 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；仅在本工作树操作，保留原 B001 成果与未跟踪 `.codex/`，未操作主仓库或其他工作树。
-- 分支：`feat/b002-t01-versioned-migrations`，由该基线新建，不沿用 B001 分支；PR 目标 `main`，链接待创建后补齐。完整 HEAD 放最终交付消息/PR，不写入文件产生自引用提交。
+- 分支：`feat/b002-t01-versioned-migrations`，由该基线新建，不沿用 B001 分支；[PR #9](https://github.com/ISQIShI/Recorder/pull/9) 目标 `main`。完整 HEAD 放最终交付消息/PR，不写入文件产生自引用提交。
 
 ### 实现事实与服务交接
 
@@ -61,7 +61,7 @@ Windows 本机：Node `24.14.1`、pnpm `10.33.0`、better-sqlite3 `13.0.3`、实
 | `backend/test/versioned-migrations.test.ts` | 15 项：四态只读预检、跨 namespace 的 fixture v1→v2→v3、保留数据、连续历史/摘要/依赖/降级拒绝、SQL 子集/引号与多语句边界、步内 SQL/FK 失败与已提交前缀、计划失效/库路径绑定、中途材料替换停止、服务撤回/恢复/替换、原 v1 账本/账号/记录保持、需维护/损坏/无账本启动拒绝与真实句柄关闭、子进程非零退出、busy 不强夺 |
 | `pnpm test:records:desktop` | Windows 真实 Electron 四阶段 create/resume/discard-quit/discard-close 均通过；日志 `artifacts/b002-t01-records-desktop.log`，最终复跑结果 `artifacts/records-smoke-V7pGUS/{create,resume,discard-quit,discard-close}.json`；成功保存/冲突/会话、重启 revision 5、正常关闭/退出取消与批准回归均通过 |
 | `git diff --check` | 通过；生产 SQL/schema、共享 HTTP 契约、根依赖/锁文件、CI、其他任务卡和全局文档未改 |
-| Linux / Windows PR CI | 等待创建 PR 后运行；当前不把 Windows 本机通过写成 Linux 已通过，完整 HEAD 和 CI 链接随最终交付补齐 |
+| Linux / Windows PR CI | [首轮 CI](https://github.com/ISQIShI/Recorder/actions/runs/40326162975) 已通过：实现提交 `dc6defa3804e8a94b92a1b97af867cb3c74b8077` 的 Ubuntu 24.04 与 Windows 2025 均完成 `pnpm check`（41/41）及标题检查；Linux 原始日志保存在 `artifacts/b002-t01-linux-ci.log`。本次仅补交付说明，最终 HEAD 的复跑结果以 PR checks 为准并在最终交付提供链接 |
 
 ### 未执行项、材料与整合建议
 

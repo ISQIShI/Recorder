@@ -5,6 +5,13 @@ import { mkdtemp, readdir, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApplication } from '../dist/application.js';
+import { Context } from '@deepseek-ai/cordis';
+import * as database from '../dist/plugins/database.js';
+import * as migrations from '../dist/plugins/migrations.js';
+import * as identityStore from '../dist/plugins/identity-store.js';
+import * as recordStore from '../dist/plugins/record-store.js';
+import * as crypto from '../dist/plugins/crypto.js';
+import { installedMigrations } from '../dist/data/migration-manifest.js';
 import type { RecordData } from '@recorder/contracts';
 
 const setupCode = 'isolated-record-edit-setup-code';
@@ -48,11 +55,26 @@ test('record edits persist, preserve creation identity/hash, and race across two
       assert.equal((await put(ctx, before.id, edit, headers)).statusCode, 409, 'lost-response retry keeps original revision');
       assert.deepEqual((await ctx.recorderHttp.server.inject({ url: '/api/v1/records/' + before.id, headers })).json(), after);
 
-      const peer = await createApplication(config);
+      // Two managed connections share this host's ownership. A second independent host is now refused.
+      const peer = new Context(), ownership = ctx.recorderDatabaseOwnership;
+      await peer.plugin({ apply(scope: Context) { scope.provide('recorderDatabaseOwnership', ownership); } });
+      await peer.plugin(database, { filename: config.filename });
+      await peer.plugin(migrations, { sources: installedMigrations });
+      await peer.plugin(crypto);
+      await peer.plugin(identityStore); await peer.plugin(recordStore);
       try {
+        const peerUpdate = async () => {
+          try {
+            const record = peer.recorderRecordStore.update(original.owner_id, { ...edit, id: before.id, expectedRevision: 2, body: 'competing B' }, Date.now());
+            return { statusCode: 200, json: <T = RecordData>() => record as T };
+          } catch (error) {
+            const failure = error as { statusCode: number; code: string };
+            return { statusCode: failure.statusCode, json: <T = { code: string }>() => ({ code: failure.code }) as T };
+          }
+        };
         const results = await Promise.all([
           put(ctx, before.id, { ...edit, expectedRevision: 2, body: 'competing A' }, headers),
-          put(peer, before.id, { ...edit, expectedRevision: 2, body: 'competing B' }, headers),
+          peerUpdate(),
         ]);
         assert.deepEqual(results.map(r => r.statusCode).sort(), [200, 409]);
         assert.equal(results.find(r => r.statusCode === 409)!.json().code, 'REVISION_CONFLICT');
@@ -63,6 +85,7 @@ test('record edits persist, preserve creation identity/hash, and race across two
         const staleSame = await put(ctx, before.id, { ...edit, expectedRevision: 2, body: winner.body }, headers);
         assert.equal(staleSame.statusCode, 409, 'identical content still requires current revision');
         assert.deepEqual((await ctx.recorderHttp.server.inject({ url: '/api/v1/records/' + before.id, headers })).json(), winner);
+        await peer.fiber.dispose(); // Release the second handle's ownership lease before stopping the host.
         await ctx.fiber.dispose();
         ctx = await createApplication(config);
         assert.deepEqual((await ctx.recorderHttp.server.inject({ url: '/api/v1/records/' + before.id, headers })).json(), winner);

@@ -13,6 +13,7 @@ import { MigrationError, type Migration, type MigrationPlanner, type MigrationSo
 import { createApplication } from '../dist/application.js';
 import { installedMigrations } from '../dist/data/migration-manifest.js';
 import * as database from '../dist/plugins/database.js';
+import * as ownership from '../dist/plugins/database-ownership.js';
 import * as migrations from '../dist/plugins/migrations.js';
 import * as executor from '../dist/plugins/migration-executor.js';
 import { inspectMigrations, ledgerSql } from '../dist/plugins/migrations/plan.js';
@@ -39,6 +40,7 @@ async function fixture(steps: Migration[]) {
     const { sql, ...step } = steps[at]!, path = join(dir.path, at + '.sql');
     await writeFile(path, sql); sources.push({ ...step, file: pathToFileURL(path).href });
   }
+  await ctx.plugin(ownership, { filename: join(dir.path, 'fixture.sqlite') });
   const dbPlugin = await ctx.plugin(database, { filename: join(dir.path, 'fixture.sqlite') });
   const planPlugin = await ctx.plugin(migrations, { sources, mode: 'inspect' });
   const executePlugin = await ctx.plugin(executor);

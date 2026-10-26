@@ -1,6 +1,6 @@
 # Recorder 已确认数据访问与迁移主线
 
-状态：技术主线已确定；B002-T01 多版本迁移与安全启动已实现，独占/恢复点/维护协调待后续任务。更新日期：2026 年 10 月 26 日。
+状态：技术主线已确定；B002-T01 多版本迁移/安全启动与 T02 独占/恢复点已实现，维护协调与隔离恢复待 T03。更新日期：2026 年 10 月 27 日。
 
 阅读时机：数据库查询、repository、事务、核心与插件迁移相关工作。结合 [后端技术](../architecture/backend-stack.md) 和 [数据模型主线](data-model-baseline.md) 阅读；追溯选择理由再看 [历史比较](../../history/research/sqlite-access-comparison.md)。
 
@@ -23,12 +23,12 @@ SQL 特殊能力、统一事务、迁移账本字段和插件数据保留的具�
 - 推荐统一管理连接与事务，原生 SQL 出口也经过同一上下文；具体 API 尚未定义。
 - 后端采用 Recorder 统一命名空间账本与受控 SQL 执行适配，不再把各插件独立 Drizzle 账本作为并列待选主线；具体适配与故障验证见 [迁移机制提案](../../design/storage/plugin-migrations.md)。这不意味着自研 SQL 解析器或 schema diff。
 - 插件卸载默认保留数据已确认。停用、移除代码、重新安装与清除插件数据分别处理，不以 dispose 执行删除；保留材料格式及清除操作仍需设计。
-- [B002 实施契约](migration-recovery-contract.md) 的多 revision、版本依赖、旧账本兼容、逐步事务与安全启动已实现；独占、升级恢复点、显式维护和隔离恢复仍待 T02/T03。正式恢复启用、复杂表变换、外部文件与保留清理继续设计。
+- [B002 实施契约](migration-recovery-contract.md) 的多 revision、版本依赖、旧账本兼容、逐步事务、安全启动、独占与升级恢复点已实现；显式维护、中断协调和隔离恢复仍待 T03。正式恢复启用、复杂表变换、外部文件与保留清理继续设计。
 
 具体职责和状态流程见 [核心与插件迁移](../../design/storage/plugin-migrations.md)，一般插件数据边界见 [插件数据契约](../../design/plugins/data-extension.md)，文件处理见 [存储生命周期](../../design/storage/storage-lifecycle.md)。备份已选统一恢复集合 + 后台复制，先读 [备份恢复主线](backup-baseline.md)，再按 [细化提案](../../design/storage/backup-recovery.md) 设计执行协议。日常只接受很短的快照窗口，采用本地独立副本与加密异地副本；这与允许停写的结构升级分别设计。
 
 ## 验证状态
 
-已实际使用 Drizzle 查询与 Kit 生成身份/记录初始 SQL。T01 已实现只读计划、版本依赖、旧账本/摘要兼容、逐步 IMMEDIATE 事务及外键检查、安全启动；每步 SQL 与成功账本同提交，失败只回滚本步。41 项测试及 Windows Electron 四阶段通过，见 [T01 交付及整合](../../work/b002-migration-recovery/t01-versioned-migrations.md)。多版本执行仅用隔离样本验证；生产仍为 revision 1，普通 profile 不提供直接升级执行服务。恢复点、独占、维护 UI 与完整恢复仍未实现。
+已实际使用 Drizzle 查询与 Kit 生成身份/记录初始 SQL。T01 已实现只读计划、版本依赖、旧账本/摘要兼容、逐步 IMMEDIATE 事务及外键检查、安全启动；每步 SQL 与成功账本同提交，失败只回滚本步。T02 已补跨进程独占、异步使用排空、关闭故障保锁和可校验恢复点；60 项测试及 Windows Electron 四阶段通过，见 [批次交付及整合](../../work/b002-migration-recovery/README.md)。多版本执行仅用隔离样本验证；生产仍为 revision 1，普通 profile 不提供直接升级执行服务。维护协调、隔离恢复、维护 UI 与完整恢复仍未实现。
 
 返回 [当前文档索引](../README.md) 或 [技术状态](../technical-status.md)。

@@ -1,6 +1,6 @@
 # Recorder 备份与恢复方案提案
 
-状态：统一恢复集合 + 后台复制、备份体验、副本方向及 restic 已确认；本篇细化执行协议，具体版本、清单格式、周期和恢复契约仍为建议。更新与官方资料核对日期：2026 年 10 月 25 日。没有创建备份、安装工具或执行恢复测试。
+状态：统一恢复集合 + 后台复制、备份体验、副本方向及 restic 已确认；本篇细化日常备份协议，具体版本、清单格式、周期和恢复契约仍为建议。更新日期：2026 年 10 月 27 日；官方资料核对日期：2026 年 10 月 25 日。B002-T02 已验证隔离样本的本地数据库恢复点，见 [当前主线](../../current/storage/backup-baseline.md)；未安装 restic、建立日常备份或执行隔离恢复。
 
 阅读时机：设计日常备份、升级前恢复点、附件保留、插件恢复、PC/服务器搬迁或灾难恢复时。先读 [已确认备份主线](../../current/storage/backup-baseline.md)、[数据访问主线](../../current/storage/data-access-baseline.md)；工具适配读 [restic 集成](restic-integration.md)，文件提交见 [存储生命周期](storage-lifecycle.md)，升级见 [迁移机制](plugin-migrations.md)，网络入口见 [部署接入](../operations/deployment-access.md)。
 

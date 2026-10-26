@@ -1,6 +1,6 @@
 # Recorder AI 工作指南
 
-适用范围：整个 Recorder 项目。更新日期：2026 年 10 月 26 日。
+适用范围：整个 Recorder 项目。更新日期：2026 年 10 月 27 日。
 
 ## 开始工作
 
@@ -24,7 +24,7 @@
 
 项目进入增量实现阶段，已完成基础工程、账号/记录保存查询、记录更新 API 与双端传输，以及 Windows/Linux 自动检查；B001 的手动编辑、冲突草稿与正常离开提醒已完成，见 [当前业务流程](docs/current/development/first-record-flow.md)。继续按用户请求推进插件及验证；实际完成项以当前文档为准，不把提案当成已完成能力，不自行冻结完整 MVP 或排期。Android 真机验证明确延后。
 
-当前批次为 [B002 多版本迁移与升级恢复演练](docs/work/b002-migration-recovery/README.md)，T01 多版本迁移与安全启动已合并，T02 独占与恢复点可按任务卡开始，T03 等待 T02。三项顺序实施，具体基线与前置条件见批次计划；迁移工作须读 [实施契约](docs/current/storage/migration-recovery-contract.md)。不要把已结束任务的提示词当作当前任务。
+当前批次为 [B002 多版本迁移与升级恢复演练](docs/work/b002-migration-recovery/README.md)，T01 多版本迁移与安全启动、T02 独占与恢复点均已合并，T03 维护入口与隔离恢复可按任务卡开始，由用户启动实现会话。三项顺序实施，具体基线与前置条件见批次计划；迁移工作须读 [实施契约](docs/current/storage/migration-recovery-contract.md)。不要把已结束任务的提示词当作当前任务。
 
 当用户明确要求开始实现时，按该请求推进，不需要再次询问已授权事项；同时更新当前技术状态和必要的开发文档。本段描述阶段，不是永久禁止实现。
 

@@ -1,17 +1,19 @@
 # B002-T03：维护入口与隔离恢复演练
 
-状态：待开始，等待 T02 合并。负责会话：由用户启动。更新日期：2026 年 10 月 26 日。
+状态：待开始，T01/T02 已合并，前置已满足。负责会话：由用户启动。更新日期：2026 年 10 月 27 日。
 
 阅读时机：集成或验收维护、故障恢复时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01](t01-versioned-migrations.md) 与 [T02](t02-upgrade-recovery-points.md) 的实际交付、[后端 README](../../../backend/README.md)。
 
 ## 起点与范围
 
 - 分支：`feat/b002-t03-maintenance-recovery-drill`；PR 目标 `main`。
-- 起点：T02 及其前置已合并的最新 main；以实际契约实现，不猜测其他工作树。
+- 起点：包含 T02 合并提交 `8b4632a3245e084c15b7841b5274e262e09d19e6` 及本轮交接文档的最新 main；以实际契约实现，不猜测其他工作树。记录开工时完整 SHA，不直接从 T02 原始 HEAD 或尚未合并的文档分支派工。
 - 目标：通过最小 Cordis 维护 profile 和 CLI 完成显式确认、恢复点前置、受控升级、中断判断与隔离恢复。
 - 不做桌面维护按钮、远程维护 HTTP、在线切换/覆盖原库、会话恢复启用策略、restic 或新业务 schema。原库始终保留。
 
 ## 实施与验收
+
+T02 的实际服务交接：类型为 `backend/src/storage-contract.ts`（domain 重导出）；复用 `recorderDatabaseOwnership`、`recorderDatabase.use/close`、`recorderMigrationPlanner.capture()` 和 `recorderRecoveryPoints.create/verify/list`，不重写锁、快照或 SQL 计划。数据库关闭失败保留租约，结束未完成迭代器后才能重试；错误应明确呈现，不能通过超时释放独占。恢复点验证会复制一个数据库到私有暂存目录，需要额外空间；封存目录拒绝 WAL/SHM/journal，SQLite 数据读取在校验后的隔离目标中进行，禁止为了检查而直接打开封存主文件。失败与中断的 `.pending-*` 材料保留，不自动清理。verify 只证明恢复点内容，仍须由本任务核对源库、计划摘要和维护运行，不授权自动升级。
 
 1. CLI 仅解析参数、展示结果和传递确认；协调业务在 Cordis 插件中。profile 不依赖 auth/records 业务 schema 可用，不注册无认证管理 HTTP，不把整个业务应用启动后才做升级。
 2. 提供检查、确认后升级、恢复点查看、恢复到新空目录和验证的明确命令；在 `backend/README.md` 给出可复制的样本命令、退出码、错误与权限说明。非交互执行必须明确绑定已检查计划摘要；计划过期、用户取消或缺少确认不执行升级。

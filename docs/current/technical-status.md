@@ -1,6 +1,6 @@
 # Recorder 当前技术状态
 
-状态：当前工作入口，严格区分已确认与候选。更新日期：2026 年 10 月 26 日。
+状态：当前工作入口，严格区分已确认与候选。更新日期：2026 年 10 月 27 日。
 
 阅读时机：开始新工作、选择实现依据或判断是否需要用户决定时。完整需求与职责分别见 [需求](product/requirements.md)、[架构概览](architecture/overview.md)。
 
@@ -16,7 +16,7 @@
 | HTTP 框架 | Fastify；不替代 Cordis 的业务插件生命周期 |
 | 数据库与驱动 | SQLite + better-sqlite3，在集中后端使用 |
 | 数据访问 | Drizzle 的 SQL 风格查询 + better-sqlite3；基础工程已锁定版本并验证隔离样本 |
-| 迁移工具与执行 | Drizzle Kit 辅助生成迁移；Recorder 统一账本、只读多版本计划、受控逐步事务与安全启动已由 B002-T01 实现；恢复点/独占/维护入口仍待 T02/T03，见 [实施契约](storage/migration-recovery-contract.md) |
+| 迁移工具与执行 | Drizzle Kit 辅助生成迁移；Recorder 统一账本、多版本计划、逐步事务与安全启动已由 T01 实现，T02 已补跨进程独占与可校验恢复点；维护入口/中断协调/隔离恢复仍待 T03，见 [实施契约](storage/migration-recovery-contract.md) |
 | 插件卸载 | 默认保留数据；清除数据为另行设计的操作 |
 | 结构升级体验 | 先说明，由用户点击确认后升级；暂停业务写入并先创建恢复点，优先数据完整与可靠恢复；普通启动不自动同意升级 |
 | 日常备份体验 | 尽量保持可用，只接受很短的快照窗口；不能把大文件复制和异地上传变成全程停写 |
@@ -44,7 +44,7 @@
 | 工作分工 | 用户负责关键选择与验收；主会话辅助决策、规划文档、拆任务及 Git 整合，其他 AI 按任务卡在工作树实现，见 [AI 协作](development/ai-collaboration.md) |
 | Git 协作 | 根据用户授权采用 GitHub Flow，短期任务分支与 PR squash 合并；设置、验证要求与清理见 [Git 工作流](development/git-workflow.md)；具体任务见 [工作台账](../work/README.md) |
 | 自动检查 | Windows/Linux 构建、类型、测试和文档检查，以及 PR 标题检查已启用，均为 main 必需检查；见 [Git 工作流](development/git-workflow.md) |
-| 当前阶段 | 账号、记录保存/查询/更新与编辑已完成；T01 多版本迁移与安全启动已合并，41 项测试及 Electron 四阶段通过；独占、恢复点、附件与完整恢复继续开发 |
+| 当前阶段 | 账号、记录保存/查询/更新与编辑已完成；T01/T02 已合并，60 项测试及 Electron 四阶段通过；维护入口、隔离恢复、附件与完整恢复继续开发 |
 
 ## 尚未确认的技术选择
 
@@ -56,7 +56,7 @@
 | 网络契约细节 | 在已选 HTTP/REST、OpenAPI、SSE 上细化独立文件通道、插件操作入口及并发/幂等协议 | [API 与认证主线](architecture/api-auth-baseline.md) → [接口设计](../design/interfaces/unified-api.md)；完整路径和 schema 未冻结 |
 | 认证后续 | 当前 Cookie / Electron Bearer 已实现；Android 凭据、改密找回、配对、HTTPS 与刷新继续设计 | [已实现账号流程](development/first-record-flow.md) 与 [身份提案](../design/security/identity-device-access.md) |
 | 数据模型细节 | 按已确认模型细化字段、约束、索引、附件对象和少量版本化 JSON | [数据模型主线](storage/data-model-baseline.md) → [模型细化](../design/storage/data-model.md)；具体表结构未冻结 |
-| 迁移后续细节 | B002 独占的具体实现须验证；完整在线维护、恢复启用、复杂表变换与清除操作继续设计 | 已供实现的 B002 子集见 [迁移恢复契约](storage/migration-recovery-contract.md)；更广范围见 [迁移提案](../design/storage/plugin-migrations.md) |
+| 迁移后续细节 | T02 独立控制库独占已验证 Windows/Linux CI；维护运行记录与隔离恢复待 T03；完整在线维护、恢复启用、复杂表变换与清除操作继续设计 | 已供实现的 B002 子集见 [迁移恢复契约](storage/migration-recovery-contract.md)；更广范围见 [迁移提案](../design/storage/plugin-migrations.md) |
 | 存储生命周期 | 同库业务表、托管文件目录、分阶段提交、回收站与可恢复清理 | [存储设计](../design/storage/storage-lifecycle.md)；SQLite 参数、索引、文件清理与备份策略待定 |
 | 备份与恢复细节 | 细化已确认的统一恢复集合 + 后台复制：短协调窗口、在线数据库快照、不可变附件保留 | [备份恢复提案](../design/storage/backup-recovery.md)；窗口预算、保留保护、清单、恢复切换与密钥管理待定 |
 | restic 集成 | 工具已选；建议由 Cordis 适配插件调用受控子进程，Recorder 统一管理任务 | [restic 集成设计](../design/storage/restic-integration.md)；版本、双目标复制、保留映射、密钥与分发方式未冻结 |
@@ -81,9 +81,9 @@
 
 ## 使用与维护
 
-[B001](../work/b001-record-editing/README.md) 已完成。[B002](../work/b002-migration-recovery/README.md) 的 T01 已通过 PR #9 合并，T02 独占与升级恢复点可开始；T03 维护 CLI 与隔离恢复等待 T02。后续再接桌面升级确认界面与需要 schema 扩展的回收站，不要求 Web/Android 同步推进。此安排不是完整 MVP 或排期。
+[B001](../work/b001-record-editing/README.md) 已完成。[B002](../work/b002-migration-recovery/README.md) 的 T01/T02 已通过 PR #9/#11 合并；T03 维护 CLI 与隔离恢复前置已满足，由用户启动。后续再接桌面升级确认界面与需要 schema 扩展的回收站，不要求 Web/Android 同步推进。此安排不是完整 MVP 或排期。
 
-当前完成基础工程、账号、记录保存/查询/更新与双端编辑；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。T01 已验证隔离样本多版本迁移，生产清单仍为 identity/records revision 1；普通启动只初始化空库或运行兼容库，不提供真实旧库维护升级入口。独占、恢复点、维护协调、完整恢复、附件与 restic 集成仍未实现。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
+当前完成基础工程、账号、记录保存/查询/更新与双端编辑；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。T01 已验证隔离样本多版本迁移，生产清单仍为 identity/records revision 1；普通启动先取得独占，只初始化空库或运行兼容库，不提供真实旧库维护升级入口。T02 已实现受权限保护的本地恢复点与 SQL/账本/快照校验；数据库关闭失败保留独占，可结束迭代器后重试关闭，恢复点校验拒绝未封存的 WAL 等辅助文件并使用隔离副本。维护协调、隔离恢复、完整恢复、附件与 restic 集成仍未实现。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
 
 后端、共享界面和 Android 主线已确认，细节见 [后端技术](architecture/backend-stack.md)、[前端技术](architecture/frontend-stack.md) 和 [Android 方向](architecture/android-stack.md)。工程入口见 [目录规划](development/repository-layout.md)。Android 原生工程已生成并同步资源；用户确认没有 SDK，APK 与真机测试待按 [环境指南](development/android-environment.md) 配置后进行。Linux CI runner 检查已通过，Chrome 已完成本机编辑/冲突操作并由用户确认刷新/关闭提醒出现；原生弹窗选择分支、其他浏览器、Linux 生产部署与性能仍未完整验证。新决定获用户确认后更新本页及对应有效说明，再补入 [历史决策记录](../history/decisions/decision-log.md)。已有明确决定不反复询问，候选不自动转为已确认。
 

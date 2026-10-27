@@ -81,7 +81,7 @@
 
 ## 使用与维护
 
-[B001](../work/b001-record-editing/README.md) 与 [B002](../work/b002-migration-recovery/README.md) 已完成范围内验收。用户现要求核心功能优先，[B003 桌面记录管理](../work/b003-record-management/README.md) 已完成：T01 回收站（PR #15）、T02 标签与筛选（PR #16）均通过后端到桌面验收。当前按用户授权规划 [B004 桌面分层分类](../work/b004-record-categories/README.md)：一个完整 T01 任务，分类查询与删除交互待确认，未实现、暂不可派发；旧库升级复用现有 CLI，桌面维护 UI、正式恢复启用与备份增强降级。后续建议接分层分类和基础附件，不要求 Web/Android 同步推进，也不冻结完整 MVP 或排期。
+[B001](../work/b001-record-editing/README.md) 与 [B002](../work/b002-migration-recovery/README.md) 已完成范围内验收。用户现要求核心功能优先，[B003 桌面记录管理](../work/b003-record-management/README.md) 已完成：T01 回收站（PR #15）、T02 标签与筛选（PR #16）均通过后端到桌面验收。当前按用户授权规划 [B004 桌面分层分类](../work/b004-record-categories/README.md)：一个完整 T01 任务，用户已确认查询包含全部子分类并去重、确认删除整棵分类树但保留所有记录。计划已定稿、未实现，合入 main 后由用户派发；旧库升级复用现有 CLI，桌面维护 UI、正式恢复启用与备份增强降级。后续建议接分层分类和基础附件，不要求 Web/Android 同步推进，也不冻结完整 MVP 或排期。
 
 当前完成基础工程、账号、记录保存/查询/更新与双端编辑，以及桌面回收站、恢复、确认清空、多标签关联与单标签加关键词筛选；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。B003-T01 已验证真实 v1 样本经维护 CLI 升级且原内容保留；生产清单为 identity revision 1、records revision 2、tags revision 1（依赖 records revision 2）。B003-T02 已验证 T01 旧库显式升级后正文、回收站和修订号保留；B002-T01 的计划器继续复用；普通启动先取得独占，只初始化空库或运行兼容库，已有库升级通过独立维护 CLI 显式确认，不在普通启动中执行。B002-T02 已实现受权限保护的本地恢复点与 SQL/账本/快照校验；数据库关闭失败保留独占，可结束迭代器后重试关闭，恢复点校验拒绝未封存的 WAL 等辅助文件并使用隔离副本。B002-T03 已补维护运行记录、未完成维护的启动门禁、显式确认后继续与新空目录隔离恢复。源库仍须可由维护 profile 打开，隔离库禁止自动启用业务；完整灾难恢复、桌面确认、附件与 restic 集成仍未实现。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
 

@@ -9,7 +9,7 @@ import { apiRequest, webApi, nativeApi } from '../dist/api-transport.js';
 const id = '12345678-1234-4123-8123-123456789abc';
 const input = { id, expectedRevision: 1, title: '中文 + &', body: '# source\n😀 <script>text</script>', format: 'markdown' as const };
 const record: RecordData = { id, requestId: id, title: input.title, body: input.body, format: input.format,
-  revision: 2, formatVersion: 1, createdAt: 100, updatedAt: 200, originInstanceId: id };
+  revision: 2, formatVersion: 1, createdAt: 100, updatedAt: 200, originInstanceId: id, deletedAt: null };
 const body = { expectedRevision: 1, title: input.title, body: input.body, format: input.format };
 
 test('shared HTTP encoder splits path/body and preserves GET/POST shapes', () => {
@@ -21,6 +21,15 @@ test('shared HTTP encoder splits path/body and preserves GET/POST shapes', () =>
   assert.deepEqual(apiRequest('createRecord', create), { path: '/api/v1/records', method: 'POST', body: JSON.stringify(create) });
   assert.deepEqual(parseApiResponse('updateRecord', record), record);
   assert.throws(() => parseApiResponse('updateRecord', { ...record, revision: '2' }), { code: 'INVALID_RESPONSE' });
+  for (const [method, suffix] of [['trashRecord', 'trash'], ['restoreRecord', 'restore']] as const) {
+    assert.deepEqual(apiRequest(method, { id, expectedRevision: 2 }), { path: '/api/v1/records/' + id + '/' + suffix, method: 'POST', body: '{"expectedRevision":2}' });
+    assert.deepEqual(parseApiResponse(method, { ...record, deletedAt: 200 }), { ...record, deletedAt: 200 });
+    assert.throws(() => parseApiResponse(method, { ...record, deletedAt: undefined }), { code: 'INVALID_RESPONSE' });
+  }
+  assert.equal(apiRequest('listRecords', { state: 'trash', offset: 30 }).path, '/api/v1/records?state=trash&offset=30');
+  assert.deepEqual(apiRequest('emptyTrash', { confirm: true }), { path: '/api/v1/records/trash/empty', method: 'POST', body: '{"confirm":true}' });
+  assert.deepEqual(parseApiResponse('emptyTrash', { deleted: 2 }), { deleted: 2 });
+  assert.throws(() => parseApiResponse('emptyTrash', { deleted: -1 }), { code: 'INVALID_RESPONSE' });
 });
 
 test('Web fetch sends PUT JSON with Cookie/CSRF and preserves API errors', async t => {
@@ -79,8 +88,8 @@ test('Electron connection sends fixed PUT through trusted IPC and keeps Bearer i
   let saved: string | undefined = 'private-main-token';
   t.mock.method(globalThis, 'fetch', async (url: URL, options: RequestInit) => {
     requests.push({ url, options });
-    return requests.length === 1 ? new Response(JSON.stringify(record))
-      : new Response(JSON.stringify({ code: 'REVISION_CONFLICT', message: 'preserve draft' }), { status: 409 });
+    if (requests.length === 2) return new Response(JSON.stringify({ code: 'REVISION_CONFLICT', message: 'preserve draft' }), { status: 409 });
+    return new Response(JSON.stringify(url.pathname.endsWith('/empty') ? { deleted: 1 } : record));
   });
   const ctx = new Context();
   try {
@@ -100,13 +109,21 @@ test('Electron connection sends fixed PUT through trusted IPC and keeps Bearer i
     assert.equal(sent.options.redirect, 'error');
     assert.deepEqual(sent.options.headers, { 'content-type': 'application/json', 'x-recorder-request': '1', 'x-recorder-client': 'native', authorization: 'Bearer private-main-token' });
     assert.deepEqual(await handler(event, 'updateRecord', input), { ok: false, error: { code: 'REVISION_CONFLICT', message: 'preserve draft', status: 409 } });
+    for (const method of ['trashRecord', 'restoreRecord', 'emptyTrash'] as const) {
+      const values = method === 'emptyTrash' ? { confirm: true } : { id, expectedRevision: 2 };
+      assert.equal((await handler(event, method, values)).ok, true);
+      const sent = requests.at(-1)!;
+      assert.equal(sent.options.method, 'POST');
+      assert.equal(sent.url.pathname, method === 'emptyTrash' ? '/api/v1/records/trash/empty' : '/api/v1/records/' + id + (method === 'trashRecord' ? '/trash' : '/restore'));
+      assert.deepEqual(JSON.parse(String(sent.options.body)), method === 'emptyTrash' ? { confirm: true } : { expectedRevision: 2 });
+    }
     for (const invalid of [{ ...event, sender: {} }, { ...event, senderFrame: { url: rendererUrl } }, { ...event, senderFrame: { url: 'https://attacker.example' } }]) {
       assert.equal((await handler(invalid, 'updateRecord', input)).error.code, 'INVALID_SENDER');
     }
     assert.equal((await handler(event, 'http://attacker.example', input)).error.code, 'INVALID_REQUEST');
     assert.equal((await handler(event, 'PUT', input)).error.code, 'INVALID_REQUEST');
     assert.equal((await handler(event, 'updateRecord', [])).error.code, 'INVALID_REQUEST');
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 5);
     await plugin.dispose();
     assert.equal(connection.ipcMain.handlers.size, 0);
     assert.equal(sent.options.signal!.aborted, true);

@@ -1,6 +1,6 @@
 # backend：集中后端
 
-状态：本机账号认证及记录保存/查询/更新、离线维护与隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 27 日。
+状态：本机账号认证及记录保存/查询/更新/回收站、离线维护与隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 28 日。
 
 阅读时机：后端、业务插件、存储和服务部署工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，先读 [后端技术](../docs/current/architecture/backend-stack.md) 与 [架构概览](../docs/current/architecture/overview.md)。
 
@@ -16,7 +16,36 @@
 
 设计公共接口或登录前读 [API 与认证主线](../docs/current/architecture/api-auth-baseline.md)，细化时再读 [统一 API](../docs/design/interfaces/unified-api.md) 或 [身份与多设备](../docs/design/security/identity-device-access.md)。设计服务监听和发布时读 [部署接入](../docs/design/operations/deployment-access.md)，具体实现方案尚未冻结。
 
-数据工作先读 [已确认模型主线](../docs/current/storage/data-model-baseline.md) 与 [数据访问主线](../docs/current/storage/data-access-baseline.md)。细化实体和查询时读 [模型设计](../docs/design/storage/data-model.md)，升级、版本账本和失败恢复先读 [B002 实施契约](../docs/current/storage/migration-recovery-contract.md)，更广范围参考 [迁移机制提案](../docs/design/storage/plugin-migrations.md)，落盘与删除恢复读 [存储生命周期](../docs/design/storage/storage-lifecycle.md)，插件新增字段读 [插件数据契约](../docs/design/plugins/data-extension.md)。[B002-T01](../docs/work/b002-migration-recovery/t01-versioned-migrations.md) 已实现下述多版本计划、底层逐步执行和启动门禁；[B002-T02](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md) 接入普通后端独占并提供独立恢复点服务；[B002-T03](../docs/work/b002-migration-recovery/t03-maintenance-recovery-drill.md) 增加离线维护、中断协调与隔离恢复，正式恢复启用和桌面确认仍未实现。生产清单仍只有 identity/records revision 1；`validation/migrations` 是 Kit 生成的隔离探针，不参与生产升级。
+数据工作先读 [已确认模型主线](../docs/current/storage/data-model-baseline.md) 与 [数据访问主线](../docs/current/storage/data-access-baseline.md)。细化实体和查询时读 [模型设计](../docs/design/storage/data-model.md)，升级、版本账本和失败恢复先读 [B002 实施契约](../docs/current/storage/migration-recovery-contract.md)，更广范围参考 [迁移机制提案](../docs/design/storage/plugin-migrations.md)，落盘与删除恢复读 [存储生命周期](../docs/design/storage/storage-lifecycle.md)，插件新增字段读 [插件数据契约](../docs/design/plugins/data-extension.md)。[B002-T01](../docs/work/b002-migration-recovery/t01-versioned-migrations.md) 已实现下述多版本计划、底层逐步执行和启动门禁；[B002-T02](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md) 接入普通后端独占并提供独立恢复点服务；[B002-T03](../docs/work/b002-migration-recovery/t03-maintenance-recovery-drill.md) 增加离线维护、中断协调与隔离恢复，正式恢复启用和桌面确认仍未实现。当前生产清单为 identity revision 1、records revision 1/2；`validation/migrations` 是 Kit 生成的隔离探针，不参与生产升级。
+
+## 记录回收站（B003-T01）
+
+`records` revision 2 在原表新增可空 `deleted_at` 和账号/状态/时间索引，Drizzle schema 与 Kit 元数据同步；Kit 的 ADD 写法补为受控执行器支持的 `ADD COLUMN`。identity/records revision 1 SQL 原字节和账本算法不变，Kit journal 不是第二套权威账本。全新空库自动初始化；已有库普通启动返回 `UPGRADE_REQUIRED`，不能删库或自动升级。
+
+共享契约 `RecordData.deletedAt` 为整数时间或 null。`listRecords` 新增可选 `state: active | trash`，默认 active；两类均按原创建时间排序并复用关键词、limit/offset/total。归属自己的 `getRecord` 可读回收站详情，正文只读，PUT 返回 409 `RECORD_TRASHED`。新增认证 POST：
+
+| 操作 | 路径与 JSON 正文 | 结果 |
+| --- | --- | --- |
+| `trashRecord` | `/api/v1/records/{id}/trash`，`{ expectedRevision }` | 当前记录，deletedAt 非空 |
+| `restoreRecord` | `/api/v1/records/{id}/restore`，`{ expectedRevision }` | 当前记录，deletedAt 为 null |
+| `emptyTrash` | `/api/v1/records/trash/empty`，`{ confirm: true }` | `{ deleted: number }` |
+
+record-store 在 IMMEDIATE 事务内检查 owner/id/revision 并条件更新；移入/恢复仅改变 deletedAt、revision(+1) 和 updatedAt。当前 revision 的重复同状态请求不增加版本，旧 revision 返回 409；其他账号或已永久删除均 404。清空一次事务只删执行时当前账号回收站中的记录，失败回滚，正常记录不动，不声称擦除备份/介质。原创建重试对仍存在的记录返回当前状态（含回收站），不会恢复；清空后不保留永久去重墓碑，旧创建请求可产生新的 ID。
+
+这些能力由既有 record-store → records → records-api 插件提供，HTTP 继续统一校验 Cookie/CSRF、native 通道与 OpenAPI；撤回记录服务会撤回操作，不删除数据。不添加自动清空、单条永久删除、标签或通用清理总线。
+
+隔离旧 v1 样本的可复制升级步骤如下，路径父级须存在，先停止持有该样本库的后端；不要将样本路径替换为未经安排的真实资料：
+
+```powershell
+pnpm build
+pnpm --filter @recorder/backend maintenance inspect --database C:/RecorderSamples/source/recorder.sqlite
+# 查看需要执行的 records revision 2；只在确认该计划后粘贴其完整 plan.digest。
+pnpm --filter @recorder/backend maintenance upgrade --database C:/RecorderSamples/source/recorder.sqlite --confirm <刚检查的plan.digest>
+pnpm --filter @recorder/backend maintenance points --database C:/RecorderSamples/source/recorder.sqlite
+# 成功后可以另行启动原业务后端，CLI 不自动启动。
+```
+
+`test/record-trash.test.ts` 使用真实 v1 SQL/账本，验证普通启动拒绝、缺少/过期确认拒绝、恢复点先行、正式 v2 升级、账号/会话/记录/幂等字段保持，以及新空库的完整操作。必要本机检查与 Windows/Linux CI 证据见 [T01 交付区](../docs/work/b003-record-management/README.md#t01-任务卡回收站)。
 
 ## 多版本迁移服务（B002-T01）
 
@@ -60,7 +89,7 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 
 普通 `createApplication()` 不提供直接升级服务：非空无可信账本、摘要/依赖/版本错误或任何待执行步骤（含新增命名空间）均拒绝启动，Loader 释放资源，账号/记录及 HTTP 不进入可用状态。`main.ts` 返回非零退出码与结构化 `code`，不会把需要维护写成普通网络失败。空库初始化若已有步骤提交后失败，后续普通启动同样要求维护，不自动续跑。T03 已接入维护运行门禁：生产装配为 migrations 设置 `maintenanceGuard: true`，通过 Cordis 注入维护运行服务，先核验未完成记录/隔离恢复标记，再提供业务 readiness；该服务撤回会连带撤回 readiness。全部 SQL 已提交但最终验证/完成记录未写时仍拒绝启动。直接装配低层迁移插件的旧隔离测试默认不启用这个应用门禁，不能据此绕过普通应用入口。
 
-`test/versioned-migrations.test.ts` 使用独立临时库/fixture 验证 v1→v2→v3、跨命名空间拓扑、保留历史、SQL/依赖/摘要拒绝、逐步回滚、旧确认失效、服务撤回与替换、旧 v1 数据保持、忙/损坏分类和失败启动关闭句柄及进程结束。`pnpm check` 与 Windows `pnpm test:records:desktop` 的本机结果、Linux CI 结果与未执行范围见 [T01 交付记录](../docs/work/b002-migration-recovery/t01-versioned-migrations.md)。没有对真实 `.recorder/` 做升级实验；没有新增真实业务 migration 或维护命令。
+`test/versioned-migrations.test.ts` 使用独立临时库/fixture 验证 v1→v2→v3、跨命名空间拓扑、保留历史、SQL/依赖/摘要拒绝、逐步回滚、旧确认失效、服务撤回与替换、旧 v1 数据保持、忙/损坏分类和失败启动关闭句柄及进程结束。`pnpm check` 与 Windows `pnpm test:records:desktop` 的本机结果、Linux CI 结果与未执行范围见 [T01 交付记录](../docs/work/b002-migration-recovery/t01-versioned-migrations.md)。没有对真实 `.recorder/` 做升级实验；该 T01 交付时未新增真实业务 migration 或维护命令；后续 B003 已新增上述回收站迁移。
 
 ## 资料库独占与恢复点（B002-T02）
 
@@ -107,7 +136,7 @@ pnpm --filter @recorder/backend maintenance restore --database C:/RecorderSample
 pnpm --filter @recorder/backend maintenance verify --database C:/RecorderSamples/source/source.sqlite --target C:/RecorderSamples/restored
 ```
 
-Linux 使用相同命令与绝对路径，例如 `/tmp/recorder-drill/source/source.sqlite`、`/tmp/recorder-drill/restored`。CLI 使用安装的生产迁移清单，当前 identity/records 均为 v1，不能据此制造真实 v2 升级；测试通过 `createMaintenance({ filename, sources, retainedSources })` 装配 file URL 指向的隔离多版本材料，没有新增任意 SQL 的 CLI 参数。
+Linux 使用相同命令与绝对路径，例如 `/tmp/recorder-drill/source/source.sqlite`、`/tmp/recorder-drill/restored`。CLI 使用安装的生产迁移清单，当前 identity 为 v1、records 为 v2，真实旧 v1 样本可按上述回收站步骤升级；更广的多版本故障测试通过 `createMaintenance({ filename, sources, retainedSources })` 装配 file URL 指向的隔离多版本材料，没有新增任意 SQL 的 CLI 参数。
 
 | 服务 / 命令 | 实际行为 |
 | --- | --- |

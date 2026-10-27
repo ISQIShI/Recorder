@@ -8,6 +8,7 @@ export async function runBusinessSmoke(ctx: Context) {
   const evaluate = (source: string) => contents.executeJavaScript(source, true);
   const scenario = process.env.RECORDER_SMOKE_SCENARIO ?? (process.env.RECORDER_SMOKE_RESUME === '1' ? 'resume' : 'create');
   const checks: string[] = [];
+  let evidence: unknown;
   async function until(source: string) {
     const deadline = Date.now() + 20000;
     while (!await evaluate(source)) {
@@ -24,7 +25,7 @@ export async function runBusinessSmoke(ctx: Context) {
   const saved = () => until("document.querySelector('[data-editor-message]')?.textContent === '已保存到后端' && !document.querySelector('[data-editor] fieldset').disabled");
   const result = async () => {
     if (!await evaluate("typeof window.require === 'undefined' && typeof window.recorder.invokeApi === 'function'")) throw new Error('Renderer isolation failed');
-    await writeFile(process.env.RECORDER_SMOKE_RESULT!, JSON.stringify({ passed: true, scenario, checks }));
+    await writeFile(process.env.RECORDER_SMOKE_RESULT!, JSON.stringify({ passed: true, scenario, checks, evidence }));
   };
 
   if (scenario === 'create') {
@@ -106,6 +107,98 @@ export async function runBusinessSmoke(ctx: Context) {
     checks.push('edited content/revision survives restart; remembered login');
     await click('[data-logout]'); await until("Boolean(document.querySelector('[name=username]'))");
     checks.push('logout revokes persisted session');
+  } else if (scenario === 'trash' || scenario === 'trash-resume') {
+    await until("Boolean(document.querySelector('[name=username]')) || Boolean(document.querySelector('[data-signed-in]'))");
+    if (!await evaluate("Boolean(document.querySelector('[data-signed-in]'))")) {
+      await fill('username', 'smoke-owner'); await fill('password', 'Recorder smoke password 2026!'); await click('[data-login-submit]');
+    }
+    await until("Boolean(document.querySelector('[data-signed-in]')) && !document.querySelector('[data-search-record]').disabled");
+    if (scenario === 'trash') {
+      await fill('recordTitle', '回收站验收目标'); await fill('recordBody', '# 回收站原正文');
+      await evaluate("(() => { const field = document.querySelector('[name=recordFormat]'); field.value = 'markdown'; field.dispatchEvent(new Event('change', {bubbles:true})); })()");
+      await click('[data-save-record]');
+      await until("document.querySelector('[data-record-message]').textContent === '已保存到后端' && !document.querySelector('[data-search-record]').disabled");
+      const listed = await invoke('listRecords', { q: '回收站验收目标' });
+      if (!listed.ok || listed.value.items.length !== 1) throw new Error('Trash sample creation failed');
+      const before = listed.value.items[0], id = before.id;
+      await click('[data-edit-record]'); await editorReady(); await fill('editBody', '回收操作保护的草稿');
+      await evaluate("window.__confirmCount = 0; window.confirm = () => { window.__confirmCount++; return false; }; void 0");
+      await click('[data-trash-record]'); await click('[data-open-trash]'); await click('[data-search-record]');
+      if (!await evaluate("window.__confirmCount === 3 && document.querySelector('[name=editBody]').value === '回收操作保护的草稿' && document.querySelector('[data-record-state]').getAttribute('data-record-state') === 'active'")) throw new Error('Trash/list navigation bypassed draft guard');
+      const stillActive = await invoke('getRecord', { id });
+      if (!stillActive.ok || stillActive.value.deletedAt !== null || stillActive.value.revision !== 1) throw new Error('Cancelled trash mutated backend');
+      await evaluate("window.confirm = () => true; void 0");
+      const originalFetch = globalThis.fetch;
+      try {
+        globalThis.fetch = (async (url: any, init?: RequestInit) => String(url).endsWith('/trash') ? new Response(JSON.stringify({ code: 'PLUGIN_UNAVAILABLE', message: '隔离回收失败样本' }), { status: 503 }) : originalFetch(url, init)) as typeof fetch;
+        await click('[data-trash-record]'); await until("document.querySelector('[data-editor-message]').textContent === '隔离回收失败样本'");
+        if (!await evaluate("document.querySelector('[name=editBody]').value === '回收操作保护的草稿'")) throw new Error('Failed trash lost draft');
+      } finally { globalThis.fetch = originalFetch; }
+      const remote = await invoke('updateRecord', { id, expectedRevision: 1, title: before.title, body: '# 回收冲突后的后端正文', format: 'markdown' });
+      if (!remote.ok) throw new Error('Trash competing update failed');
+      await click('[data-trash-record]'); await until("document.querySelector('[data-editor-message]').textContent.includes('版本冲突') && !document.querySelector('[data-search-record]').disabled");
+      if (!await evaluate("document.querySelector('[name=editBody]').value === '回收操作保护的草稿' && document.querySelector('[data-editor-dirty]').textContent.includes('版本 1') && document.querySelector('[data-latest]').textContent.includes('版本 2')")) throw new Error('Trash conflict lost baseline/draft or failed to refresh');
+      await click('[data-discard-edit]'); await editorReady(); await click('[data-cancel-edit]');
+      await click('[data-trash-record]'); await until("document.querySelector('[data-record-message]').textContent.includes('已移入回收站') && !document.querySelector('[data-search-record]').disabled");
+      const gone = await invoke('listRecords', { q: '回收站验收目标' }), trashed = await invoke('getRecord', { id });
+      if (!gone.ok || gone.value.total !== 0 || !trashed.ok || trashed.value.revision !== 3 || trashed.value.deletedAt === null) throw new Error('Trash did not reach persistent backend');
+      evidence = { before, trashed: trashed.value };
+      checks.push('real UI trash, default search exclusion, canceled dirty trash/list/search, service failure and stale revision preserve draft');
+    } else {
+      const expected = JSON.parse(process.env.RECORDER_SMOKE_TRASH_EXPECTED!).evidence;
+      await click('[data-open-trash]'); await until("document.querySelectorAll('[data-record-id]').length === 1 && !document.querySelector('[data-search-record]').disabled");
+      await click('[data-record-id]'); await until("Boolean(document.querySelector('[data-trash-readonly]')) && !document.querySelector('[data-restore-record]').disabled");
+      const persisted = await invoke('getRecord', { id: expected.before.id });
+      if (!persisted.ok || JSON.stringify(persisted.value) !== JSON.stringify(expected.trashed) || await evaluate("Boolean(document.querySelector('[data-edit-record]'))")) throw new Error('Restart lost trash data or exposed an editor');
+      if (process.env.RECORDER_SMOKE_SCREENSHOT) await writeFile(process.env.RECORDER_SMOKE_SCREENSHOT.replace('.png', '-trash-readonly.png'), (await contents.capturePage()).toPNG());
+      await click('[data-restore-record]'); await until("document.querySelectorAll('[data-record-id]').length === 0 && !document.querySelector('[data-search-record]').disabled");
+      const restored = await invoke('getRecord', { id: expected.before.id });
+      if (!restored.ok || restored.value.deletedAt !== null || restored.value.id !== expected.before.id || restored.value.createdAt !== expected.before.createdAt || restored.value.body !== expected.trashed.body || restored.value.format !== expected.before.format || restored.value.revision !== 4) throw new Error('Restore changed identity/content or revision');
+      checks.push('trash survives backend/Electron restart; readonly detail; UI restore retains ID/createdAt/body/format');
+      await click('[data-open-active]'); await until("document.querySelectorAll('[data-record-id]').length === 3 && !document.querySelector('[data-search-record]').disabled");
+      await click(`[data-record-id="${expected.before.id}"]`); await until("Boolean(document.querySelector('[data-trash-record]')) && !document.querySelector('[data-trash-record]').disabled");
+      await click('[data-trash-record]'); await until("!document.querySelector('[data-search-record]').disabled && !document.querySelector('[data-trash-record]')");
+      // Seed the remaining page through the same narrow bridge, then exercise pagination with actual UI mutations.
+      const seeded = await evaluate(`(async () => { for (let i = 0; i < 31; i++) {
+        const created = await window.recorder.invokeApi('createRecord', { requestId: crypto.randomUUID(), title: 'B003 bulk [' + i + ']', body: '分页回收样本', format: 'plain' });
+        if (!created.ok) return false;
+        const moved = await window.recorder.invokeApi('trashRecord', { id: created.value.id, expectedRevision: 1 }); if (!moved.ok) return false;
+      } return true; })()`);
+      if (!seeded) throw new Error('Pagination fixture could not traverse IPC');
+      await click('[data-open-trash]'); await until("document.querySelectorAll('[data-record-id]').length === 30 && !document.querySelector('[data-record-next]').disabled");
+      await click('[data-record-next]'); await until("document.querySelectorAll('[data-record-id]').length === 2 && !document.querySelector('[data-search-record]').disabled");
+      for (let i = 0; i < 2; i++) {
+        await click('[data-record-id]'); await until("Boolean(document.querySelector('[data-restore-record]')) && !document.querySelector('[data-restore-record]').disabled");
+        await click('[data-restore-record]');
+        await until(`document.querySelectorAll('[data-record-id]').length === ${i === 0 ? 1 : 30} && !document.querySelector('[data-search-record]').disabled`);
+      }
+      if (!await evaluate("document.querySelector('[data-record-prev]').disabled")) throw new Error('Empty final page did not return to valid first page');
+      checks.push('restore refreshes pagination and backs out of an empty final page');
+      const remaining = await invoke('listRecords', { state: 'trash' }), active = await invoke('listRecords', {});
+      if (!remaining.ok || remaining.value.total !== 30 || !active.ok) throw new Error('Unexpected pre-empty records');
+      await fill('recordQuery', remaining.value.items[0].title); await click('[data-search-record]');
+      await until("document.querySelectorAll('[data-record-id]').length === 1 && !document.querySelector('[data-search-record]').disabled");
+      let emptyCalls = 0, failEmpty = false;
+      const originalFetch = globalThis.fetch;
+      try {
+        globalThis.fetch = (async (url: any, init?: RequestInit) => {
+          if (String(url).endsWith('/records/trash/empty')) { emptyCalls++; if (failEmpty) return new Response(JSON.stringify({ code: 'PLUGIN_UNAVAILABLE', message: '隔离清空失败样本' }), { status: 503 }); }
+          return originalFetch(url, init);
+        }) as typeof fetch;
+        await click('[data-empty-trash]'); await until("Boolean(document.querySelector('[data-empty-confirmation]'))"); await click('[data-cancel-empty]');
+        if (emptyCalls !== 0) throw new Error('Cancelled empty sent a request');
+        failEmpty = true; await click('[data-empty-trash]'); await click('[data-confirm-empty]');
+        await until("document.querySelector('[data-record-message]').textContent === '隔离清空失败样本' && !document.querySelector('[data-confirm-empty]').disabled");
+        const unchanged = await invoke('listRecords', { state: 'trash' }); if (!unchanged.ok || unchanged.value.total !== 30) throw new Error('Failed empty lost records');
+        failEmpty = false; await click('[data-confirm-empty]');
+        await until("document.querySelector('[data-record-message]').textContent.includes('已永久删除 30 条') && !document.querySelector('[data-search-record]').disabled");
+        if (Number(emptyCalls) !== 2) throw new Error('Empty request count incorrect');
+      } finally { globalThis.fetch = originalFetch; }
+      const afterActive = await invoke('listRecords', {}), afterTrash = await invoke('listRecords', { state: 'trash' });
+      if (!afterActive.ok || !afterTrash.ok || afterTrash.value.total !== 0 || JSON.stringify(afterActive.value) !== JSON.stringify(active.value)) throw new Error('Empty affected active records or missed filtered-out trash');
+      if (process.env.RECORDER_SMOKE_SCREENSHOT) await writeFile(process.env.RECORDER_SMOKE_SCREENSHOT.replace('.png', '-trash-empty.png'), (await contents.capturePage()).toPNG());
+      checks.push('cancel empty sends no request; failure preserves records; confirmed UI empty deletes all trash despite filtered view, preserving active records');
+    }
   } else {
     await until("Boolean(document.querySelector('[name=username]')) || Boolean(document.querySelector('[data-signed-in]'))");
     if (!await evaluate("Boolean(document.querySelector('[data-signed-in]'))")) {

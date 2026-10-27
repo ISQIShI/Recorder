@@ -294,25 +294,25 @@ test('Cordis withdraws planner/executor with the database and restores once with
   } finally { await f.cleanup(); }
 });
 
-test('production v1 SQL/digests and business rows remain unchanged, and the business profile exposes no upgrade executor', async () => {
+test('production history SQL/digests and business rows remain unchanged, and the business profile exposes no upgrade executor', async () => {
   const dir = await directory(), filename = join(dir.path, 'legacy.sqlite');
   const raw = new Database(filename);
-  // Build the old success ledger verbatim, without using the new planner or executor.
+  // Build the installed success ledger verbatim, without using the planner or executor.
   try {
     raw.exec(ledgerSql);
     for (const step of production) {
       raw.exec(step.sql.split('--> statement-breakpoint').join('\n'));
-      raw.prepare('INSERT INTO recorder_migrations VALUES (?, ?, ?, ?)').run(step.namespace, 1, createHash('sha256').update(step.sql).digest('hex'), 123);
+      raw.prepare('INSERT INTO recorder_migrations VALUES (?, ?, ?, ?)').run(step.namespace, step.revision, createHash('sha256').update(step.sql).digest('hex'), 123);
     }
     raw.exec("INSERT INTO core_instance VALUES ('sample-instance',1); INSERT INTO identity_users VALUES ('sample-owner','owner','isolated-hash',1,10)");
-    raw.prepare('INSERT INTO records_entries VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run('record-1','sample-owner','request-1','request-hash','title','source','plain',1,7,'sample-instance',12,13);
+    raw.prepare('INSERT INTO records_entries(id,owner_id,request_id,request_hash,title,body,format,format_version,revision,origin_instance_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run('record-1','sample-owner','request-1','request-hash','title','source','plain',1,7,'sample-instance',12,13);
   } finally { raw.close(); }
   let ctx: Awaited<ReturnType<typeof createApplication>> | undefined;
   try {
     ctx = await createApplication({ filename, dataDir: dir.path, setupCode: 'test-only-setup-code', http: { listen: false } });
     assert.equal(ctx.get('recorderMigrationExecutor'), undefined);
     assert.equal(ctx.recorderMigrationPlanner.inspect().status, 'compatible');
-    assert.deepEqual(ctx.recorderDatabase.raw.prepare('SELECT applied_at FROM recorder_migrations').all(), [{ applied_at: 123 }, { applied_at: 123 }]);
+    assert.deepEqual(ctx.recorderDatabase.raw.prepare('SELECT applied_at FROM recorder_migrations').all(), production.map(() => ({ applied_at: 123 })));
     assert.equal(ctx.recorderRecordStore.get('sample-owner', 'record-1')?.revision, 7);
     assert.equal(ctx.recorderIdentityStore.user('owner')?.passwordHash, 'isolated-hash');
     const before = ctx.recorderDatabase.raw.prepare('SELECT * FROM recorder_migrations').all();

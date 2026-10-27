@@ -44,7 +44,7 @@ async function fixture(empty = false, productionOnly = false) {
       migrations.applyMigrations(raw, productionOnly ? production : [...production, drill[0]!]);
       raw.exec("INSERT INTO core_instance VALUES('drill-instance',1); INSERT INTO identity_users VALUES('owner','owner','isolated-password-hash',1,1)");
       raw.prepare('INSERT INTO identity_sessions VALUES(?,?,?,?,?,?,?,?)').run('session','owner','isolated-session-hash','native','drill-device',1,999999,null);
-      raw.prepare('INSERT INTO records_entries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('record','owner','request','request-hash','fixture title','# fixture body','markdown',1,7,'drill-instance',1,2);
+      raw.prepare('INSERT INTO records_entries(id,owner_id,request_id,request_hash,title,body,format,format_version,revision,origin_instance_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('record','owner','request','request-hash','fixture title','# fixture body','markdown',1,7,'drill-instance',1,2);
       if (!productionOnly) raw.prepare('INSERT INTO drill VALUES(?,?)').run(1, 'preserved fixture');
     } finally { await ctx.fiber.dispose(); }
   }
@@ -267,10 +267,10 @@ test('actual subprocess termination preserves evidence and reconciles pre/post-c
       try {
         await terminateAt(f, checkpoint);
         const ctx = await f.open(), state = await ctx.recorderMaintenance.inspect(), raw = ctx.recorderDatabase.raw;
-        assert.equal(state.committed, committed); assert.equal(state.plan.applied.length, 3 + committed);
+        assert.equal(state.committed, committed); assert.equal(state.plan.applied.length, production.length + 1 + committed);
         assert.equal(state.state, checkpoint === 'snapshot' ? 'snapshot-needed' : checkpoint === 'final-validation' ? 'final-validation' : 'can-continue');
         assert.equal((raw.pragma('table_info(drill)') as unknown[]).length, committed ? 3 : 2);
-        if (checkpoint === 'after-commit') assert.equal(state.run!.observed.length, 3, 'Real SQL commit preceded result publication');
+        if (checkpoint === 'after-commit') assert.equal(state.run!.observed.length, production.length + 1, 'Real SQL commit preceded result publication');
         if (checkpoint === 'snapshot') assert.ok((await ctx.recorderRecoveryPoints.list()).incomplete.length > 0);
         const before = data(raw), existingLedger = state.plan.applied;
         await assert.rejects(ctx.recorderMaintenance.resume(''), { code: 'CONFIRMATION_REQUIRED' });

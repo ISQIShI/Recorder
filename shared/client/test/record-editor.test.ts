@@ -11,7 +11,7 @@ import * as editorPlugin from '../dist/plugins/record-editor.js';
 import * as accountPlugin from '../dist/plugins/account.js';
 
 const identity: Identity = { userId: 'owner', sessionId: 'session-1', username: 'owner', expiresAt: 9999999999999 };
-const initial: RecordData = { id: 'record-1', requestId: 'create-1', title: 'before', body: 'plain source', format: 'plain', revision: 1, formatVersion: 1, originInstanceId: 'instance', createdAt: 1, updatedAt: 1 };
+const initial: RecordData = { id: 'record-1', requestId: 'create-1', title: 'before', body: 'plain source', format: 'plain', revision: 1, formatVersion: 1, originInstanceId: 'instance', createdAt: 1, updatedAt: 1, deletedAt: null };
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 class LeaveTarget extends EventTarget {
   answer = false; confirmations = 0; listeners = new Set<EventListenerOrEventListenerObject>();
@@ -21,13 +21,20 @@ class LeaveTarget extends EventTarget {
 }
 async function fixture() {
   const ctx = new Context(), target = new LeaveTarget();
-  let stored = { ...initial }, update: ((input: any) => Promise<RecordData>) | undefined;
-  const updates: any[] = [];
+  let stored = { ...initial }, update: ((input: any) => Promise<RecordData>) | undefined, transition: (() => Promise<RecordData>) | undefined;
+  const updates: any[] = [], transitions: any[] = [];
   const state = reactive({ ready: true, error: '', identity: { ...identity } as Identity | undefined });
   await ctx.plugin((owner: Context) => {
     owner.provide('recorderAccount', { state, error: (error: unknown) => { if (error instanceof ApiError && error.status === 401) state.identity = undefined; return (error as Error).message; } } as any);
     owner.provide('recorderApi', { async request(method: string, input: any) {
       if (method === 'getRecord') return { ...stored, id: input.id };
+      if (method === 'trashRecord' || method === 'restoreRecord') {
+        transitions.push({ method, ...input });
+        if (transition) return transition();
+        if (input.expectedRevision !== stored.revision) throw new ApiError('REVISION_CONFLICT', 'stale state', 409);
+        stored = { ...stored, deletedAt: method === 'trashRecord' ? 100 : null, revision: stored.revision + 1 };
+        return stored;
+      }
       if (method === 'updateRecord') {
         updates.push({ ...input });
         if (update) return update(input);
@@ -41,7 +48,7 @@ async function fixture() {
   const guard = await ctx.plugin(leave, { target });
   const editor = await ctx.plugin(editorPlugin);
   await ctx.recorderEditor.select(initial.id); await ctx.recorderEditor.begin();
-  return { ctx, target, state, updates, guard, editor, setStored(value: RecordData) { stored = value; }, setUpdate(value?: typeof update) { update = value; } };
+  return { ctx, target, state, updates, transitions, guard, editor, setStored(value: RecordData) { stored = value; }, setUpdate(value?: typeof update) { update = value; }, setTransition(value?: typeof transition) { transition = value; } };
 }
 
 test('editor saves manually with frozen input, no duplicate requests, and a fresh read on edit entry', async () => {
@@ -106,6 +113,29 @@ test('service errors, uncertain timeouts and leave cancellation preserve in-memo
     f.target.answer = true; await e.select('record-2');
     assert.equal(e.state.record?.id, 'record-2'); assert.equal(e.state.editing, false);
     assert.equal(f.target.listeners.size, 0);
+  } finally { await f.ctx.fiber.dispose(); }
+});
+
+test('trash and navigation share the draft guard; errors and stale state preserve the draft, and trash cannot become an editing baseline', async () => {
+  const f = await fixture(), e = f.ctx.recorderEditor;
+  try {
+    e.change({ body: 'keep my draft' });
+    assert.equal(e.leave(), false);
+    await e.transition('trashRecord'); assert.equal(f.transitions.length, 0);
+    assert.equal(e.state.draft.body, 'keep my draft'); assert.equal(e.state.editing, true);
+    f.target.answer = true;
+    f.setTransition(async () => { throw new ApiError('PLUGIN_UNAVAILABLE', 'trash service failed', 503); });
+    await e.transition('trashRecord'); assert.equal(e.state.message, 'trash service failed');
+    assert.equal(e.state.draft.body, 'keep my draft'); assert.equal(e.state.baseline?.revision, 1);
+    f.setTransition(); f.setStored({ ...initial, deletedAt: 100, revision: 2 });
+    await e.transition('trashRecord');
+    assert.equal(e.state.conflict, true); assert.equal(e.state.record?.deletedAt, 100); assert.equal(e.state.latest?.revision, 2);
+    assert.equal(e.state.draft.body, 'keep my draft'); assert.equal(e.state.baseline?.revision, 1);
+    e.rebase(); assert.equal(e.state.baseline?.revision, 1); await e.save(); assert.equal(f.updates.length, 0);
+    await e.discard(); assert.equal(e.state.editing, false); assert.equal(e.state.record?.deletedAt, 100);
+    await e.begin(); assert.equal(e.state.editing, false); assert.match(e.state.message, /只读/);
+    const restored = await e.transition('restoreRecord'); assert.equal(restored?.deletedAt, null); assert.equal(restored?.revision, 3);
+    await e.begin(); assert.equal(e.state.editing, true); assert.equal(e.state.baseline?.revision, 3);
   } finally { await f.ctx.fiber.dispose(); }
 });
 

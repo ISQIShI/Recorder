@@ -203,7 +203,7 @@ test('snapshot preserves existing identity, session and record values with the o
     const raw = f.ctx.recorderDatabase.raw;
     raw.exec("INSERT INTO core_instance VALUES('isolated-instance',1); INSERT INTO identity_users VALUES('owner','owner','isolated-password-hash',1,1)");
     raw.prepare('INSERT INTO identity_sessions VALUES(?,?,?,?,?,?,?,?)').run('session','owner','isolated-token-hash','native','fixture-device',1,999999,null);
-    raw.prepare('INSERT INTO records_entries VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('record','owner','request','request-hash','title','body','plain',1,7,'isolated-instance',1,2);
+    raw.prepare('INSERT INTO records_entries(id,owner_id,request_id,request_hash,title,body,format,format_version,revision,origin_instance_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('record','owner','request','request-hash','title','body','plain',1,7,'isolated-instance',1,2);
     const point = await f.ctx.recorderRecoveryPoints.create(f.ctx.recorderMigrationPlanner.inspect().digest);
     const snap = new Database(join(point.directory, 'database.sqlite'), { readonly: true });
     try { for (const table of ['identity_users','identity_sessions','records_entries','core_instance','recorder_migrations']) assert.deepEqual(snap.prepare('SELECT * FROM ' + table).all(), raw.prepare('SELECT * FROM ' + table).all()); }

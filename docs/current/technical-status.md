@@ -81,9 +81,9 @@
 
 ## 使用与维护
 
-[B001](../work/b001-record-editing/README.md) 与 [B002](../work/b002-migration-recovery/README.md) 已完成范围内验收。用户现要求核心功能优先，下一批 [B003 桌面记录管理](../work/b003-record-management/README.md) 已规划：先 T01 回收站，合并后 T02 标签与筛选，每项交付完整后端到桌面流程。两项均未实现，由用户启动实现会话；旧库升级复用现有 CLI，桌面维护 UI、正式恢复启用与备份增强降级。后续建议接分层分类和基础附件，不要求 Web/Android 同步推进，也不冻结完整 MVP 或排期。
+[B001](../work/b001-record-editing/README.md) 与 [B002](../work/b002-migration-recovery/README.md) 已完成范围内验收。用户现要求核心功能优先，当前批次 [B003 桌面记录管理](../work/b003-record-management/README.md) 已规划：先 T01 回收站，合并后 T02 标签与筛选，每项交付完整后端到桌面流程。T01 已实现并通过 PR #15 验收，T02 待用户启动实现会话；旧库升级复用现有 CLI，桌面维护 UI、正式恢复启用与备份增强降级。后续建议接分层分类和基础附件，不要求 Web/Android 同步推进，也不冻结完整 MVP 或排期。
 
-当前完成基础工程、账号、记录保存/查询/更新与双端编辑；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。T01 已验证隔离样本多版本迁移，生产清单仍为 identity/records revision 1；普通启动先取得独占，只初始化空库或运行兼容库，已有库升级通过独立维护 CLI 显式确认，不在普通启动中执行。T02 已实现受权限保护的本地恢复点与 SQL/账本/快照校验；数据库关闭失败保留独占，可结束迭代器后重试关闭，恢复点校验拒绝未封存的 WAL 等辅助文件并使用隔离副本。T03 已补维护运行记录、未完成维护的启动门禁、显式确认后继续与新空目录隔离恢复。源库仍须可由维护 profile 打开，隔离库禁止自动启用业务；完整灾难恢复、桌面确认、附件与 restic 集成仍未实现。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
+当前完成基础工程、账号、记录保存/查询/更新与双端编辑，以及桌面回收站、恢复和确认清空；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。B003-T01 已验证真实 v1 样本经维护 CLI 升级且原内容保留；生产清单为 identity revision 1、records revision 2。B002-T01 的计划器继续复用；普通启动先取得独占，只初始化空库或运行兼容库，已有库升级通过独立维护 CLI 显式确认，不在普通启动中执行。B002-T02 已实现受权限保护的本地恢复点与 SQL/账本/快照校验；数据库关闭失败保留独占，可结束迭代器后重试关闭，恢复点校验拒绝未封存的 WAL 等辅助文件并使用隔离副本。B002-T03 已补维护运行记录、未完成维护的启动门禁、显式确认后继续与新空目录隔离恢复。源库仍须可由维护 profile 打开，隔离库禁止自动启用业务；完整灾难恢复、桌面确认、附件与 restic 集成仍未实现。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
 
 后端、共享界面和 Android 主线已确认，细节见 [后端技术](architecture/backend-stack.md)、[前端技术](architecture/frontend-stack.md) 和 [Android 方向](architecture/android-stack.md)。工程入口见 [目录规划](development/repository-layout.md)。Android 原生工程已生成并同步资源；用户确认没有 SDK，APK 与真机测试待按 [环境指南](development/android-environment.md) 配置后进行。Linux CI runner 检查已通过，Chrome 已完成本机编辑/冲突操作并由用户确认刷新/关闭提醒出现；原生弹窗选择分支、其他浏览器、Linux 生产部署与性能仍未完整验证。新决定获用户确认后更新本页及对应有效说明，再补入 [历史决策记录](../history/decisions/decision-log.md)。已有明确决定不反复询问，候选不自动转为已确认。
 

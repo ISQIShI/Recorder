@@ -5,5 +5,5 @@ export const records = sqliteTable('records_entries', {
   requestHash: text('request_hash').notNull(), title: text('title').notNull(), body: text('body').notNull(),
   format: text('format', { enum: ['plain', 'markdown'] }).notNull(), formatVersion: integer('format_version').notNull(),
   revision: integer('revision').notNull(), originInstanceId: text('origin_instance_id').notNull(),
-  createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(),
-}, table => [uniqueIndex('records_request').on(table.ownerId, table.requestId), index('records_owner_time').on(table.ownerId, table.createdAt, table.id)]);
+  createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(), deletedAt: integer('deleted_at'),
+}, table => [uniqueIndex('records_request').on(table.ownerId, table.requestId), index('records_owner_time').on(table.ownerId, table.createdAt, table.id), index('records_owner_state_time').on(table.ownerId, table.deletedAt, table.createdAt, table.id)]);

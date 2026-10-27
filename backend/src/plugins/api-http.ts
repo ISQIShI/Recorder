@@ -47,19 +47,20 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
           responses: { '200': { description: 'Success', content: { 'application/json': { schema: apiResponses[method] } } },
             '400': { description: 'Invalid input or ambiguous credentials' }, '401': { description: 'Missing, expired or revoked session' },
             '403': { description: 'Host, Origin, request marker or CSRF rejected' },
-            ...(method === 'getRecord' || method === 'updateRecord' ? { '404': { description: 'NOT_FOUND: record missing or owned by another account' } } : {}),
-            ...(method === 'updateRecord' ? { '409': { description: 'REVISION_CONFLICT: expectedRevision is stale; no changes written' } } : {}),
+            ...(['getRecord', 'updateRecord', 'trashRecord', 'restoreRecord'].includes(method) ? { '404': { description: 'NOT_FOUND: record missing or owned by another account' } } : {}),
+            ...(['updateRecord', 'trashRecord', 'restoreRecord'].includes(method) ? { '409': { description: 'REVISION_CONFLICT: expectedRevision is stale; RECORD_TRASHED: body update is forbidden in trash; no changes written' } } : {}),
             '503': { description: 'Required plugin unavailable' } },
         };
         server.route({ method: route.method, url: route.path,
           schema: { ...('params' in route ? { params: route.params } : {}), ...(writes ? { body: route.input } : { querystring: route.input }), response: { 200: apiResponses[method] } },
           preValidation: async request => {
             // Reject coercion of JSON update fields; GET query coercion remains unchanged.
-            if (method === 'updateRecord') {
+            if (['updateRecord', 'trashRecord', 'restoreRecord'].includes(method)) {
               const body = request.body as Record<string, unknown> | null;
               if (!body || !Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1
-                || !['title', 'body', 'format'].every(key => typeof body[key] === 'string')) throw failure(400, 'INVALID_INPUT', '输入格式不正确');
+                || (method === 'updateRecord' && !['title', 'body', 'format'].every(key => typeof body[key] === 'string'))) throw failure(400, 'INVALID_INPUT', '输入格式不正确');
             }
+            if (method === 'emptyTrash' && (request.body as { confirm?: unknown } | null)?.confirm !== true) throw failure(400, 'CONFIRMATION_REQUIRED', '清空需要明确确认');
           },
           async handler(request, reply) {
             const authorization = request.headers.authorization;

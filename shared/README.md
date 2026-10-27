@@ -1,6 +1,6 @@
 # shared：跨端共享部分
 
-状态：共享契约与客户端插件包已建立。更新日期：2026 年 10 月 25 日。
+状态：共享契约与客户端插件包已建立，含记录编辑与回收站。更新日期：2026 年 10 月 28 日。
 
 阅读时机：抽取共享组件、网络契约、业务客户端和 UI 扩展接口前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [工程目录规划](../docs/current/development/repository-layout.md)。
 
@@ -14,4 +14,8 @@
 
 [B001-T03](../docs/work/b001-record-editing/t03-editor.md) 提供 `record-editor` 与 `leave-guard` Cordis 插件：详情重新读取后进入编辑，手动保存标题、正文和格式；保存中冻结表单，失败保留草稿，超时提示结果未确认。409 保留原基线，查看最新只作对照；用户可放弃草稿或明确改用新基线整理后再手动保存。应用内切换、结束编辑、退出登录和撤销当前会话均使用同一离开守卫；浏览器监听只在有待保护编辑时注册，插件撤回会清理监听与内存状态。会话变化会立即清除旧身份草稿并忽略旧回包。草稿仅在当前窗口内存中，不支持跨重启恢复；纯文本与 Markdown 均按源文编辑、查看。
 
-根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。当前 API 子集见 [账号记录流程](../docs/current/development/first-record-flow.md)；尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。
+[B003-T01](../docs/work/b003-record-management/README.md#t01-任务卡回收站) 扩展标准 `RecordData.deletedAt`、`RecordRevisionInput`、`RecordState` 和 `trashRecord/restoreRecord/emptyTrash`；路径/正文、state 查询、响应校验与固定操作白名单均来自 contracts，Web fetch/Electron 复用编码。清空只接受 `confirm: true`，返回 deleted 数量；后端负责最终权限、版本与事务。
+
+现有 records-panel/record-editor 插件增加正常/回收站切换、关键词分页、只读详情、恢复和不可恢复清空的明确确认。切换、查询、分页与移入沿用同一草稿守卫；冲突刷新状态但保留编辑基线和草稿，失败不假报成功，回收站记录不能作为编辑新基线。清空作用于整个账号回收站（包括被查询过滤的内容），取消不发请求；恢复/清空后刷新，空末页回退。共享 Vue 不引入 Electron SDK；资源进入各端构建，但本任务只验收 Windows Electron，Web/Android 新增流程尚未独立验收。
+
+根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。账号/编辑原流程见 [账号记录流程](../docs/current/development/first-record-flow.md)，回收站契约与验证以 B003 交付和后端 README 为准；尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。

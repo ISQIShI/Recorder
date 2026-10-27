@@ -1,6 +1,6 @@
 # B003：桌面记录管理
 
-状态：已规划，尚未实现；计划合入 main 后可派发 T01。更新日期：2026 年 10 月 28 日。
+状态：T01 回收站已实现并通过验收（PR #15）；合并后由用户派发 T02 标签与筛选。更新日期：2026 年 10 月 28 日。
 
 阅读时机：实现、审查或验收本批时。本页兼作批次计划和两张任务卡，不再拆重复文档。入口：[工作台账](../README.md)；可复制 [实现提示词](prompts.md)。
 
@@ -10,7 +10,7 @@
 
 | 任务 | 用户可验收的结果 | 分支 / 前置 |
 | --- | --- | --- |
-| T01：回收站 | 桌面将记录移入回收站，查看、恢复，并明确确认清空 | `feat/b003-t01-record-trash`；本计划进入 main |
+| T01：回收站 | 桌面将记录移入回收站，查看、恢复，并明确确认清空 | `feat/b003-t01-record-trash`；已验收，见 PR #15 |
 | T02：标签与筛选 | 给已有记录创建/添加/移除多个标签，按标签与关键词查找 | `feat/b003-t02-record-tags`；T01 合入 main |
 
 一个实现会话顺序复用即可；每项从最新 main 新建分支、交付一个可独立验收的完整 PR。每项包括后端、共享契约、传输和桌面 UI，不再拆成纯后端与纯前端任务。用户自行启动实现会话；T01 未合并不启动 T02。
@@ -42,7 +42,18 @@
 
 **验收：** 普通记录 → 回收站（正常搜索消失）→ 重启后仍在 → 恢复后正文/格式/身份不变；取消清空无变化、确认后仅回收站内容消失；两个界面过期 revision 不覆盖，脏草稿不丢失；其他账号不能读改或清空此账号内容。真实旧 v1 样本通过 CLI 升级且内容保留，新空库直接具备功能。一次完整桌面流程证明按钮真实到达后端。
 
-**交付区：** 待实现者填写实际基线、工作树、PR、实际行为/迁移/API、必要检查结果与限制；完整 HEAD 放最终消息/PR，完成标“待整合”，不自行派发 T02。
+**交付区（2026-10-28）：已通过整合验收。**
+
+- 基线 `d9585875f8fecf5e5967319ce181299992f28c12`，fetch 后的最新 origin/main，包含 B003 计划；新分支 `feat/b003-t01-record-trash`。工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`；原未跟踪 `.codex/` 保留，未操作其他工作树/main。[PR #15](https://github.com/ISQIShI/Recorder/pull/15) 指向 main；完整 HEAD 见 PR 与最终交付（提交避免自引用 SHA）。
+- 迁移：records revision 2（`0001_trash.sql`）新增 nullable deleted_at 和状态查询索引；Drizzle schema、Kit snapshot/journal 与 Recorder manifest 同步。Kit SQL 的 ADD 补为现有受控子集的 ADD COLUMN；两份 revision 1 SQL SHA-256 未改。全新空库自动具备功能；真实 v1 旧库需既有维护 CLI inspect → 确认 digest → 先建并验证恢复点 → upgrade，命令见 [后端说明](../../../backend/README.md#记录回收站b003-t01)。
+- 契约：`RecordData.deletedAt: number | null`；listRecords 的 state 默认 active，可显式 trash，沿用关键词/分页/排序。新增认证 POST `trashRecord`、`restoreRecord`（路径 id + 正文 expectedRevision），`emptyTrash`（正文 confirm 必须 true，返回 deleted 数量）。schema/OpenAPI/响应校验/固定编码与 Electron 窄 IPC 共用契约，认证语义未改。
+- 行为：IMMEDIATE 事务内检查 owner/id/revision，移入/恢复递增 revision，保留身份、正文、格式和创建幂等字段；同 revision 同状态无新版本，过期 409、无权或永久删除 404。回收站正文 PUT 拒绝。创建重试不恢复回收站；清空只删当前账号执行时的回收站记录，失败整体回滚，无永久去重墓碑。
+- 桌面：复用 records-panel/editor/leave-guard Cordis 插件；移入、回收站搜索分页/只读详情、恢复、明确确认清空全部。查询/分页/切换使用草稿守卫；错误/冲突保留草稿和基线并显示最新状态，不能用回收站内容重新建立编辑基线。取消清空不发请求；恢复/清空刷新分页，末页为空回退。
+- 本机验证：全工程 build/typecheck 通过；后端回收站/编辑及客户端定向 19/19 通过，新增草稿/传输断言后的客户端 13/13 通过，受影响的迁移/安全启动 3/3 通过。正式 Kit SQL 同步后再次定向验证真实 v1 CLI 升级；日志 `artifacts/b003-t01-build.log`、`b003-t01-typecheck.log`、`b003-t01-targeted.log`、`b003-t01-client-tests.log`、`b003-t01-migration-regression.log`、`b003-t01-final-sql-upgrade.log`。
+- Windows 真 Electron 六阶段通过：原 create/resume/discard-quit/discard-close 保留，新 trash/trash-resume 覆盖脏草稿取消/故障/真实 409、重启后只读回收站、身份/正文/格式恢复、32 条分页的空末页回退、筛选下取消/失败/确认清空且正常记录不变。日志 `artifacts/b003-t01-electron.log`，六份结果在 `artifacts/records-smoke-ph7LbW/`，截图 `artifacts/records-desktop-trash-readonly.png` 与 `records-desktop-trash-empty.png`。仅为隔离样本，不提交数据库/凭据。
+- 相关文档检查通过：8 文件、189 个内部链接、0 错误；git diff --check 通过。Windows/Linux 完整检查由现有 CI 执行，最终 HEAD 结果以 PR #15 Checks 与最终交付为准，未完成前保持 Draft。本机不重复 B002 全套故障注入。
+- 未执行 Web/Android 新增流程独立验收、Android 原生/真机、Linux 图形 Electron；仅保留各端构建与公共契约检查。未操作真实 `.recorder/`，不提供自动清空、单条永久删除、标签、附件、备份擦除或桌面维护 UI；原有维护/隔离恢复限制不变。
+- 整合者已核对代码 HEAD `8019c5adde4500a8eccab665053e9982cb6decb8`，未发现阻塞问题；[对应 Windows/Linux CI 与 PR 标题检查](https://github.com/ISQIShI/Recorder/actions/runs/40548657685) 均成功。本地复验 `pnpm build` 和 `pnpm test:records:desktop` 六阶段通过（`.tmp/pr15-build.log`、`.tmp/pr15-desktop.log`）；原 identity/records v1 SQL、根依赖/锁文件和 CI 未改。未重复本机全套后端测试，真实 v1 升级测试由对应 CI 覆盖。全局事实及 T02 交接随本 PR 更新，相关文档检查通过（17 文件、365 个内部链接、0 错误），git diff --check 通过。最终提交与合并 SHA 以 PR #15 为准。
 
 ## T02 任务卡：标签与筛选
 
@@ -62,4 +73,4 @@
 
 每项在变更稳定后运行一次构建/类型、受影响 API/存储/客户端测试、一次覆盖新功能及原编辑的 Windows Electron 流程、相关文档检查及 `git diff --check`。可扩展现有 smoke，不复制一套测试平台。真实旧库升级样本是必要检查；不重复 B002 全套故障注入。现有 Windows/Linux CI 必需检查全绿；整合者复用对应 HEAD 的 CI，仅补具体疑点或平台缺口，不要求实现者再额外重复完整本机检查。
 
-PR 目标 main，Conventional Commits，正常推送自己的分支，不合并、不强推、不修改别的工作树。交付简要列出分支、完整 HEAD、工作树、PR、验证及未完成项。整合者逐项验收后汇总当前状态；本批尚无实现结果。
+PR 目标 main，Conventional Commits，正常推送自己的分支，不合并、不强推、不修改别的工作树。交付简要列出分支、完整 HEAD、工作树、PR、验证及未完成项。整合者逐项验收后汇总当前状态；T01 已验收；T02 尚未实现。

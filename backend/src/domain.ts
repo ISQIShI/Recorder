@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { ApiMethod, Credentials, Identity, RecordData, RecordInput, RecordUpdateInput, SessionData } from '@recorder/contracts';
+import type { ApiInputs, ApiMethod, Credentials, Identity, RecordData, RecordInput, RecordUpdateInput, RecordRevisionInput, RecordState, SessionData } from '@recorder/contracts';
 import type { MigrationPlanner, MigrationExecutor } from './migration-contract.js';
 import type { DatabaseOwnership, DatabaseUse, RecoveryPoints } from './storage-contract.js';
 import type { MaintenanceRuns, MaintenanceCoordinator, IsolatedRecovery } from './maintenance-contract.js';
@@ -26,15 +26,20 @@ export interface AuthService {
   sessions(principal: Principal): SessionData[]; revoke(principal: Principal, sessionId: string): void;
 }
 export interface RecordStore {
+  setState(ownerId: string, input: RecordRevisionInput, state: RecordState, now: number): RecordData;
+  emptyTrash(ownerId: string): { deleted: number };
   update(ownerId: string, input: RecordUpdateInput, now: number): RecordData;
   instanceId: string; create(ownerId: string, input: RecordInput, hash: string, id: string, now: number): RecordData;
-  list(ownerId: string, q: string, limit: number, offset: number): { items: RecordData[]; total: number };
+  list(ownerId: string, q: string, limit: number, offset: number, state?: RecordState): { items: RecordData[]; total: number };
   get(ownerId: string, id: string): RecordData | undefined;
 }
 export interface RecordService {
+  trash(principal: Principal, input: RecordRevisionInput): RecordData;
+  restore(principal: Principal, input: RecordRevisionInput): RecordData;
+  emptyTrash(principal: Principal, input: ApiInputs['emptyTrash']): { deleted: number };
   update(principal: Principal, input: RecordUpdateInput): RecordData;
   create(principal: Principal, input: RecordInput): RecordData;
-  list(principal: Principal, input: { q?: string; limit?: number; offset?: number }): { items: RecordData[]; total: number };
+  list(principal: Principal, input: ApiInputs['listRecords']): { items: RecordData[]; total: number };
   get(principal: Principal, id: string): RecordData;
 }
 export interface OperationCall { input: any; principal?: Principal; channel: Channel }

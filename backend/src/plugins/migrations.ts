@@ -7,7 +7,7 @@ import { executeMigrations } from './migrations/execute.js';
 import '../domain.js';
 export type { Migration, MigrationSource } from '../migration-contract.js';
 export const inject = ['recorderDatabase'];
-export interface MigrationConfig { sources: readonly MigrationSource[]; retainedSources?: readonly MigrationSource[]; mode?: 'startup' | 'inspect' }
+export interface MigrationConfig { sources: readonly MigrationSource[]; retainedSources?: readonly MigrationSource[]; mode?: 'startup' | 'inspect'; maintenanceGuard?: boolean }
 /** Legacy isolated-test adapter. Not a business/maintenance entry: it provides neither recovery nor exclusion. */
 export function applyMigrations(raw: Database.Database, migrations: readonly Migration[]) {
   const planner = { inspect: () => inspectMigrations(raw, migrations) };
@@ -16,7 +16,7 @@ export function applyMigrations(raw: Database.Database, migrations: readonly Mig
 function load(sources: readonly MigrationSource[]): Migration[] {
   return sources.map(({ file, ...step }) => ({ ...step, sql: readFileSync(new URL(file, new URL('../../migrations/', import.meta.url)), 'utf8') }));
 }
-export function apply(ctx: Context, config: MigrationConfig) {
+export async function apply(ctx: Context, config: MigrationConfig) {
   if (config.mode !== undefined && !['startup', 'inspect'].includes(config.mode)) throw new MigrationError('INVALID_MANIFEST', 'Unknown migration profile');
   let active = true;
   const raw = ctx.recorderDatabase.raw;
@@ -38,11 +38,15 @@ export function apply(ctx: Context, config: MigrationConfig) {
   ctx.effect(() => () => { active = false; });
   ctx.provide('recorderMigrationPlanner', planner);
   if (config.mode === 'inspect') return;
-  const plan = planner.inspect();
-  if (plan.status === 'blocked' || plan.status === 'upgrade-required') {
-    throw new MigrationError(plan.reasons[0]!.code, plan.reasons[0]!.message, plan);
+  function startup(scope: Context) {
+    const plan = planner.inspect();
+    if (plan.status === 'blocked' || plan.status === 'upgrade-required') {
+      throw new MigrationError(plan.reasons[0]!.code, plan.reasons[0]!.message, plan);
+    }
+    if (plan.status === 'empty') executeMigrations(raw, planner, plan.digest);
+    scope.provide('recorderMigrations', { ready: true });
   }
-  if (plan.status === 'empty') executeMigrations(raw, planner, plan.digest);
-  // Readiness is distinct from the inspect-only service; business providers depend on this gate.
-  ctx.provide('recorderMigrations', { ready: true });
+  if (config.maintenanceGuard) {
+    await ctx.inject(['recorderMaintenanceRuns'], scope => { scope.recorderMaintenanceRuns.assertStartup(); startup(scope); });
+  } else startup(ctx); // Existing low-level isolated fixtures remain compatible.
 }

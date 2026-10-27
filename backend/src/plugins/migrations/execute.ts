@@ -4,7 +4,7 @@ import { checkForeignKeys, databaseFailure, ledgerSql } from './plan.js';
 import { runControlledSql } from './sql.js';
 
 /** Low-level, synchronous step runner. The maintenance coordinator must hold exclusion and a recovery point. */
-export function executeMigrations(raw: Database.Database, planner: MigrationPlanner, expectedDigest: string): MigrationExecutionResult {
+export function executeMigrations(raw: Database.Database, planner: MigrationPlanner, expectedDigest: string, singleStep = false): MigrationExecutionResult {
   const committed: MigrationKey[] = [];
   if (raw.inTransaction) throw new MigrationError('TRANSACTION_ACTIVE', 'Migration execution cannot nest inside another transaction');
   let plan = planner.inspect();
@@ -34,6 +34,7 @@ export function executeMigrations(raw: Database.Database, planner: MigrationPlan
     plan = planner.inspect();
     if (plan.materialsDigest !== materialsDigest) throw new MigrationError('STALE_PLAN', 'Migration materials changed between steps; inspect and confirm again', plan, undefined, [...committed]);
     if (plan.status === 'blocked') throw new MigrationError(plan.reasons[0]!.code, plan.reasons[0]!.message, plan, undefined, [...committed]);
+    if (singleStep) break;
   }
   return { committed, plan };
 }

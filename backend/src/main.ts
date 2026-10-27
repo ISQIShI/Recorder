@@ -1,5 +1,5 @@
 import { createApplication } from './application.js';
-import { MigrationError, StorageError } from './domain.js';
+import { MigrationError, StorageError, MaintenanceError } from './domain.js';
 async function start() {
   const port = Number(process.env.RECORDER_PORT ?? 4317);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid RECORDER_PORT');
@@ -17,7 +17,7 @@ async function start() {
 }
 try { await start(); }
 catch (error) {
-  const recognized = error instanceof MigrationError || error instanceof StorageError;
+  const recognized = error instanceof MigrationError || error instanceof StorageError || error instanceof MaintenanceError;
   console.error(JSON.stringify({ application: 'Recorder', status: recognized ? 'maintenance-required' : 'startup-failed',
     code: recognized ? error.code : 'STARTUP_FAILED',
     message: recognized ? error.message : 'Backend startup failed' }));

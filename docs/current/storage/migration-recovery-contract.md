@@ -1,6 +1,6 @@
 # 数据库升级与恢复演练契约
 
-状态：B002 的实施依据；T01 计划/逐步执行/安全启动与 T02 独占/恢复点已实现，T03 维护协调与隔离恢复待实施。更新日期：2026 年 10 月 27 日。
+状态：B002 的实施依据；T01 计划/逐步执行/安全启动与 T02 独占/恢复点已实现，T03 维护协调与隔离恢复已实现。更新日期：2026 年 10 月 28 日。
 
 阅读时机：实现或审查迁移计划、升级恢复点、维护入口和恢复演练时。先读 [数据访问主线](data-access-baseline.md)，任务入口见 [B002](../../work/b002-migration-recovery/README.md)。本页将本批需要的工程约定从 [完整迁移提案](../../design/storage/plugin-migrations.md) 提炼出来，其余提案仍未冻结。
 
@@ -88,6 +88,6 @@ T02 的 `recorderRecoveryPoints.create(expectedPlanDigest)`、`verify(id)` 与 `
 
 Windows 本机及 Linux CI 验证升级成功、拒绝/取消、恢复点失败、逐步回滚、中断重开、重复执行、跨进程独占、提供者替换/撤回，以及恢复到新目录的数据等价性。使用样本库，禁止对用户 `.recorder/` 做升级或恢复试验。
 
-当前生产清单仍仅 identity/records revision 1。T01 已通过 PR #9 实现计划器、独立低层执行插件与普通启动门禁，隔离样本多版本迁移已验证，见 [任务交接](../../work/b002-migration-recovery/t01-versioned-migrations.md)。T02 已通过 PR #11 实现独占与恢复点，关闭失败保锁、封存/验证拒绝未封存 WAL 的回归已通过；60 项测试、Windows Electron 和 Windows/Linux CI 证据见 [批次整合记录](../../work/b002-migration-recovery/README.md)。未完成维护运行门禁、维护 CLI/隔离恢复仍属 T03；不能由 T01 的 compatible 状态推导整批维护完成。官方资料核对日期：2026 年 10 月 26 日；本轮代码与实测核对日期：2026 年 10 月 27 日。文件系统和驱动适配必须以本项目实测为准。
+当前生产清单仍仅 identity/records revision 1。T01 已通过 PR #9 实现计划器、独立低层执行插件与普通启动门禁，隔离样本多版本迁移已验证，见 [任务交接](../../work/b002-migration-recovery/t01-versioned-migrations.md)。T02 已通过 PR #11 实现独占与恢复点，关闭失败保锁、封存/验证拒绝未封存 WAL 的回归已通过；60 项测试、Windows Electron 和 Windows/Linux CI 证据见 [批次整合记录](../../work/b002-migration-recovery/README.md)。T03 已通过 PR #13 交付维护 CLI、持久运行记录、未完成维护启动门禁、四个进程中断点的显式继续与隔离恢复；CI 共 76 项通过。命令和错误码以 [后端说明](../../../backend/README.md#离线维护与隔离恢复b002-t03) 为准。维护源库须可打开；恢复写入新空目录并保留 isolated 标记，普通应用拒绝启用，正式激活与源介质丢失场景仍未实现。不能由 T01 的 compatible 状态推导整批维护完成。官方资料核对日期：2026 年 10 月 26 日；本轮代码与实测核对日期：2026 年 10 月 28 日。文件系统和驱动适配必须以本项目实测为准。
 
 返回 [当前文档索引](../README.md)。

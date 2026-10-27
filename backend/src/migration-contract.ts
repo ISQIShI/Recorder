@@ -35,7 +35,11 @@ export interface MigrationPlanner {
 }
 export interface MigrationExecutionResult { committed: MigrationKey[]; plan: MigrationPlan }
 /** Low-level capability for an explicitly assembled maintenance/test profile, never the business profile. */
-export interface MigrationExecutor { execute(expectedDigest: string): MigrationExecutionResult }
+export interface MigrationExecutor {
+  execute(expectedDigest: string): MigrationExecutionResult;
+  /** Compatible maintenance addition: commit at most one existing controlled transaction. */
+  executeStep?(expectedDigest: string): MigrationExecutionResult;
+}
 export class MigrationError extends Error {
   static fromDatabase(error: unknown): MigrationError {
     if (error instanceof MigrationError) return error;

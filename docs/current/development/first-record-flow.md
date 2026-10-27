@@ -1,6 +1,6 @@
 # 账号认证与第一条记录流程
 
-状态：当前实现范围与使用说明；验证结果在末节记录。更新日期：2026 年 10 月 27 日。
+状态：当前实现范围与使用说明；验证结果在末节记录。更新日期：2026 年 10 月 28 日。
 
 阅读时机：运行账号和记录功能，修改认证、会话、记录 API、迁移、客户端连接或验收本轮功能时。架构扩展方向见 [本地宿主与同步](../architecture/local-runtime-sync.md)，所有能力遵守 [全面插件化](../architecture/plugin-everything.md)。
 
@@ -60,7 +60,7 @@
 
 SQLite 使用 foreign_keys、WAL、FULL synchronous、5 秒 busy timeout。身份与记录各有 Kit 生成的初始 SQL；运行时不调用 schema push。统一 `recorder_migrations` 记录 namespace/revision/SHA-256/应用时间，在 `BEGIN IMMEDIATE` 事务内按依赖顺序应用并检查外键。重启校验已应用摘要，拒绝历史被改写和代码落后于 schema。
 
-**B002-T01 已支持多 revision 计划与逐步事务，但生产迁移仍只有 revision 1。** 普通启动只自动初始化空库，拒绝需要升级、历史/摘要不可信或数据版本高于代码的已有库；不自动降级。低层执行器由独立 Cordis 插件提供，生产 profile 不加载，当前仅验证隔离样本。T02 已让普通后端先取得规范 filename 对应的独占再打开数据库；异步使用经 `use()` 注册，关闭失败保留独占，不允许第二宿主趁旧连接仍可写时进入。可校验恢复点由独立插件提供，普通业务不装配。真实旧库升级仍需 T03 的确认与维护协调，不代表完整恢复系统已完成，见 [实施契约](../storage/migration-recovery-contract.md)。
+**B002-T01 已支持多 revision 计划与逐步事务，但生产迁移仍只有 revision 1。** 普通启动只自动初始化空库，拒绝需要升级、历史/摘要不可信或数据版本高于代码的已有库；不自动降级。低层执行器由独立 Cordis 插件提供，生产 profile 不加载，当前仅验证隔离样本。T02 已让普通后端先取得规范 filename 对应的独占再打开数据库；异步使用经 `use()` 注册，关闭失败保留独占，不允许第二宿主趁旧连接仍可写时进入。可校验恢复点由独立插件提供，普通业务不装配。T03 已提供独立维护 CLI、确认与中断协调，并在普通启动阻止未完成维护或隔离恢复库，不代表完整恢复系统已完成，见 [实施契约](../storage/migration-recovery-contract.md)。
 
 ## 认证与访问边界
 
@@ -74,12 +74,14 @@ HTTP 校验 Host，拒绝未知 Origin 和 Cookie/Bearer 混用。当前允许 W
 
 ## 验证与已知限制
 
+2026 年 10 月 28 日，T03 代码审查提交 `3dbc6eff566561f9d9430345019e056a85377ce9` 的 Windows/Linux CI 构建、类型及 76/76 测试通过；整合者本地复验构建、Electron 四阶段，并定向验证新增维护测试，结果见 [B002 验收记录](../../work/b002-migration-recovery/README.md)。复用 CI，不重复本机全套检查。
+
 2026 年 10 月 27 日，整合者在 T02 修复后的 HEAD 运行 `pnpm check`，构建、类型、60/60 测试与相关文档检查通过，Electron 四阶段再次通过，Windows/Linux 最终 PR CI 全绿。上轮发现的关闭失败提前放锁与未封存 WAL 被接受两项问题已补回归；原 WAL 探针复验返回 `RECOVERY_INVALID`。未修改生产 SQL/schema、依赖与公共 HTTP 契约。下文保留此前各阶段证据。
 
 构建和类型检查通过；B001 的 26 项测试保留。2026 年 10 月 26 日整合者在 T01 原始 HEAD 执行 `pnpm build`、`pnpm typecheck`、`pnpm test`，41 项通过（新增迁移测试 15 项），Windows Electron 四阶段复验通过；文档仅查本项相关文件。Windows/Linux 及 PR 标题检查均成功且继续作为 main 合并门槛，具体证据见 [B002 整合记录](../../work/b002-migration-recovery/README.md)。
 
 `pnpm test:records:desktop` 的 create/resume/discard-quit/discard-close 四阶段复验通过，覆盖手动保存、真实 409、失败草稿、正常关闭/退出取消后继续保存、批准后进程终止、重启 revision 5 读回与会话撤销。仅替换原生确认框的选择结果，实际事件链保留。`pnpm test:desktop` 与 `node backend/test/record-edit-desktop.mjs` 也通过。独立 Chrome 编辑、双标签页冲突证据来自实现者实际操作；用户人工确认刷新/关闭提醒出现。证据与范围见 [B001 台账](../../work/b001-record-editing/README.md)，CI 说明见 [自动检查](../../../.github/CI.md)。
 
-Linux 目前验证的是 CI runner 上的安装、构建、类型和测试。Chrome 原生离开弹窗的选择分支未自动验收；其他浏览器、Linux 图形 Electron/生产部署、Android 原生/真机/本地后端、远程 HTTPS 与完整恢复仍未验证。草稿仅在当前窗口内存中，不支持强杀/断电后的恢复。B001 及 B002-T01/T02 已完成；T03 与回收站尚未完成，当前仍先使用可丢弃样本。
+Linux 目前验证的是 CI runner 上的安装、构建、类型和测试。Chrome 原生离开弹窗的选择分支未自动验收；其他浏览器、Linux 图形 Electron/生产部署、Android 原生/真机/本地后端、远程 HTTPS 与完整恢复仍未验证。草稿仅在当前窗口内存中，不支持强杀/断电后的恢复。B001/B002 已完成；桌面升级确认、正式恢复启用与回收站尚未完成，当前仍先使用可丢弃样本。
 
 返回 [当前索引](../README.md) 或 [总导航](../../README.md)。

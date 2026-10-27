@@ -1,6 +1,6 @@
 # B002：多版本迁移与升级恢复演练
 
-状态：进行中；T01/T02 已合并并完成各项验收，T03 前置已满足，等待用户启动。更新日期：2026 年 10 月 27 日。
+状态：本批实施与范围内验收完成；T03 由 PR #13 交付，合并状态以 PR 为准。更新日期：2026 年 10 月 28 日。
 
 阅读时机：领取、审查、整合本批任务时。入口：[工作台账](../README.md)。长期依据：[升级与恢复演练契约](../../current/storage/migration-recovery-contract.md)、[数据访问主线](../../current/storage/data-access-baseline.md)、[桌面优先交付](../../current/architecture/frontend-stack.md)。
 
@@ -31,7 +31,7 @@
 | --- | --- | --- | --- | --- |
 | [B002-T01](t01-versioned-migrations.md) | 多版本迁移与安全启动；实现/审查计划与执行器时 | 本计划合入 main | `feat/b002-t01-versioned-migrations` | 已合并，PR #9 |
 | [B002-T02](t02-upgrade-recovery-points.md) | 资料库独占与升级恢复点；实现/审查锁、快照与清单时 | T01 已合并；读取其实际服务契约 | `feat/b002-t02-upgrade-recovery-points` | 已合并，PR #11 |
-| [B002-T03](t03-maintenance-recovery-drill.md) | 维护 CLI、恢复演练与组合故障测试；集成/验收时 | T02 已合并；读取前两项交付 | `feat/b002-t03-maintenance-recovery-drill` | 待开始，前置已满足 |
+| [B002-T03](t03-maintenance-recovery-drill.md) | 维护 CLI、恢复演练与组合故障测试；集成/验收时 | T02 已合并；读取前两项交付 | `feat/b002-t03-maintenance-recovery-drill` | 已验收，PR #13 |
 | [提示词](prompts.md) | 用户向实现会话派发指定任务时复制；每次只发当前可开工的一项 | 核对依赖已进入 main | 不单独建立实现分支 | 已准备 |
 
 ## 公共文件归属
@@ -61,10 +61,12 @@
 | --- | --- | --- | --- | --- |
 | T01 | `d2a5c369074640455505b4233a933d5e2528881f`；[PR #9](https://github.com/ISQIShI/Recorder/pull/9) | `762e98cb3cd2151b9f88a6167dfc218f8b0fdc88` | [最终 PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40326517187) 三项成功；整合者 Windows 构建、类型、41 项测试、Electron 四阶段和相关文档复验通过 | 独占/恢复点/维护协调仍属 T02/T03 |
 | T02 | `b4b412960064176fc40dbc22f0cb29e7d604810b`；[PR #11](https://github.com/ISQIShI/Recorder/pull/11) | `8b4632a3245e084c15b7841b5274e262e09d19e6` | [最终 PR CI](https://github.com/ISQIShI/Recorder/actions/runs/40355352088) 三项成功；整合者 Windows `pnpm check`（60/60）、Electron 四阶段和原 WAL 探针复验通过 | 维护运行门禁、CLI/隔离恢复待 T03；支持限制见 T02 卡 |
-| T03 | 尚未交付 | 尚未合并 | 未执行 | 前置已满足，等待用户启动 |
+| T03 | 代码审查 HEAD `3dbc6eff566561f9d9430345019e056a85377ce9`；[PR #13](https://github.com/ISQIShI/Recorder/pull/13) | 最终文档提交与 squash SHA 见 PR；不为回填自身 SHA 另开 PR | [代码 CI](https://github.com/ISQIShI/Recorder/actions/runs/40538805131) Windows/Linux 各 76/76；本机定向结果见下文 | 桌面确认、正式恢复启用、日常备份不在本批 |
 
 整合者对 T01 原始 HEAD 核对代码和生产 SQL/schema、依赖、公共 HTTP 契约未变化；Windows 本机执行 `pnpm build`、`pnpm typecheck`、`pnpm test`（41/41）、`pnpm test:records:desktop` 及 `git diff --check`。桌面 smoke 首次在受限沙箱中进程提前退出、无应用结果，放开桌面进程执行权限后四阶段通过，保留为环境失败记录。文档只校验 backend README、T01 卡及批次索引（3 份、39 个内部链接），并人工检查相关契约。最终 CI HEAD 与基线未变后正常 squash 合并，合并树与复验树一致，未修改实现者工作树。
 
 2026 年 10 月 27 日整合 T02：初审 `a36944b01fd85cda0dfdb148b260e4b83da1453c` 时发现真实查询迭代器导致 close 失败仍释放独占、主文件哈希不变的未封存 WAL 被 verify 接受，原 PR 保持未合并并退回修复。最终 HEAD 修复两项并新增三项测试；关闭失败继续保锁，结束迭代器后重试真实关闭才释放；封存与校验拒绝辅助文件，在私有临时副本中读取 SQLite。整合者复查差异、真实子进程回归及上轮 WAL 探针（现为 `RECOVERY_INVALID`），运行 `pnpm check`（60/60，相关文档 7 份/164 个内部链接）、`pnpm test:records:desktop` 四阶段及 `git diff --check` 均通过。忽略日志为 `.tmp/pr11-rereview-check.log` 与 `.tmp/pr11-rereview-desktop.log`，不随仓库分发。生产 SQL/schema、公共 HTTP、依赖/锁文件和 CI 未变。核对最终 HEAD/基线与 CI 后 squash 合并，合并树与复验树一致；未修改实现者工作树或用户 `.codex/`。
 
-T01/T02 已提供计划/执行器、安全启动、独占与恢复点，不提供真实旧库的维护升级入口。维护运行门禁、CLI 与隔离恢复仍待 T03，整批组合验收未完成。T03 从包含 PR #11 和本轮交接文档的最新 main 开始；继续使用原会话时须新建任务分支。后续桌面升级确认与回收站仍按实际任务细化，不自动启动下一批。
+T01/T02/T03 已完成本批范围：多版本受控迁移、独占、升级恢复点、离线维护 CLI、未完成维护启动门禁、中断后显式继续与新空目录隔离恢复。生产仍 identity/records v1，样本演练不代表用户真实库已升级。桌面确认、正式恢复启用、源介质丢失场景、附件/restic 与回收站继续按后续需求设计，不自动启动下一批。
+
+2026 年 10 月 28 日整合 T03：复用当前代码 HEAD 的 Windows/Linux CI 76/76，核对最终成功运行而非先前被取消的重复 CI。本机构建、Electron 四阶段及相关文档检查（21 份相关文件、388 个内部链接）通过；新增维护测试结果见整合最终交付，本地日志为 `.tmp/pr13-maintenance.log`。不重复无变更的全套测试。主流程包含确认后升级、四个真实进程中断点、按账本前缀显式继续、账号/记录数据等价和隔离恢复不启用业务；未扩展低概率故障清单。生产 SQL/schema、公共 HTTP、根依赖/锁文件与 CI 未变。相关状态与效率原则由整合者随同 PR #13 追加，不修改实现者工作树或用户 `.codex/`。

@@ -8,8 +8,9 @@ export function apply(ctx: Context) {
   let active = true;
   ctx.effect(() => () => { active = false; });
   const raw = ctx.recorderDatabase.raw, planner = ctx.recorderMigrationPlanner;
-  ctx.provide('recorderMigrationExecutor', { execute(expectedDigest) {
+  const execute = (expectedDigest: string, singleStep = false) => {
     if (!active) throw new MigrationError('SERVICE_WITHDRAWN', 'Migration executor has been withdrawn');
-    return executeMigrations(raw, planner, expectedDigest);
-  } } satisfies MigrationExecutor);
+    return executeMigrations(raw, planner, expectedDigest, singleStep);
+  };
+  ctx.provide('recorderMigrationExecutor', { execute, executeStep: digest => execute(digest, true) } satisfies MigrationExecutor);
 }

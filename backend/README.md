@@ -1,10 +1,10 @@
 # backend：集中后端
 
-状态：本机账号认证及记录保存/查询/更新已实现，生产接入和完整恢复待实现。更新日期：2026 年 10 月 26 日。
+状态：本机账号认证及记录保存/查询/更新、离线维护与隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 27 日。
 
 阅读时机：后端、业务插件、存储和服务部署工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，先读 [后端技术](../docs/current/architecture/backend-stack.md) 与 [架构概览](../docs/current/architecture/overview.md)。
 
-`src/bootstrap.ts` 负责 Cordis/Loader 装配，保留基础验证 profile。`src/application.ts` 先装配资料库独占，再装配数据库、迁移启动门禁、密码学、身份存储、认证、记录、操作注册表与 HTTP 插件；`main.ts` 启动业务 profile。默认数据为根目录 `.recorder/recorder.sqlite`，可用 `RECORDER_DATA_DIR` 指定绝对目录。
+`src/bootstrap.ts` 负责 Cordis/Loader 装配，保留基础验证 profile。`src/application.ts` 先装配资料库独占，再装配数据库、维护运行记录、迁移启动门禁、密码学、身份存储、认证、记录、操作注册表与 HTTP 插件；`main.ts` 启动业务 profile。默认数据为根目录 `.recorder/recorder.sqlite`，可用 `RECORDER_DATA_DIR` 指定绝对目录。`maintenance-profile.ts` 是独立最小维护装配，CLI 不启动业务应用。
 
 先从根目录执行 `pnpm build`，再用 `pnpm dev:backend` 启动；默认仅监听 `127.0.0.1:4317`。`pnpm test` 包含后端插件生命周期、替换、持久数据保留、失败传播和事务回滚测试。版本和验证范围见 [工程基线](../docs/current/development/engineering-baseline.md)，所有新能力遵守 [全面插件化](../docs/current/architecture/plugin-everything.md)。
 
@@ -16,7 +16,7 @@
 
 设计公共接口或登录前读 [API 与认证主线](../docs/current/architecture/api-auth-baseline.md)，细化时再读 [统一 API](../docs/design/interfaces/unified-api.md) 或 [身份与多设备](../docs/design/security/identity-device-access.md)。设计服务监听和发布时读 [部署接入](../docs/design/operations/deployment-access.md)，具体实现方案尚未冻结。
 
-数据工作先读 [已确认模型主线](../docs/current/storage/data-model-baseline.md) 与 [数据访问主线](../docs/current/storage/data-access-baseline.md)。细化实体和查询时读 [模型设计](../docs/design/storage/data-model.md)，升级、版本账本和失败恢复先读 [B002 实施契约](../docs/current/storage/migration-recovery-contract.md)，更广范围参考 [迁移机制提案](../docs/design/storage/plugin-migrations.md)，落盘与删除恢复读 [存储生命周期](../docs/design/storage/storage-lifecycle.md)，插件新增字段读 [插件数据契约](../docs/design/plugins/data-extension.md)。[B002-T01](../docs/work/b002-migration-recovery/t01-versioned-migrations.md) 已实现下述多版本计划、底层逐步执行和启动门禁；[B002-T02](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md) 接入普通后端独占并提供独立恢复点服务。维护协调、CLI、恢复演练与桌面确认仍未实现。生产清单仍只有 identity/records revision 1；`validation/migrations` 是 Kit 生成的隔离探针，不参与生产升级。
+数据工作先读 [已确认模型主线](../docs/current/storage/data-model-baseline.md) 与 [数据访问主线](../docs/current/storage/data-access-baseline.md)。细化实体和查询时读 [模型设计](../docs/design/storage/data-model.md)，升级、版本账本和失败恢复先读 [B002 实施契约](../docs/current/storage/migration-recovery-contract.md)，更广范围参考 [迁移机制提案](../docs/design/storage/plugin-migrations.md)，落盘与删除恢复读 [存储生命周期](../docs/design/storage/storage-lifecycle.md)，插件新增字段读 [插件数据契约](../docs/design/plugins/data-extension.md)。[B002-T01](../docs/work/b002-migration-recovery/t01-versioned-migrations.md) 已实现下述多版本计划、底层逐步执行和启动门禁；[B002-T02](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md) 接入普通后端独占并提供独立恢复点服务；[B002-T03](../docs/work/b002-migration-recovery/t03-maintenance-recovery-drill.md) 增加离线维护、中断协调与隔离恢复，正式恢复启用和桌面确认仍未实现。生产清单仍只有 identity/records revision 1；`validation/migrations` 是 Kit 生成的隔离探针，不参与生产升级。
 
 ## 多版本迁移服务（B002-T01）
 
@@ -26,7 +26,7 @@
 | --- | --- |
 | `recorderMigrationPlanner.inspect(): MigrationPlan` | 只读预检，不建账本或业务表，返回 `empty` / `compatible` / `upgrade-required` / `blocked`、各命名空间 current/target revision、独立 packageVersion、成功账本、待执行顺序、原因和计划 digest |
 | `recorderMigrationPlanner.capture?()` | T02 的可选兼容增补；一次读取安装/保留 SQL，复用原算法返回 `{ plan, installed, retained }`；包含已应用 SQL，供恢复点归档。旧计划提供者可继续只实现 inspect；恢复点遇到没有 capture 的替身会明确拒绝 |
-| `recorderMigrationExecutor.execute(expectedDigest)` | 仅明确装配的维护/隔离测试 profile 提供；每步重新核对计划后以 IMMEDIATE 事务执行 SQL、FK 检查和成功账本写入，返回 `{ committed, plan }`；不代表恢复点或整批维护已完成 |
+| `recorderMigrationExecutor.execute(expectedDigest)` / `executeStep?(expectedDigest)` | 仅明确装配的维护/隔离测试 profile 提供；每步重新核对计划后以 IMMEDIATE 事务执行 SQL、FK 检查和成功账本写入，返回 `{ committed, plan }`。T03 的可选单步入口复用同一事务算法、最多提交一步，旧 execute 全部执行行为不变；缺少单步能力的替身不能用于维护协调。不代表恢复点或整批维护已完成 |
 | `recorderMigrations.ready` | 业务依赖的启动门禁；普通 `mode: 'startup'` 仅为空库初始化或兼容库提供，inspect profile 即使兼容也不提供 |
 | `applyMigrations(raw, steps)` | 保留给原隔离测试的低层兼容辅助函数，使用同一计划/逐步事务实现；没有独占、用户确认或恢复点，禁止从业务入口调用 |
 
@@ -58,7 +58,7 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 
 `MigrationError` 的 `code/plan/step/committed/cause` 可供 T02/T03 分类处理：`UPGRADE_REQUIRED` 是已有库需维护；`VERSION_UNSUPPORTED` 是软件不理解更高数据版本；`DIGEST_MISMATCH`、`INVALID_LEDGER`、`UNTRACKED_DATABASE`、`UNVERIFIED_HISTORY` 代表不能信任当前历史；清单的重复/缺口/缺失依赖/循环和 `SQL_NOT_ALLOWED` 均阻止执行。`STALE_PLAN` 要求重新检查并确认，`STEP_FAILED` / `FOREIGN_KEY_FAILED` 需核对实际账本；`DATABASE_BUSY`、`DATABASE_CORRUPT`、`DATABASE_UNAVAILABLE` 区分忙/损坏/不可访问。外层事务拒绝为 `TRANSACTION_ACTIVE`，撤回后的旧服务引用拒绝为 `SERVICE_WITHDRAWN`。精确枚举以契约类型为准，不记录用户资料正文或凭据。
 
-普通 `createApplication()` 不提供直接升级服务：非空无可信账本、摘要/依赖/版本错误或任何待执行步骤（含新增命名空间）均拒绝启动，Loader 释放资源，账号/记录及 HTTP 不进入可用状态。`main.ts` 返回非零退出码与结构化 `code`，不会把需要维护写成普通网络失败。空库初始化若已有步骤提交后失败，后续普通启动同样要求维护，不自动续跑。T03 还须接入未完成维护运行记录门禁：全部 SQL 已提交但整体验证/结束记录未完成时，不得只凭这里的 compatible 启动。
+普通 `createApplication()` 不提供直接升级服务：非空无可信账本、摘要/依赖/版本错误或任何待执行步骤（含新增命名空间）均拒绝启动，Loader 释放资源，账号/记录及 HTTP 不进入可用状态。`main.ts` 返回非零退出码与结构化 `code`，不会把需要维护写成普通网络失败。空库初始化若已有步骤提交后失败，后续普通启动同样要求维护，不自动续跑。T03 已接入维护运行门禁：生产装配为 migrations 设置 `maintenanceGuard: true`，通过 Cordis 注入维护运行服务，先核验未完成记录/隔离恢复标记，再提供业务 readiness；该服务撤回会连带撤回 readiness。全部 SQL 已提交但最终验证/完成记录未写时仍拒绝启动。直接装配低层迁移插件的旧隔离测试默认不启用这个应用门禁，不能据此绕过普通应用入口。
 
 `test/versioned-migrations.test.ts` 使用独立临时库/fixture 验证 v1→v2→v3、跨命名空间拓扑、保留历史、SQL/依赖/摘要拒绝、逐步回滚、旧确认失效、服务撤回与替换、旧 v1 数据保持、忙/损坏分类和失败启动关闭句柄及进程结束。`pnpm check` 与 Windows `pnpm test:records:desktop` 的本机结果、Linux CI 结果与未执行范围见 [T01 交付记录](../docs/work/b002-migration-recovery/t01-versioned-migrations.md)。没有对真实 `.recorder/` 做升级实验；没有新增真实业务 migration 或维护命令。
 
@@ -88,7 +88,47 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 
 恢复插件撤回时停止接收新调用，让在途 backup 取消/结束并等待清理；数据库 use 和所有权 retain 确保快照完成前 raw/控制库不关闭。默认快照传输超时 60 秒，可配置正整数 `timeoutMs`，最高 300 秒；不是性能承诺。StorageError 的 code 包含 DATABASE_BUSY、DATABASE_CLOSE_FAILED、PATH_UNSUPPORTED、OWNERSHIP_LOST、SERVICE_WITHDRAWN、RECOVERY_FAILED、RECOVERY_INVALID、RECOVERY_CANCELLED、STALE_PLAN、MATERIALS_UNAVAILABLE、PERMISSION_DENIED；日志仅输出原因，不输出数据库正文、密码摘要或会话秘密。
 
-T03 最小装配顺序为 ownership（filename）→ database（相同 filename）→ migrations（完整 sources/retainedSources，mode inspect）→ recovery-points → 维护协调。维护协调在独占下展示/确认计划，先 `await recorderRecoveryPoints.create(plan.digest)`，再核对计划/恢复点后才能调用独立执行器；失败必须中止。协调者还须保证无业务写入、记录维护运行、核对恢复点与当前资料库/计划的对应关系，并实现隔离恢复，不能把此样本当现成 CLI 或绕过确认的旧库升级入口。普通 createApplication 装配独占，不装配 recovery/executor，不自动创建恢复点或升级旧库。多客户端仍可访问同一业务后端。
+T03 最小装配顺序为 ownership（filename）→ database（相同 filename）→ maintenance-runs / migrations（完整 sources/retainedSources，mode inspect）→ recovery-points / migration-executor → maintenance / isolated-recovery。协调服务在独占下确认计划、记录意图、创建并验证恢复点、核对源库与计划后调用单步执行器；整体校验通过且完成记录发布后才提示可以另行启动业务。普通 createApplication 不装配 recovery/executor，不自动创建恢复点或升级旧库。多客户端仍可访问同一业务后端。
+
+## 离线维护与隔离恢复（B002-T03）
+
+`maintenance-profile.ts` 仅通过 Loader 组合真实 Cordis 提供者，不装配认证、记录业务、HTTP 或外部任务。`maintenance-cli.ts` 只做参数、显示、确认和生命周期收尾；升级、中断判断与恢复由可替换服务执行。CLI 必须显式指定 `--database`，不默认打开真实 `.recorder/`；使用当前锁定 Node/pnpm，先构建。下列均为**隔离样本路径**，目录父级须已存在，源与恢复目标为互不嵌套的兄弟目录：
+
+```powershell
+pnpm build
+pnpm --filter @recorder/backend maintenance inspect --database C:/RecorderSamples/source/source.sqlite
+pnpm --filter @recorder/backend maintenance upgrade --database C:/RecorderSamples/source/source.sqlite --confirm <inspect输出的plan.digest>
+# 交互模式先显示计划；须输入当前完整摘要，其他输入取消。
+pnpm --filter @recorder/backend maintenance upgrade --database C:/RecorderSamples/source/source.sqlite --interactive
+pnpm --filter @recorder/backend maintenance points --database C:/RecorderSamples/source/source.sqlite
+# 只对已检查的未完成运行继续；全部步骤已提交时只做最终验证，不重跑 SQL。
+pnpm --filter @recorder/backend maintenance resume --database C:/RecorderSamples/source/source.sqlite --confirm <最新inspect输出的plan.digest>
+pnpm --filter @recorder/backend maintenance restore --database C:/RecorderSamples/source/source.sqlite --point <封存UUID> --target C:/RecorderSamples/restored
+pnpm --filter @recorder/backend maintenance verify --database C:/RecorderSamples/source/source.sqlite --target C:/RecorderSamples/restored
+```
+
+Linux 使用相同命令与绝对路径，例如 `/tmp/recorder-drill/source/source.sqlite`、`/tmp/recorder-drill/restored`。CLI 使用安装的生产迁移清单，当前 identity/records 均为 v1，不能据此制造真实 v2 升级；测试通过 `createMaintenance({ filename, sources, retainedSources })` 装配 file URL 指向的隔离多版本材料，没有新增任意 SQL 的 CLI 参数。
+
+| 服务 / 命令 | 实际行为 |
+| --- | --- |
+| `recorderMaintenance.inspect()` / `inspect` | 计划四态、当前账本、未完成运行、已提交步数、pending 文件与 `idle/snapshot-needed/can-continue/final-validation/manual`。读取不执行迁移、不自动续跑；可信但未完成的检查可以成功输出，manual/blocked 退出 4 |
+| `upgrade(expectedDigest)` / `upgrade` | 旧库无当前摘要确认不执行；快照和验证失败不执行 SQL。兼容且无未完成运行时返回无操作；全新空库初始化没有旧数据恢复点，普通应用仍可自动首次初始化 |
+| `resume(expectedDigest)` / `resume` | 仅对唯一、可信的未完成运行；核对原恢复点 ID/manifest 摘要、完整原计划/源路径、当前材料摘要、原账本及有序提交前缀，再次绑定当前 plan.digest。原 SQL 已提交但结果未写时承认真实账本，不重复执行。快照未完成且尚无 SQL 提交时，重新确认后可创建新恢复点，旧 pending/孤立封存点保留 |
+| `recorderRecoveryPoints.list()` / `points` | 成功列出 valid/invalid/incomplete；列表本身不授权升级，也不清理失败材料 |
+| `recorderIsolatedRecovery.restore(id, target)` / `restore` | 先由 T02 verify 封存，再复制主文件到新空私有目标，核对摘要/账本/integrity/FK，再次 verify 原恢复点。绝不以 SQLite 打开封存原路径、不修改源库、不启动恢复库 |
+| `verify(target)` / `verify` | 核对隔离标记和原恢复点，在隔离目标读取 SQLite；拒绝未验证 WAL/SHM/journal、摘要和账本变化。不启用账号会话或外部任务 |
+
+退出码：0 命令成功（包括无升级或列出无效/未完成点）；2 缺确认、取消、计划过期；3 资料库/维护忙；4 inspect 显示阻塞计划、未完成维护需处理、运行记录不可信或隔离库禁止启动；1 其余执行/快照/校验/空间/路径/权限/关闭失败（包括 upgrade 遇到不支持的数据版本）；64 参数错误。错误输出结构化 code/message，不输出用户正文、密码摘要或 token。无非交互 `--yes`，无自动升级、回滚或覆盖恢复。
+
+运行记录位于 `<实际 filename>.maintenance/<运行UUID>.json`，私有目录与 T02 相同权限要求。文件包含 `{run, checksum}`，checksum 为完整 run JSON 的 SHA-256，用于发现损坏，不是防恶意同用户修改的签名。run v1 保存源实际路径、完整原计划、阶段、已观察账本、恢复点 ID/manifest 摘要与时间。阶段为 snapshot → executing → validating → complete；意图先持久发布，记录与 SQL 成功账本不是同一事务。每步仍由 T01 在原 IMMEDIATE 事务中提交，协调者随后发布观察结果；最后 integrity/FK/计划校验通过才写 complete。每次更新采用独占新文件 → fsync → rename，并在 Linux fsync 目录；Windows 不声称目录 fsync/真实断电可靠性。异常 `.pending-*` 保留；有对应正式运行文件时以后者为发布边界，无对应运行的残留要求人工检查。历史运行不自动删除。
+
+普通业务启动拒绝未完成或损坏的运行记录，即使当前 schema 已兼容；只读检查不解决该门禁。`manual` 表示源/材料/恢复点/账本前缀无法对应，不能通过重新确认直接越过。没有自动修复或删除记录的命令。CLI 收尾先等待命令完成，再显式 close 数据库以呈现 DATABASE_CLOSE_FAILED；失败保留独占，不靠超时放锁。使用 programmatic profile 的宿主同样须等待工作并处理关闭失败。
+
+恢复目标必须是新建或已有且为空、权限已足够私有的普通目录；拒绝源目录、恢复点根目录及任一祖先/子目录，拒绝指向这些位置的别名与链接目标，不删除用户内容来满足空目录。写入 `database.sqlite.restore.json` 的 incomplete 标记后才复制；成功改为 isolated。失败保留目标与标记，不自动清理。启动门禁始终拒绝带此标记的库；正式恢复启用、会话失效/重新认证、身份和任务去重仍待后续设计。
+
+复制前预检磁盘空间：目标数据库与 T02 校验副本可能同时存在，同卷按两份数据库估算、异卷分别检查；这是即时可用空间检查，不能保证其他进程不消耗空间。封存从不直接读取 SQLite，校验副本不进入有效恢复点。目标验证只清理本次只读连接新建的 WAL/SHM；预先存在的旁路文件明确拒绝，不删除或 checkpoint。当前维护 profile 仍依赖 T02 打开源库，不宣称支持原介质丢失或无法打开源库的完整灾难恢复。
+
+组合测试见 `test/maintenance-recovery.test.ts` 与真实子进程 fixture；Windows/Linux、四个中断点、数据等价、桌面旧流程和未验证项的实际结果见 [T03 交付记录](../docs/work/b002-migration-recovery/t03-maintenance-recovery-drill.md)。不修改生产 schema/SQL、根依赖/锁文件、CI 或公共 HTTP 契约。
 
 `test/storage-recovery.test.ts` 和独立 Node 子进程 fixture 覆盖真实争用/正常退出/强制终止、关闭顺序、别名拒绝与归一、WAL 快照、样本账号/会话/记录保留、空间/写入/摘要/FK/封存失败、在途撤回及服务替换。命令/平台实测、证据与未执行项见 [T02 交付记录](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md)。生产 schema/SQL 未改，未操作真实资料；日常备份、覆盖恢复、附件/restic、维护 CLI 与桌面交互不在 T02。
 

@@ -1,8 +1,8 @@
 # B003：桌面记录管理
 
-状态：T01 回收站已实现并通过验收（PR #15）；合并后由用户派发 T02 标签与筛选。更新日期：2026 年 10 月 28 日。
+状态：已完成范围内验收。T01 回收站（PR #15）、T02 标签与筛选（PR #16）均已实现，保留原任务卡与交付证据。更新日期：2026 年 10 月 28 日。
 
-阅读时机：实现、审查或验收本批时。本页兼作批次计划和两张任务卡，不再拆重复文档。入口：[工作台账](../README.md)；可复制 [实现提示词](prompts.md)。
+阅读时机：追溯本批交付或排查相关回归时。本页保留原计划和两张任务卡。入口：[工作台账](../README.md)；[原实现提示词](prompts.md) 仅作历史材料，不再派发。
 
 ## 目标与顺序
 
@@ -11,7 +11,7 @@
 | 任务 | 用户可验收的结果 | 分支 / 前置 |
 | --- | --- | --- |
 | T01：回收站 | 桌面将记录移入回收站，查看、恢复，并明确确认清空 | `feat/b003-t01-record-trash`；已验收，见 PR #15 |
-| T02：标签与筛选 | 给已有记录创建/添加/移除多个标签，按标签与关键词查找 | `feat/b003-t02-record-tags`；T01 合入 main |
+| T02：标签与筛选 | 给已有记录创建/添加/移除多个标签，按标签与关键词查找 | `feat/b003-t02-record-tags`；已验收，见 PR #16 |
 
 一个实现会话顺序复用即可；每项从最新 main 新建分支、交付一个可独立验收的完整 PR。每项包括后端、共享契约、传输和桌面 UI，不再拆成纯后端与纯前端任务。用户自行启动实现会话；T01 未合并不启动 T02。
 
@@ -67,10 +67,20 @@
 
 **验收：** 创建/复用标签 → 同记录多标签 → 标签加关键词筛选 → 刷新/重启仍在；重复关联无重复、移除不伤正文；记录回收/恢复保留标签、清空后无悬空关联；停用标签提供者仍能使用基础记录，重启提供者后恢复；T01 旧库通过 CLI 升级并保留正文、回收站与 revision。桌面完成一次真实全流程。
 
-**交付区：** 待实现者填写实际基线、工作树、PR、标签服务/API/迁移与 UI 边界、必要验证和其他端待补项；完整 HEAD 放最终消息/PR，完成标“待整合”，不自动开始下一批。
+**交付区（2026-10-28）：已通过整合验收。**
+
+- 前置：已 fetch origin，核对 PR #15 已合并，最新 main 包含 T01 代码与整合交接。实际基线 `209e332a1800317f6c9915606c3b743e670566a4`（PR #15 squash）；从它新建 `feat/b003-t02-record-tags`，工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`。原未跟踪 `.codex/` 保留，旧任务成果已提交保全；未操作其他工作树/main。[PR #16](https://github.com/ISQIShI/Recorder/pull/16) 指向 main，完整 HEAD 见最终交付及 PR，避免提交自引用；CI 未完成前保持 Draft。
+- 迁移：tags revision 1 显式依赖 records revision 2；新增账号标签字典、record/tag 联合主键关联表和外键/索引，Drizzle Kit SQL/元数据及 Recorder manifest 同步。identity revision 1、records revision 1/2 的 SQL SHA-256 不变。真实 T01 样本升级需 CLI inspect → 确认 digest → 先建并验证恢复点 → upgrade；[后端说明](../../../backend/README.md#标签与筛选b003-t02) 有可复制命令。普通启动拒绝旧库，空库自动初始化；不操作真实资料。
+- 插件与契约：tag-store → tags → tags-api，服务类型由 tags-contract/domain 导出。消费 RecordStore.get 的明确归属契约，关联在 IMMEDIATE 事务内检查正常记录及同账号标签；独立 add/remove 幂等，不改变正文 revision/updatedAt。共享 TagData 与六个操作 listTags/createTag/getRecordTags/addRecordTag/removeRecordTag/listTagRecords 的 schema、OpenAPI、响应校验、固定编码及窄 IPC 一致；路径/输入/输出见后端 README。筛选标准 RecordData，单标签+现有标题/正文关键词，默认正常记录，沿用 limit/offset/total/排序。trim 精确同名复用，多标签、不做大小写归一。
+- 回收站配合：读自己的回收站标签，关联写入 409；回收/恢复保留关联，永久清空以 SQLite 外键在同一事务级联删关联、保留字典，停用标签存储提供者时也有效。不存在/其他账号记录或标签 404，认证/CSRF 规则不变。基础记录不依赖标签，后端停用/恢复标签仍能列表/编辑/回收/恢复/清空；前端撤回 record-tags 服务会撤回 tags-panel，恢复重新读取持久数据。
+- 桌面：独立 record-tags 模型及 tags-panel 面板展示当前已保存/所选记录的多个标签，创建复用、选择已有、移除、单标签+关键词分页。先用既有 editor/leave-guard 结束编辑，取消不发标签请求；回收站只读；错误、部分创建成功/关联失败、加载与空结果分别显示，失败不将旧结果当成新筛选成功。关联变化/刷新回退空末页，会话变化清空状态/表单并忽略旧回包。未增加平台 SDK 或依赖。
+- 本机：全工程 build、typecheck 通过；后端 tags/trash 定向 6/6（含真实 T01 和原 v1 两种 CLI 升级）、共享传输/编辑/标签生命周期定向 16/16 通过。证据 `artifacts/b003-t02-build.log`、`b003-t02-final-client-build.log`、`b003-t02-typecheck.log`、`b003-t02-storage-tests.log`、`b003-t02-client-tests.log`。检查了精确名称与长度边界、owner/CSRF、幂等/分页、字段不变、清空回滚/FK、停用恢复与迟到回包；本机不重复 B002 全套故障注入，完整回归交给既有 CI。
+- Windows 真 Electron 八阶段通过：原 create/resume/discard-quit/discard-close/trash/trash-resume 保留，新 tags/tags-resume 真实 UI→IPC→HTTP→SQLite 覆盖脏草稿取消不请求/确认结束、创建复用/多标签/移除添加、503、正文元数据不变、关键词/空结果、31 条分页与空末页回退、后端和桌面重启、回收只读/恢复保留/清空保留字典。最终日志 `artifacts/b003-t02-electron.log`，八份结果在 `artifacts/records-smoke-gmW5wY/`，截图 `artifacts/records-desktop-tags.png`；仅隔离样本，数据/凭据/运行目录不提交。
+- 相关文档检查通过（8 文件、194 个内部链接、0 错误），git diff --check 通过；Windows/Linux 完整检查由现有 CI 执行，最终 HEAD 结果以 [PR #16 Checks](https://github.com/ISQIShI/Recorder/pull/16/checks) 和最终交付为准，未完成不写通过。未执行 Web/Android 标签 UI 独立验收、Android 原生/真机、Linux 图形 Electron；保留跨端构建与公共契约检查。不提供分类、全局改名/删除、附件、AI、自动升级或通用清理框架。
+- 整合者核对代码 HEAD `2d1a4a1fbe9a1f44f0826ddc7b9633d55490c426`，未发现阻塞问题；[该提交的 Windows/Linux CI 与 PR 标题检查](https://github.com/ISQIShI/Recorder/actions/runs/40555407839) 均成功。本地 `pnpm build`、`pnpm test:records:desktop` 八阶段复验通过，日志 `.tmp/pr16-build.log`、`.tmp/pr16-desktop.log`；复用对应 CI 的后端/客户端和旧库升级测试，未重复本机全套检查。原 identity/records 迁移、根依赖/锁文件和 CI 未改。相关文档检查通过（18 文件、385 个内部链接、0 错误），git diff --check 通过。全局状态与批次结项随同一 PR 更新；最终提交、CI 与合并 SHA 以 PR #16 为准。
 
 ## 验证与整合
 
 每项在变更稳定后运行一次构建/类型、受影响 API/存储/客户端测试、一次覆盖新功能及原编辑的 Windows Electron 流程、相关文档检查及 `git diff --check`。可扩展现有 smoke，不复制一套测试平台。真实旧库升级样本是必要检查；不重复 B002 全套故障注入。现有 Windows/Linux CI 必需检查全绿；整合者复用对应 HEAD 的 CI，仅补具体疑点或平台缺口，不要求实现者再额外重复完整本机检查。
 
-PR 目标 main，Conventional Commits，正常推送自己的分支，不合并、不强推、不修改别的工作树。交付简要列出分支、完整 HEAD、工作树、PR、验证及未完成项。整合者逐项验收后汇总当前状态；T01 已验收；T02 尚未实现。
+PR 目标 main，Conventional Commits，正常推送自己的分支，不合并、不强推、不修改别的工作树。交付简要列出分支、完整 HEAD、工作树、PR、验证及未完成项。整合者逐项验收后汇总当前状态；T01/T02 均已验收，本批结束；没有自动派发下一批。

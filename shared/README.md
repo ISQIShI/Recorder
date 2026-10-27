@@ -1,6 +1,6 @@
 # shared：跨端共享部分
 
-状态：共享契约与客户端插件包已建立，含记录编辑与回收站。更新日期：2026 年 10 月 28 日。
+状态：共享契约与客户端插件包已建立，含记录编辑、回收站及标签筛选。更新日期：2026 年 10 月 28 日。
 
 阅读时机：抽取共享组件、网络契约、业务客户端和 UI 扩展接口前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [工程目录规划](../docs/current/development/repository-layout.md)。
 
@@ -18,4 +18,8 @@
 
 现有 records-panel/record-editor 插件增加正常/回收站切换、关键词分页、只读详情、恢复和不可恢复清空的明确确认。切换、查询、分页与移入沿用同一草稿守卫；冲突刷新状态但保留编辑基线和草稿，失败不假报成功，回收站记录不能作为编辑新基线。清空作用于整个账号回收站（包括被查询过滤的内容），取消不发请求；恢复/清空后刷新，空末页回退。共享 Vue 不引入 Electron SDK；资源进入各端构建，但本任务只验收 Windows Electron，Web/Android 新增流程尚未独立验收。
 
-根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。账号/编辑原流程见 [账号记录流程](../docs/current/development/first-record-flow.md)，回收站契约与验证以 B003 交付和后端 README 为准；尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。
+[B003-T02](../docs/work/b003-record-management/README.md#t02-任务卡标签与筛选) 新增 `TagData` 与 listTags/createTag/getRecordTags/addRecordTag/removeRecordTag/listTagRecords，统一 schema/OpenAPI、响应校验、固定路径/正文编码及窄 IPC 白名单；完整 HTTP 契约见 [后端说明](../backend/README.md#标签与筛选b003-t02)。标签独立于 RecordData 和正文 PUT，不更改正文 revision。Web fetch 的 Cookie/CSRF、Electron 主进程 Bearer 和错误码均复用既有传输。
+
+`record-tags` Cordis 模型与 `tags-panel` UI 贡献在已有记录面板下显示当前记录的多个标签，以及单标签+标题/正文关键词分页。先保存/选择记录；创建或精确同名复用后添加、选择已有、独立移除关联。写入先通过 editor.cancel 的同一离开守卫结束编辑，取消不发标签请求；回收站只读。请求失败、部分创建成功但关联失败、未加载、空结果分别提示，刷新与关联变化后重取结果并回退空末页。会话变化清空标签状态和表单，迟到回包忽略。撤回 record-tags 提供者会撤回 tags-panel，基础记录面板不依赖它；重新启用读取持久标签。UI 生命周期/草稿/会话竞态与 Web 请求有定向测试，真实 Electron 复用既有 smoke。
+
+根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。账号/编辑原流程见 [账号记录流程](../docs/current/development/first-record-flow.md)，回收站/标签契约与验证以 B003 交付和后端 README 为准；Web/Android 标签流程未独立验收，保留构建和公共契约检查。尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。

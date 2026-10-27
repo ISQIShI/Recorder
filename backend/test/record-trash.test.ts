@@ -147,7 +147,7 @@ test('a real production v1 sample requires CLI confirmation and a recovery point
   try {
     raw.exec(ledgerSql);
     const digests = ['b4407f95f083733826bd9b100622547696fb812b2c41102da0e47038952a63e3', '9232a42a20abfcca4a7e9f76b196efad4e355507bba7e002077e760a9cec2145'];
-    for (const [i, step] of installedMigrations.filter(step => step.revision === 1).entries()) {
+    for (const [i, step] of installedMigrations.filter(step => step.revision === 1 && step.namespace !== 'tags').entries()) {
       const sql = await readFile(new URL('../migrations/' + step.file, import.meta.url), 'utf8'), digest = createHash('sha256').update(sql).digest('hex');
       assert.equal(digest, digests[i], 'Applied revision 1 SQL bytes remain unchanged'); raw.exec(sql.split('--> statement-breakpoint').join('\n'));
       raw.prepare('INSERT INTO recorder_migrations VALUES(?,?,?,?)').run(step.namespace, 1, digest, 123);
@@ -162,7 +162,7 @@ test('a real production v1 sample requires CLI confirmation and a recovery point
   try {
     await assert.rejects(createApplication({ filename: f.filename, http: { listen: false } }), { code: 'UPGRADE_REQUIRED' });
     const inspect = await cli(f.filename, 'inspect'); assert.equal(inspect.code, 0, inspect.error);
-    const plan = JSON.parse(inspect.output.trim()).plan; assert.equal(plan.status, 'upgrade-required'); assert.equal(plan.steps.length, 1); assert.equal(plan.steps[0].revision, 2);
+    const plan = JSON.parse(inspect.output.trim()).plan; assert.equal(plan.status, 'upgrade-required'); assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['records', 2], ['tags', 1]]);
     assert.equal((await cli(f.filename, 'upgrade')).code, 2);
     assert.equal((await cli(f.filename, 'upgrade', ['--confirm', '0'.repeat(64)])).code, 2);
     const upgrade = await cli(f.filename, 'upgrade', ['--confirm', plan.digest]); assert.equal(upgrade.code, 0, upgrade.error);
@@ -171,7 +171,7 @@ test('a real production v1 sample requires CLI confirmation and a recovery point
     app = await createApplication({ filename: f.filename, http: { listen: false } });
     assert.deepEqual(app.recorderDatabase.raw.prepare('SELECT * FROM records_entries').get(), { ...before!, deleted_at: null });
     assert.deepEqual(app.recorderDatabase.raw.prepare('SELECT * FROM identity_sessions').all(), identity!);
-    assert.deepEqual(app.recorderDatabase.raw.prepare('SELECT * FROM recorder_migrations WHERE revision=1').all(), ledger!);
+    assert.deepEqual(app.recorderDatabase.raw.prepare("SELECT * FROM recorder_migrations WHERE revision=1 AND namespace <> 'tags'").all(), ledger!);
     assert.equal(app.recorderRecordStore.get(userId, recordId)?.revision, 7); assert.equal(app.recorderRecordStore.get(userId, recordId)?.deletedAt, null);
     assert.equal(app.recorderDatabase.raw.pragma('integrity_check', { simple: true }), 'ok'); assert.deepEqual(app.recorderDatabase.raw.pragma('foreign_key_check'), []);
   } finally { await app?.fiber.dispose(); await f.cleanup(); }

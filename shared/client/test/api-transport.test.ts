@@ -30,6 +30,16 @@ test('shared HTTP encoder splits path/body and preserves GET/POST shapes', () =>
   assert.deepEqual(apiRequest('emptyTrash', { confirm: true }), { path: '/api/v1/records/trash/empty', method: 'POST', body: '{"confirm":true}' });
   assert.deepEqual(parseApiResponse('emptyTrash', { deleted: 2 }), { deleted: 2 });
   assert.throws(() => parseApiResponse('emptyTrash', { deleted: -1 }), { code: 'INVALID_RESPONSE' });
+  for (const method of ['addRecordTag', 'removeRecordTag'] as const) {
+    assert.deepEqual(apiRequest(method, { id, tagId: id }), { path: `/api/v1/records/${id}/tags/${method === 'addRecordTag' ? 'add' : 'remove'}`, method: 'POST', body: JSON.stringify({ tagId: id }) });
+    assert.deepEqual(parseApiResponse(method, { ok: true }), { ok: true });
+    assert.throws(() => parseApiResponse(method, { ok: false }), { code: 'INVALID_RESPONSE' });
+  }
+  assert.equal(apiRequest('listTagRecords', { id, q: '中文 + &', limit: 30, offset: 30 }).path, `/api/v1/tags/${id}/records?q=%E4%B8%AD%E6%96%87+%2B+%26&limit=30&offset=30`);
+  const tag = { id, name: '标签', createdAt: 1 };
+  assert.deepEqual(parseApiResponse('createTag', tag), tag); assert.deepEqual(parseApiResponse('getRecordTags', { items: [tag] }), { items: [tag] });
+  assert.throws(() => parseApiResponse('listTags', { items: [{ ...tag, name: '  ' }] }), { code: 'INVALID_RESPONSE' });
+  assert.deepEqual(parseApiResponse('listTagRecords', { items: [record], total: 1 }), { items: [record], total: 1 });
 });
 
 test('Web fetch sends PUT JSON with Cookie/CSRF and preserves API errors', async t => {
@@ -67,6 +77,29 @@ test('native shared transport validates update results and preserves bridge erro
       throw new ApiError('REVISION_CONFLICT', 'preserve draft', 409);
     } } });
     await assert.rejects(ctx.recorderApi.request('updateRecord', input), { code: 'REVISION_CONFLICT', status: 409 });
+  } finally { await ctx.fiber.dispose(); }
+});
+
+test('Web tag requests use the shared fixed contract, CSRF and response validation', async t => {
+  const ctx = new Context(), requests: { path: string; options: RequestInit }[] = [], tag = { id, name: '标签', createdAt: 1 };
+  t.mock.method(globalThis, 'fetch', async (path: string, options: RequestInit) => {
+    requests.push({ path, options });
+    const value = path.endsWith('/add') || path.endsWith('/remove') ? { ok: true }
+      : options.method === 'POST' ? tag : path.includes('/records?') ? { items: [record], total: 1 } : { items: [tag] };
+    return new Response(JSON.stringify(value), { headers: { 'x-csrf-token': 'tags-csrf' } });
+  });
+  try {
+    await ctx.plugin(webApi);
+    await ctx.recorderApi.request('listTags', {});
+    assert.deepEqual(await ctx.recorderApi.request('createTag', { name: ' 标签 ' }), tag);
+    await ctx.recorderApi.request('addRecordTag', { id, tagId: id }); await ctx.recorderApi.request('removeRecordTag', { id, tagId: id });
+    assert.deepEqual(await ctx.recorderApi.request('getRecordTags', { id }), { items: [tag] });
+    assert.deepEqual(await ctx.recorderApi.request('listTagRecords', { id, q: 'body' }), { items: [record], total: 1 });
+    assert.deepEqual(JSON.parse(String(requests[1]!.options.body)), { name: ' 标签 ' });
+    for (const request of requests.slice(1)) {
+      assert.equal(request.options.credentials, 'same-origin'); assert.equal((request.options.headers as Record<string, string>)['x-csrf-token'], 'tags-csrf');
+    }
+    assert.equal(requests[2]!.path, `/api/v1/records/${id}/tags/add`); assert.equal(requests[5]!.path, `/api/v1/tags/${id}/records?q=body`);
   } finally { await ctx.fiber.dispose(); }
 });
 

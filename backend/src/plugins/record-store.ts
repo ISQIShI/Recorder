@@ -1,13 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { and, eq, desc, sql, isNull, isNotNull } from 'drizzle-orm';
-import type { RecordData } from '@recorder/contracts';
+import { recordSelection, exposeRecord as expose } from '../data/record-query.js';
 import { records } from '../data/records-schema.js';
 import { failure, type RecordStore } from '../domain.js';
 export const inject = ['recorderDatabase', 'recorderMigrations', 'recorderIdentityStore'];
-function expose(row: typeof records.$inferSelect): RecordData {
-  const { ownerId: _owner, requestHash: _hash, ...record } = row;
-  return record;
-}
+
 export function apply(ctx: Context) {
   const { db } = ctx.recorderDatabase;
   const instanceId = ctx.recorderIdentityStore.instanceId;
@@ -56,7 +53,7 @@ export function apply(ctx: Context) {
       }, { behavior: 'immediate' });
     },
     list(ownerId, q, limit, offset, state = 'active') {
-      const where = and(eq(records.ownerId, ownerId), state === 'trash' ? isNotNull(records.deletedAt) : isNull(records.deletedAt), q ? sql`instr(lower(${records.title} || char(10) || ${records.body}), lower(${q})) > 0` : undefined);
+      const where = recordSelection(ownerId, q, state);
       const items = db.select().from(records).where(where).orderBy(desc(records.createdAt), desc(records.id)).limit(limit).offset(offset).all().map(expose);
       const total = db.select({ count: sql<number>`count(*)` }).from(records).where(where).get()!.count;
       return { items, total };

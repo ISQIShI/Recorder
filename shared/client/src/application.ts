@@ -8,6 +8,8 @@ import * as accountPanel from './plugins/account-panel.js';
 import * as recordsPanel from './plugins/records-panel.js';
 import * as leaveGuard from './plugins/leave-guard.js';
 import * as recordEditor from './plugins/record-editor.js';
+import * as recordTags from './plugins/record-tags.js';
+import * as tagsPanel from './plugins/tags-panel.js';
 export async function mountApplication(target: Element, platform: string, bridge?: ApiTransport) {
   const ctx = new Context();
   try {
@@ -20,6 +22,8 @@ export async function mountApplication(target: Element, platform: string, bridge
     await ctx.plugin(shell, { target, application: true });
     await ctx.plugin(accountPanel);
     await ctx.plugin(recordsPanel);
+    await ctx.plugin(recordTags);
+    await ctx.plugin(tagsPanel);
     return ctx;
   } catch (error) { await ctx.fiber.dispose(); throw error; }
 }

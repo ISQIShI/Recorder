@@ -199,6 +199,86 @@ export async function runBusinessSmoke(ctx: Context) {
       if (process.env.RECORDER_SMOKE_SCREENSHOT) await writeFile(process.env.RECORDER_SMOKE_SCREENSHOT.replace('.png', '-trash-empty.png'), (await contents.capturePage()).toPNG());
       checks.push('cancel empty sends no request; failure preserves records; confirmed UI empty deletes all trash despite filtered view, preserving active records');
     }
+  } else if (scenario === 'tags' || scenario === 'tags-resume') {
+    await until("Boolean(document.querySelector('[name=username]')) || Boolean(document.querySelector('[data-signed-in]'))");
+    if (!await evaluate("Boolean(document.querySelector('[data-signed-in]'))")) {
+      await fill('username', 'smoke-owner'); await fill('password', 'Recorder smoke password 2026!'); await click('[data-login-submit]');
+    }
+    await until("Boolean(document.querySelector('[data-signed-in]')) && !document.querySelector('[data-search-record]').disabled");
+    const choose = (name: string, value: string) => evaluate(`(() => { const field = document.querySelector('[name="${name}"]'); field.value = ${JSON.stringify(value)}; field.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+    const tagsReady = () => until("Boolean(document.querySelector('[data-record-tags] fieldset')) && !document.querySelector('[data-record-tags] fieldset').disabled && !document.querySelector('[data-refresh-tags]').disabled");
+    if (scenario === 'tags') {
+      await fill('recordTitle', '标签验收目标'); await fill('recordBody', '# 标签正文关键 <script>仅源文</script>'); await click('[data-save-record]');
+      await until("document.querySelector('[data-record-message]').textContent === '已保存到后端' && !document.querySelector('[data-search-record]').disabled"); await tagsReady();
+      const found = await invoke('listRecords', { q: '标签验收目标' }); if (!found.ok || found.value.total !== 1) throw new Error('Tag sample missing');
+      const before = found.value.items[0], id = before.id;
+      await click('[data-edit-record]'); await editorReady(); await fill('editBody', '标签操作前保护的草稿'); await fill('tagName', '  桌面标签 <script>  ');
+      await evaluate("window.confirm = () => false; void 0");
+      const originalFetch = globalThis.fetch; let tagWrites = 0;
+      try {
+        globalThis.fetch = (async (url: any, init?: RequestInit) => { if (init?.method === 'POST' && String(url).includes('/tags')) tagWrites++; return originalFetch(url, init); }) as typeof fetch;
+        await click('[data-create-tag]');
+        if (!await evaluate("document.querySelector('[name=editBody]').value === '标签操作前保护的草稿'") || tagWrites !== 0) throw new Error('Tag write bypassed draft cancel');
+        await evaluate("window.confirm = () => true; void 0"); await click('[data-create-tag]');
+        await until("document.querySelectorAll('[data-tag-id]').length === 1 && !document.querySelector('[data-refresh-tags]').disabled");
+        if (await evaluate("Boolean(document.querySelector('[data-editor]'))")) throw new Error('Tag mutation did not end edit');
+        await click('[data-create-tag]'); await tagsReady();
+        if (await evaluate("document.querySelectorAll('[data-tag-id]').length") !== 1) throw new Error('Duplicate tag association');
+      } finally { globalThis.fetch = originalFetch; }
+      const tagId = await evaluate("document.querySelector('[data-tag-id]').getAttribute('data-tag-id')");
+      await fill('tagName', '另一个标签'); await click('[data-create-tag]'); await until("document.querySelectorAll('[data-tag-id]').length === 2 && !document.querySelector('[data-refresh-tags]').disabled");
+      await click(`[data-remove-tag="${tagId}"]`); await until("document.querySelectorAll('[data-tag-id]').length === 1 && !document.querySelector('[data-refresh-tags]').disabled");
+      await choose('existingTag', tagId); await click('[data-add-tag]'); await until("document.querySelectorAll('[data-tag-id]').length === 2 && !document.querySelector('[data-refresh-tags]').disabled");
+      const unchanged = await invoke('getRecord', { id }); if (!unchanged.ok || JSON.stringify(unchanged.value) !== JSON.stringify(before)) throw new Error('Tags altered record revision/content');
+      try {
+        globalThis.fetch = (async (url: any, init?: RequestInit) => String(url).endsWith('/tags/add') ? new Response(JSON.stringify({ code: 'PLUGIN_UNAVAILABLE', message: '隔离标签失败样本' }), { status: 503 }) : originalFetch(url, init)) as typeof fetch;
+        await click('[data-add-tag]'); await until("document.querySelector('[data-tags-message]').textContent === '隔离标签失败样本' && !document.querySelector('[data-refresh-tags]').disabled");
+        if (await evaluate("document.querySelectorAll('[data-tag-id]').length") !== 2) throw new Error('Failed association lost tags');
+      } finally { globalThis.fetch = originalFetch; }
+      checks.push('real UI creates/reuses exact trimmed tags, multiple tags, remove/add existing; dirty cancel sends no tag request; confirmed end edit, failure state, unchanged record metadata');
+      await choose('tagFilter', tagId); await fill('tagQuery', '正文关键'); await click('[data-filter-tags]');
+      await until("document.querySelectorAll('[data-tag-record]').length === 1 && !document.querySelector('[data-filter-tags]').disabled");
+      if (await evaluate("document.querySelector('[data-tag-record]').getAttribute('data-tag-record')") !== id) throw new Error('Tag+keyword wrong record');
+      await fill('tagQuery', '没有匹配的关键词'); await click('[data-filter-tags]'); await until("document.querySelector('[data-tag-total]')?.textContent === '匹配 0 条正常记录' && !document.querySelector('[data-filter-tags]').disabled");
+      for (let i = 0; i < 31; i++) {
+        const created = await invoke('createRecord', { requestId: crypto.randomUUID(), title: '标签分页标记 ' + i, body: '分页样本', format: 'plain' });
+        if (!created.ok || !(await invoke('addRecordTag', { id: created.value.id, tagId })).ok) throw new Error('Tag page fixture failed');
+      }
+      await fill('tagQuery', '标签分页标记'); await click('[data-filter-tags]'); await until("document.querySelectorAll('[data-tag-record]').length === 30 && !document.querySelector('[data-filter-tags]').disabled");
+      await click('[data-tags-next]'); await until("document.querySelectorAll('[data-tag-record]').length === 1 && !document.querySelector('[data-filter-tags]').disabled");
+      await click('[data-tag-record]'); await tagsReady();
+      await click(`[data-remove-tag="${tagId}"]`); await until("document.querySelectorAll('[data-tag-record]').length === 30 && document.querySelector('[data-tags-previous]').disabled && !document.querySelector('[data-refresh-tags]').disabled");
+      checks.push('tag+keyword filtering, empty result, 31-record pagination and removal refresh rolls empty last page back');
+      await fill('tagQuery', '正文关键'); await click('[data-filter-tags]'); await until("document.querySelectorAll('[data-tag-record]').length === 1 && !document.querySelector('[data-filter-tags]').disabled");
+      await click('[data-tag-record]'); await tagsReady();
+      if (process.env.RECORDER_SMOKE_SCREENSHOT) {
+        await evaluate("document.querySelector('[data-panel=tags]').scrollIntoView(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+        await writeFile(process.env.RECORDER_SMOKE_SCREENSHOT.replace('.png', '-tags.png'), (await contents.capturePage()).toPNG());
+      }
+      const tags = await invoke('getRecordTags', { id }); if (!tags.ok || tags.value.items.length !== 2) throw new Error('Tag persistence precondition failed');
+      await click('[data-trash-record]'); await until("document.querySelector('[data-record-message]').textContent.includes('已移入回收站') && !document.querySelector('[data-search-record]').disabled");
+      const trashed = await invoke('getRecord', { id }); if (!trashed.ok || trashed.value.deletedAt === null) throw new Error('Tagged trash failed');
+      const filtered = await invoke('listTagRecords', { id: tagId, q: '正文关键' }); if (!filtered.ok || filtered.value.total !== 0) throw new Error('Trash leaked into tag results');
+      evidence = { before, trashed: trashed.value, tags: tags.value.items, tagId };
+    } else {
+      const expected = JSON.parse(process.env.RECORDER_SMOKE_TAGS_EXPECTED!).evidence, id = expected.before.id;
+      await click('[data-open-trash]'); await until("!document.querySelector('[data-search-record]').disabled && Boolean(document.querySelector('[data-record-id]'))");
+      await click(`[data-record-id="${id}"]`); await until("Boolean(document.querySelector('[data-trash-readonly]')) && document.querySelectorAll('[data-tag-id]').length === 2");
+      if (await evaluate("Boolean(document.querySelector('[data-remove-tag]')) || Boolean(document.querySelector('[data-create-tag]'))")) throw new Error('Trash tag UI is writable');
+      const tags = await invoke('getRecordTags', { id }), record = await invoke('getRecord', { id });
+      if (!tags.ok || !record.ok || JSON.stringify(tags.value.items) !== JSON.stringify(expected.tags) || JSON.stringify(record.value) !== JSON.stringify(expected.trashed)) throw new Error('Restart lost tags/record');
+      await click('[data-restore-record]'); await until("!document.querySelector('[data-search-record]').disabled && !document.querySelector('[data-restore-record]')");
+      const restored = await invoke('getRecord', { id }); if (!restored.ok || restored.value.body !== expected.before.body || restored.value.revision !== 3 || restored.value.deletedAt !== null) throw new Error('Tagged restore changed record');
+      await choose('tagFilter', expected.tagId); await fill('tagQuery', '正文关键'); await click('[data-filter-tags]'); await until("document.querySelectorAll('[data-tag-record]').length === 1 && !document.querySelector('[data-filter-tags]').disabled");
+      await click('[data-tag-record]'); await tagsReady();
+      if (await evaluate("document.querySelectorAll('[data-tag-id]').length") !== 2) throw new Error('Restore lost tags');
+      await click('[data-trash-record]'); await until("!document.querySelector('[data-search-record]').disabled && document.querySelector('[data-record-message]').textContent.includes('已移入回收站')");
+      await click('[data-open-active]'); await until("!document.querySelector('[data-search-record]').disabled"); await click('[data-open-trash]'); await until("!document.querySelector('[data-search-record]').disabled && Boolean(document.querySelector('[data-record-id]'))");
+      await click('[data-empty-trash]'); await click('[data-confirm-empty]'); await until("document.querySelector('[data-record-message]').textContent.includes('已永久删除 1 条') && !document.querySelector('[data-search-record]').disabled");
+      const missing = await invoke('getRecordTags', { id }), dictionary = await invoke('listTags', {}), filtered = await invoke('listTagRecords', { id: expected.tagId, q: '正文关键' });
+      if (missing.ok || missing.error.status !== 404 || !dictionary.ok || !dictionary.value.items.some((t: any) => t.id === expected.tagId) || !filtered.ok || filtered.value.total !== 0) throw new Error('Empty left linked record or removed tag dictionary');
+      checks.push('backend/Electron restart preserves tags; trash tags read-only; UI restore keeps tags/body/revision; UI empty removes associations and keeps dictionary');
+    }
   } else {
     await until("Boolean(document.querySelector('[name=username]')) || Boolean(document.querySelector('[data-signed-in]'))");
     if (!await evaluate("Boolean(document.querySelector('[data-signed-in]'))")) {

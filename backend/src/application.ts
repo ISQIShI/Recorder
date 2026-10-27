@@ -18,9 +18,12 @@ export async function createApplication(options: ApplicationOptions = {}) {
     { id: 'auth', name: './plugins/auth.js', config: { ...(options.setupCode ? { setupCode: options.setupCode } : { setupFile: join(dataDir, 'setup-code.txt') }) } },
     { id: 'record-store', name: './plugins/record-store.js' },
     { id: 'records', name: './plugins/records.js' },
+    { id: 'tag-store', name: './plugins/tag-store.js' },
+    { id: 'tags', name: './plugins/tags.js' },
     { id: 'api-operations', name: './plugins/api-operations.js' },
     { id: 'auth-api', name: './plugins/auth-api.js' },
     { id: 'records-api', name: './plugins/records-api.js' },
+    { id: 'tags-api', name: './plugins/tags-api.js' },
     { id: 'http', name: './plugins/api-http.js', config: options.http ?? {} },
   ] }); }
   catch (error) {

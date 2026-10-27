@@ -24,7 +24,7 @@
 
 项目进入增量实现阶段，已完成基础工程、账号/记录保存查询、记录更新 API 与双端传输，以及 Windows/Linux 自动检查；B001 的手动编辑、冲突草稿与正常离开提醒已完成，见 [当前业务流程](docs/current/development/first-record-flow.md)。继续按用户请求推进插件及验证；实际完成项以当前文档为准，不把提案当成已完成能力，不自行冻结完整 MVP 或排期。Android 真机验证明确延后。
 
-[B002 多版本迁移与升级恢复演练](docs/work/b002-migration-recovery/README.md) 已完成实施与范围内验收，T03 通过 PR #13 交付维护 CLI、中断后显式继续及隔离恢复。迁移工作按需读 [实施契约](docs/current/storage/migration-recovery-contract.md)，追溯验证再读已结束批次。桌面升级确认、正式恢复启用与日常备份尚未实现；下一批尚未派工，不复用已结束任务的提示词。
+[B002](docs/work/b002-migration-recovery/README.md) 已完成维护与隔离恢复基础。当前按用户要求优先完善核心记录功能，下一批为 [B003 桌面记录管理](docs/work/b003-record-management/README.md)：T01 回收站、T02 标签与筛选，顺序实施，每项交付完整后端到桌面流程；目前仅完成规划。用户自行使用 [提示词](docs/work/b003-record-management/prompts.md) 启动实现，T01 合并后才开始 T02。桌面维护 UI、正式恢复启用和日常备份等增强工作降低优先级，不再作为本批前置；旧库升级复用现有 CLI。不要复用已结束批次的提示词。
 
 当用户明确要求开始实现时，按该请求推进，不需要再次询问已授权事项；同时更新当前技术状态和必要的开发文档。本段描述阶段，不是永久禁止实现。
 

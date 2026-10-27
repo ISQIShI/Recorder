@@ -4,6 +4,7 @@ export interface RecordInput { requestId: string; title: string; body: string; f
 export interface RecordUpdateInput { id: string; expectedRevision: number; title: string; body: string; format: BodyFormat }
 export interface RecordRevisionInput { id: string; expectedRevision: number }
 export type RecordState = 'active' | 'trash';
+export interface TagData { id: string; name: string; createdAt: number }
 export interface RecordData extends RecordInput {
   id: string; revision: number; formatVersion: number; createdAt: number; updatedAt: number; originInstanceId: string; deletedAt: number | null;
 }
@@ -14,6 +15,9 @@ export interface ApiInputs {
   sessions: {}; revoke: { sessionId: string }; createRecord: RecordInput; updateRecord: RecordUpdateInput;
   listRecords: { q?: string; limit?: number; offset?: number; state?: RecordState }; getRecord: { id: string };
   trashRecord: RecordRevisionInput; restoreRecord: RecordRevisionInput; emptyTrash: { confirm: true };
+  listTags: {}; createTag: { name: string }; getRecordTags: { id: string };
+  addRecordTag: { id: string; tagId: string }; removeRecordTag: { id: string; tagId: string };
+  listTagRecords: { id: string; q?: string; limit?: number; offset?: number };
 }
 export interface ApiOutputs {
   info: { initialized: boolean; instanceId: string };
@@ -21,6 +25,8 @@ export interface ApiOutputs {
   sessions: { items: SessionData[] }; createRecord: RecordData; getRecord: RecordData; updateRecord: RecordData;
   listRecords: { items: RecordData[]; total: number };
   trashRecord: RecordData; restoreRecord: RecordData; emptyTrash: { deleted: number };
+  listTags: { items: TagData[] }; createTag: TagData; getRecordTags: { items: TagData[] };
+  addRecordTag: { ok: true }; removeRecordTag: { ok: true }; listTagRecords: { items: RecordData[]; total: number };
 }
 export type ApiMethod = keyof ApiInputs;
 export interface ApiTransport { request<K extends ApiMethod>(method: K, input: ApiInputs[K]): Promise<ApiOutputs[K]> }
@@ -45,15 +51,26 @@ export const apiRoutes = {
   emptyTrash: { method: 'POST', path: '/api/v1/records/trash/empty', authenticated: true, input: object({ confirm: { type: 'boolean', const: true } }) },
   listRecords: { method: 'GET', path: '/api/v1/records', authenticated: true, input: object({ q: string(200), limit: { type: 'integer', minimum: 1, maximum: 100 }, offset: { type: 'integer', minimum: 0, maximum: 1000000 }, state: { type: 'string', enum: ['active', 'trash'] } }, []) },
   getRecord: { method: 'GET', path: '/api/v1/records/:id', authenticated: true, params: object({ id: uuid }), input: object({}) },
+  listTags: { method: 'GET', path: '/api/v1/tags', authenticated: true, input: object({}) },
+  createTag: { method: 'POST', path: '/api/v1/tags', authenticated: true, input: object({ name: { type: 'string', minLength: 1 } }) },
+  getRecordTags: { method: 'GET', path: '/api/v1/records/:id/tags', authenticated: true, params: object({ id: uuid }), input: object({}) },
+  addRecordTag: { method: 'POST', path: '/api/v1/records/:id/tags/add', authenticated: true, params: object({ id: uuid }), input: object({ tagId: uuid }) },
+  removeRecordTag: { method: 'POST', path: '/api/v1/records/:id/tags/remove', authenticated: true, params: object({ id: uuid }), input: object({ tagId: uuid }) },
+  listTagRecords: { method: 'GET', path: '/api/v1/tags/:id/records', authenticated: true, params: object({ id: uuid }), input: object({ q: string(200), limit: { type: 'integer', minimum: 1, maximum: 100 }, offset: { type: 'integer', minimum: 0, maximum: 1000000 } }, []) },
 } as const;
 const identitySchema = object({ userId: uuid, username: string(64), sessionId: uuid, expiresAt: { type: 'integer' } });
 const recordSchema = object({ id: uuid, requestId: uuid, title: string(200), body: string(200000), format: { type: 'string', enum: ['plain', 'markdown'] }, formatVersion: { type: 'integer', const: 1 }, revision: { type: 'integer' }, createdAt: { type: 'integer' }, updatedAt: { type: 'integer' }, originInstanceId: uuid, deletedAt: { type: ['integer', 'null'] } });
+const tagSchema = object({ id: uuid, name: string(64, 1), createdAt: { type: 'integer' } });
 export const apiResponses: Record<ApiMethod, object> = {
   info: object({ initialized: { type: 'boolean' }, instanceId: uuid }), setup: identitySchema, login: identitySchema, me: identitySchema,
   logout: object({ ok: { type: 'boolean', const: true } }), revoke: object({ ok: { type: 'boolean', const: true } }),
   sessions: object({ items: { type: 'array', items: object({ id: uuid, clientName: string(80), createdAt: { type: 'integer' }, expiresAt: { type: 'integer' }, current: { type: 'boolean' } }) } }),
   createRecord: recordSchema, getRecord: recordSchema, updateRecord: recordSchema, listRecords: object({ items: { type: 'array', items: recordSchema }, total: { type: 'integer' } }),
   trashRecord: recordSchema, restoreRecord: recordSchema, emptyTrash: object({ deleted: { type: 'integer', minimum: 0 } }),
+  listTags: object({ items: { type: 'array', items: tagSchema } }), createTag: tagSchema,
+  getRecordTags: object({ items: { type: 'array', items: tagSchema } }),
+  addRecordTag: object({ ok: { type: 'boolean', const: true } }), removeRecordTag: object({ ok: { type: 'boolean', const: true } }),
+  listTagRecords: object({ items: { type: 'array', items: recordSchema }, total: { type: 'integer', minimum: 0 } }),
 };
 // Shared wire encoding keeps browser and main-process requests on the same fixed routes.
 export function encodeApiRequest(method: ApiMethod, input: ApiInputs[ApiMethod]) {
@@ -77,11 +94,14 @@ function isRecord(value: any): value is RecordData {
 export function parseApiResponse<K extends ApiMethod>(method: K, value: unknown): ApiOutputs[K] {
   const v = value as any;
   const identity = () => v && ['userId', 'username', 'sessionId'].every(k => typeof v[k] === 'string') && Number.isSafeInteger(v.expiresAt);
+  const tag = (t: any) => t && typeof t.id === 'string' && typeof t.name === 'string' && t.name === t.name.trim() && t.name.length >= 1 && t.name.length <= 64 && Number.isSafeInteger(t.createdAt);
   const valid = method === 'info' ? v && typeof v.initialized === 'boolean' && typeof v.instanceId === 'string'
     : ['setup', 'login', 'me'].includes(method) ? identity()
-    : ['logout', 'revoke'].includes(method) ? v?.ok === true
+    : ['logout', 'revoke', 'addRecordTag', 'removeRecordTag'].includes(method) ? v?.ok === true
+    : method === 'createTag' ? tag(v)
+    : ['listTags', 'getRecordTags'].includes(method) ? Array.isArray(v?.items) && v.items.every(tag)
     : method === 'sessions' ? Array.isArray(v?.items) && v.items.every((s: any) => s && typeof s.id === 'string' && typeof s.clientName === 'string' && typeof s.current === 'boolean' && Number.isSafeInteger(s.createdAt) && Number.isSafeInteger(s.expiresAt))
-    : method === 'listRecords' ? Array.isArray(v?.items) && v.items.every(isRecord) && Number.isSafeInteger(v.total)
+    : ['listRecords', 'listTagRecords'].includes(method) ? Array.isArray(v?.items) && v.items.every(isRecord) && Number.isSafeInteger(v.total) && v.total >= 0
     : method === 'emptyTrash' ? Number.isSafeInteger(v?.deleted) && v.deleted >= 0
     : isRecord(v);
   if (!valid) throw new ApiError('INVALID_RESPONSE', '后端响应格式不正确', 502);

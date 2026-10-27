@@ -1,0 +1,147 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "e5d2225f-c52a-4b11-9e66-e5386138b0b6",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "tags_record_links": {
+      "name": "tags_record_links",
+      "columns": {
+        "record_id": {
+          "name": "record_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tag_id": {
+          "name": "tag_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "tags_link_tag": {
+          "name": "tags_link_tag",
+          "columns": [
+            "tag_id",
+            "record_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "tags_record_links_record_id_records_entries_id_fk": {
+          "name": "tags_record_links_record_id_records_entries_id_fk",
+          "tableFrom": "tags_record_links",
+          "tableTo": "records_entries",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tags_record_links_tag_id_tags_dictionary_id_fk": {
+          "name": "tags_record_links_tag_id_tags_dictionary_id_fk",
+          "tableFrom": "tags_record_links",
+          "tableTo": "tags_dictionary",
+          "columnsFrom": [
+            "tag_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tags_record_links_record_id_tag_id_pk": {
+          "columns": [
+            "record_id",
+            "tag_id"
+          ],
+          "name": "tags_record_links_record_id_tag_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tags_dictionary": {
+      "name": "tags_dictionary",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "tags_owner_name": {
+          "name": "tags_owner_name",
+          "columns": [
+            "owner_id",
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "tags_dictionary_owner_id_identity_users_id_fk": {
+          "name": "tags_dictionary_owner_id_identity_users_id_fk",
+          "tableFrom": "tags_dictionary",
+          "tableTo": "identity_users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

@@ -8,6 +8,7 @@ import type { MaintenanceRuns, MaintenanceCoordinator, IsolatedRecovery } from '
 export * from './migration-contract.js';
 export * from './storage-contract.js';
 export * from './maintenance-contract.js';
+export * from './tags-contract.js';
 export type Channel = 'web' | 'native';
 export interface User { id: string; username: string; passwordHash: string; createdAt: number }
 export interface Principal extends Identity { channel: Channel }

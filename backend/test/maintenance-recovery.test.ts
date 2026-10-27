@@ -202,12 +202,16 @@ test('failed isolated copies retain an incomplete marker, and target validation 
   try {
     const ctx = await f.open(), point = await ctx.recorderRecoveryPoints.create(ctx.recorderMigrationPlanner.inspect().digest);
     const target = join(f.path, 'failed-target'), copy = fs.copyFileSync;
+    // Windows runners may expose TEMP through an 8.3 alias; the provider uses the native canonical parent.
+    const failedCopy = join(fs.realpathSync.native(f.path), 'failed-target', 'database.sqlite');
+    let injected = false;
     const { syncBuiltinESMExports } = await import('node:module');
     t.mock.method(fs, 'copyFileSync', (source: fs.PathLike, destination: fs.PathLike, flags?: number) => {
-      if (String(destination) === join(target, 'database.sqlite')) throw Object.assign(new Error('controlled full target'), { code: 'ENOSPC' });
+      if (String(destination) === failedCopy) { injected = true; throw Object.assign(new Error('controlled full target'), { code: 'ENOSPC' }); }
       return copy(source, destination, flags);
     }); syncBuiltinESMExports();
     await assert.rejects(ctx.recorderIsolatedRecovery.restore(point.id, target), { code: 'ENOSPC' });
+    assert.ok(injected, 'The failure is injected into the canonical isolated target copy');
     assert.equal(JSON.parse(await readFile(join(target, 'database.sqlite.restore.json'), 'utf8')).state, 'incomplete');
     await assert.rejects(ctx.recorderIsolatedRecovery.verify(target), { code: 'RESTORE_INVALID' });
     t.mock.restoreAll(); syncBuiltinESMExports();

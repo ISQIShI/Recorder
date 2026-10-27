@@ -1,6 +1,6 @@
 # B002-T03：维护入口与隔离恢复演练
 
-状态：进行中；实现与组合验证中。负责会话：由用户明确派发，顺序复用原 T02 工作树。更新日期：2026 年 10 月 27 日。
+状态：待整合；实现与本机组合验证完成，跨平台 CI 结果见交付记录。负责会话：由用户明确派发，顺序复用原 T02 工作树。更新日期：2026 年 10 月 28 日。
 
 阅读时机：集成或验收维护、故障恢复时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01](t01-versioned-migrations.md) 与 [T02](t02-upgrade-recovery-points.md) 的实际交付、[后端 README](../../../backend/README.md)。
 
@@ -35,7 +35,7 @@ T02 的实际服务交接：类型为 `backend/src/storage-contract.ts`（domain
 ## 交付记录
 
 - 实际开工基线：`ca5ee23aaf05253490de03d56aa3837c64baec1e`。已 fetch，核验 T01 PR #9、T02 PR #11 均已合并；包含指定 T02 合并提交 `8b4632a3245e084c15b7841b5274e262e09d19e6` 和交接文档 PR #12。
-- 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；分支 `feat/b002-t03-maintenance-recovery-drill` 从该 origin/main 新建。切换前只有原未跟踪 `.codex/`，已保留，未 stash/reset/clean、未检出 main 或修改其他工作树。PR 待创建；完整 HEAD 放最终消息与 PR，避免自引用提交。
+- 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；分支 `feat/b002-t03-maintenance-recovery-drill` 从该 origin/main 新建。切换前只有原未跟踪 `.codex/`，已保留，未 stash/reset/clean、未检出 main 或修改其他工作树。[PR #13](https://github.com/ISQIShI/Recorder/pull/13) 指向 main；完整 HEAD 放最终消息与 PR，避免自引用提交。
 
 ### 实现与接口
 
@@ -49,17 +49,20 @@ T02 的实际服务交接：类型为 `backend/src/storage-contract.ts`（domain
 - `recorderIsolatedRecovery.restore/verify` 消费 T02 verify，只在新的私有空目录复制/读取数据库，不以 SQLite 打开封存文件；核对原点与目标摘要、账本、integrity/FK，保留旧程序版本要求。拒绝源/恢复点目录及祖先/子目录/别名；不清理用户内容。失败目标为 incomplete，成功为 isolated；普通启动均禁止启用该标记库，正式启用策略尚未实现。
 - 预检目标与校验副本的共存空间，同卷估算两份数据库、异卷分别检查；空间检查不是预留或容量承诺。T02 pending、孤立恢复点、维护记录及失败恢复目标不自动清理。
 
-### 验证进度与证据
+### 验证结果与证据
 
-- 本机 Windows：编译与后端类型检查通过；首轮三个组合测试通过（最小真实 Loader、升级/隔离恢复数据等价、空库/兼容库与业务启动、真实 CLI 缺确认/取消/过期拒绝）。日志 `artifacts/b002-t03-initial-tests.log`。后续完整 T03 组合测试执行中，不能由该首轮结果推导全部通过。
-- 四个真实进程终止点：native backup 封存前、实际 SQL/FK/账本已写但事务尚未提交、真实事务提交后但协调观察未发布、最终验证开始前。通过 fixture 包装真实驱动/记录服务暂停，父进程终止后重新装配真实服务判断，再通过 CLI 显式确认继续；没有生产故障参数或绕过检查的测试专用迁移器。
-- 完整 `pnpm check`、Windows Electron 旧流程、最终 Windows/Linux CI：待执行与补充。
+- 本机 Windows `pnpm check` 通过：全工程构建、类型检查、76/76 测试和相关文档检查（7 个相关文件、166 个内部链接、0 错误）。日志 `artifacts/b002-t03-check.log`。此前独立 T03 组合测试 15/15 通过，随后补充兼容库无操作和孤立 pending 断言，已包含在 76 项中；日志 `artifacts/b002-t03-maintenance-tests.log`。
+- 四个真实进程终止点均通过：native backup 封存前、实际 SQL/FK/账本已写但事务尚未提交、真实事务提交后但协调观察未发布、最终验证开始前。重启实际新增提交数分别为 0/0/1/2；对照原账本和业务数据，再通过 CLI 显式确认继续，保留已提交时间戳。最后一项仅完成整体验证，不重做 SQL。fixture 包装真实驱动/记录服务暂停，再由父进程终止，没有生产故障参数或另一套迁移器。
+- 数据等价与安全门禁通过：账号/会话/记录正文、格式、revision、创建幂等资料保持；隔离目标读回升级前数据、原账本并通过 integrity/FK；源库和恢复点摘要保持。缺确认、取消、计划/材料/账本/封存变动、非空/别名/重叠目标、未封存 WAL、孤立 pending、最终验证失败、已兼容但未完成运行均拒绝；真实 Cordis 撤回/重装与在途独占验证通过。
+- Windows 真 Electron `pnpm test:records:desktop` 通过 create/resume/discard-quit/discard-close 四阶段，包含正常退出与关闭的脏草稿确认。日志 `artifacts/b002-t03-electron.log`，分阶段 JSON 在 `artifacts/records-smoke-lqYDDI/`，截图 `artifacts/records-desktop.png`。上述证据均在忽略目录，不提交数据库或凭据。
+- 首轮 CI [40536516258](https://github.com/ISQIShI/Recorder/actions/runs/40536516258)：Linux 76/76 通过，Windows 75/76；Windows 临时目录短路径别名使 ENOSPC 注入未命中规范目标，故预期拒绝未触发。追加提交 `9bdadba7a8843c683993bac1ba3819f539597997` 使用原生规范父路径并增加命中断言，不放宽生产校验。本机对应回归 1/1 与后端类型检查通过，日志 `artifacts/b002-t03-canonical-copy-test.log`、`artifacts/b002-t03-final-typecheck.log`；沙箱临时目录曾因 ACL 阻止样本清理，正常 Windows 环境重跑通过。
+- 修复后 Windows/Linux CI [40537906078](https://github.com/ISQIShI/Recorder/actions/runs/40537906078) 全部通过：两平台均完成构建、类型、76/76 测试、相关文档检查，PR 标题检查通过；日志 `artifacts/b002-t03-ci-verified.log`。最终局部文档再次通过相关检查和 `git diff --check`；最终文档提交的 CI 以 PR Checks 和最终交付为准，检查未完成前 PR 保持 Draft。
 
 ### 遗留与整合建议
 
 - 未验证真实断电、介质写满/损坏、未支持文件系统、Linux 图形 Electron、生产部署、Android；ENOSPC 等为受控 API 故障注入，进程终止不代表断电。
 - 当前维护 profile 消费 T02 能力，源库须能被该 profile 打开；不宣称覆盖丢失源介质/不可打开源库的完整灾难恢复。正式恢复启用、会话策略、外部任务去重、桌面确认 UI 与 restic 不在本任务。
-- 测试样本在 `recorder-t03-*` 临时目录和忽略 artifacts；不操作真实 `.recorder/`，不提交证据中的数据库/凭据。原 `.codex/` 保留。运行中测试进程与未提交实现将在最终交付前核对。
-- 请整合者复核组合结果后再更新全局状态、批次总表和契约事实；本任务只更新后端局部说明及自己的卡，不自行标整个 B002 已验收或开始下一批。
+- 测试样本在 `recorder-t03-*` 临时目录和忽略 artifacts；不操作真实 `.recorder/`，不提交证据中的数据库/凭据。原 `.codex/` 保留；本机测试已退出，交付前核对无未提交实现，仅保留该未跟踪目录。没有删除其他工作树/分支或自动清理 pending。
+- 请整合者复核后在全局状态、批次总表和契约汇总 T03 的实际事实：最小维护 CLI、恢复点先行、持久运行/启动门禁、四阶段进程中断后显式继续与隔离恢复已交付；生产迁移仍为原 v1，正式恢复启用及桌面确认未实现。任务只更新后端局部说明与自己的卡，不自行标整个 B002 已验收或开始下一批。
 
 完成标“待整合”，交付本批组合结果，但不能自行标整个 B002 已验收。整合者复核后再安排桌面确认界面和回收站。提示词见 [派工入口](prompts.md)。

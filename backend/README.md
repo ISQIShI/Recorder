@@ -118,7 +118,7 @@ Linux 使用相同命令与绝对路径，例如 `/tmp/recorder-drill/source/sou
 | `recorderIsolatedRecovery.restore(id, target)` / `restore` | 先由 T02 verify 封存，再复制主文件到新空私有目标，核对摘要/账本/integrity/FK，再次 verify 原恢复点。绝不以 SQLite 打开封存原路径、不修改源库、不启动恢复库 |
 | `verify(target)` / `verify` | 核对隔离标记和原恢复点，在隔离目标读取 SQLite；拒绝未验证 WAL/SHM/journal、摘要和账本变化。不启用账号会话或外部任务 |
 
-退出码：0 命令成功（包括无升级或列出无效/未完成点）；2 缺确认、取消、计划过期；3 资料库/维护忙；4 阻塞计划、未完成维护需处理、运行记录不可信或隔离库禁止启动；1 其余执行/快照/校验/空间/路径/权限/关闭失败；64 参数错误。错误输出结构化 code/message，不输出用户正文、密码摘要或 token。无非交互 `--yes`，无自动升级、回滚或覆盖恢复。
+退出码：0 命令成功（包括无升级或列出无效/未完成点）；2 缺确认、取消、计划过期；3 资料库/维护忙；4 inspect 显示阻塞计划、未完成维护需处理、运行记录不可信或隔离库禁止启动；1 其余执行/快照/校验/空间/路径/权限/关闭失败（包括 upgrade 遇到不支持的数据版本）；64 参数错误。错误输出结构化 code/message，不输出用户正文、密码摘要或 token。无非交互 `--yes`，无自动升级、回滚或覆盖恢复。
 
 运行记录位于 `<实际 filename>.maintenance/<运行UUID>.json`，私有目录与 T02 相同权限要求。文件包含 `{run, checksum}`，checksum 为完整 run JSON 的 SHA-256，用于发现损坏，不是防恶意同用户修改的签名。run v1 保存源实际路径、完整原计划、阶段、已观察账本、恢复点 ID/manifest 摘要与时间。阶段为 snapshot → executing → validating → complete；意图先持久发布，记录与 SQL 成功账本不是同一事务。每步仍由 T01 在原 IMMEDIATE 事务中提交，协调者随后发布观察结果；最后 integrity/FK/计划校验通过才写 complete。每次更新采用独占新文件 → fsync → rename，并在 Linux fsync 目录；Windows 不声称目录 fsync/真实断电可靠性。异常 `.pending-*` 保留；有对应正式运行文件时以后者为发布边界，无对应运行的残留要求人工检查。历史运行不自动删除。
 

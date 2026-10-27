@@ -1,6 +1,6 @@
 # B002-T02：资料库独占与升级恢复点
 
-状态：已合并，PR #11；初审两项问题修复后复验通过。此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 27 日。
+状态：已合并，PR #11；初审两项问题修复后复验通过。此前版本验证记录保留如下。负责会话：原 B002-T01 实现会话顺序复用，由用户明确派发。更新日期：2026 年 10 月 28 日。
 
 阅读时机：实现、审查或整合独占、快照与恢复清单时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01 交付](t01-versioned-migrations.md)、[备份主线](../../current/storage/backup-baseline.md) 与 [后端 README](../../../backend/README.md)。
 
@@ -81,4 +81,4 @@ Windows Node 24.14.1 / pnpm 10.33.0 / better-sqlite3 13.0.3 / SQLite 3.53.4；�
 - 保留未跟踪 `.codex/` 及忽略 artifacts 中日志/历史证据，不提交本机资料或凭据；失败沙箱临时样本保留为环境证据，未清理用户资料或其他工作树。所有测试/子进程已结束，无常驻业务实例；本任务提交后仅原 `.codex/` 保持未跟踪。
 - 请整合者合并后汇总全局状态、批次台账、迁移恢复契约与存储说明：普通后端独占及可校验恢复点能力已实现，生产仍 identity/records v1；完整维护协调/恢复演练仍待 T03，桌面确认和日常备份不在本任务。
 
-整合结论（2026 年 10 月 27 日）：最终 HEAD `b4b412960064176fc40dbc22f0cb29e7d604810b` 已 squash 合入 main `8b4632a3245e084c15b7841b5274e262e09d19e6`；[最终 CI](https://github.com/ISQIShI/Recorder/actions/runs/40355352088) 全部成功，整合者 `pnpm check`（60/60）、Electron 四阶段与原 WAL 探针复验通过。详细退回修复与整合证据见 [批次台账](README.md)。以上实现者交付记录保留其当时状态与验证日期，不代表另有待合并版本。T03 前置已满足，由用户按 [提示词](prompts.md) 启动，不自动派出实现会话。
+整合结论（2026 年 10 月 27 日）：最终 HEAD `b4b412960064176fc40dbc22f0cb29e7d604810b` 已 squash 合入 main `8b4632a3245e084c15b7841b5274e262e09d19e6`；[最终 CI](https://github.com/ISQIShI/Recorder/actions/runs/40355352088) 全部成功，整合者 `pnpm check`（60/60）、Electron 四阶段与原 WAL 探针复验通过。详细退回修复与整合证据见 [批次台账](README.md)。以上实现者交付记录保留其当时状态与验证日期，不代表另有待合并版本。T03 后续已由 PR #13 交付；[提示词](prompts.md) 保留为历史材料，不再派发。

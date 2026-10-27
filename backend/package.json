@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json",
     "dev": "tsx src/main.ts",
     "start": "node dist/main.js",
+    "maintenance": "node dist/maintenance-cli.js",
     "verify:generate": "drizzle-kit generate --config drizzle.validation.config.ts --name validation"
   },
   "dependencies": {

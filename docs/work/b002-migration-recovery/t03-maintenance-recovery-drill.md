@@ -1,6 +1,6 @@
 # B002-T03：维护入口与隔离恢复演练
 
-状态：待开始，T01/T02 已合并，前置已满足。负责会话：由用户启动。更新日期：2026 年 10 月 27 日。
+状态：进行中；实现与组合验证中。负责会话：由用户明确派发，顺序复用原 T02 工作树。更新日期：2026 年 10 月 27 日。
 
 阅读时机：集成或验收维护、故障恢复时。先读 [批次计划](README.md)、[迁移恢复契约](../../current/storage/migration-recovery-contract.md)、[T01](t01-versioned-migrations.md) 与 [T02](t02-upgrade-recovery-points.md) 的实际交付、[后端 README](../../../backend/README.md)。
 
@@ -34,10 +34,32 @@ T02 的实际服务交接：类型为 `backend/src/storage-contract.ts`（domain
 
 ## 交付记录
 
-- 实际开工基线 / 工作树 / PR：待填写；完整 HEAD 在最终消息及 PR 提供。
-- 可用命令、退出码、服务边界与运行记录格式：待填写。
-- 各中断点、重启判断、恢复校验的实际证据：尚未执行。
-- Windows/Linux 检查、桌面旧流程回归、未验证范围：尚未执行。
-- 仍在运行的进程、未提交文件、需保留材料、全局状态更新建议：待填写。
+- 实际开工基线：`ca5ee23aaf05253490de03d56aa3837c64baec1e`。已 fetch，核验 T01 PR #9、T02 PR #11 均已合并；包含指定 T02 合并提交 `8b4632a3245e084c15b7841b5274e262e09d19e6` 和交接文档 PR #12。
+- 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；分支 `feat/b002-t03-maintenance-recovery-drill` 从该 origin/main 新建。切换前只有原未跟踪 `.codex/`，已保留，未 stash/reset/clean、未检出 main 或修改其他工作树。PR 待创建；完整 HEAD 放最终消息与 PR，避免自引用提交。
+
+### 实现与接口
+
+详细命令、退出码、磁盘空间及支持限制见 [后端 README](../../../backend/README.md#离线维护与隔离恢复b002-t03)。
+
+- `maintenance-profile.ts` 通过真实 Loader 组合 ownership/database/migrations/recovery-points、单步执行器、维护记录、协调与隔离恢复；不装配 auth/records/HTTP/外部任务。CLI 仅解析/显示/确认/收尾，必须显式指定源库。
+- `recorderMaintenance.inspect/upgrade/resume`：按当前 plan.digest 确认；先持久意图、建立并 verify 恢复点，绑定源/原计划/材料/账本前缀后逐步执行，最后整体验证并写 complete。空库首次初始化无旧数据恢复点；已有兼容库无操作。不自动继续、回滚、覆盖或启动业务。
+- T01 兼容增补可选 `executeStep(expectedDigest)`，复用原 `executeMigrations` 的同一 IMMEDIATE 事务算法，最多一步；原 execute 行为不变，没有第二套迁移器。缺少单步入口的替身明确拒绝用于维护。
+- `recorderMaintenanceRuns` 保存私有 run JSON 与 checksum；独立于成功账本，阶段 snapshot/executing/validating/complete，原子发布并保留历史/pending。重启承认真实已提交前缀，不按结果文件猜测回滚。无有效正式运行对应的 pending 或材料/恢复点/账本不匹配进入 manual。
+- 普通 application 的迁移门禁通过 Cordis 注入记录服务，先拒绝未完成/损坏记录和隔离恢复标记，再提供业务 readiness；数据版本已兼容也不能越过未完成验证。旧低层插件隔离测试保持兼容，不能作为普通启动绕行入口。
+- `recorderIsolatedRecovery.restore/verify` 消费 T02 verify，只在新的私有空目录复制/读取数据库，不以 SQLite 打开封存文件；核对原点与目标摘要、账本、integrity/FK，保留旧程序版本要求。拒绝源/恢复点目录及祖先/子目录/别名；不清理用户内容。失败目标为 incomplete，成功为 isolated；普通启动均禁止启用该标记库，正式启用策略尚未实现。
+- 预检目标与校验副本的共存空间，同卷估算两份数据库、异卷分别检查；空间检查不是预留或容量承诺。T02 pending、孤立恢复点、维护记录及失败恢复目标不自动清理。
+
+### 验证进度与证据
+
+- 本机 Windows：编译与后端类型检查通过；首轮三个组合测试通过（最小真实 Loader、升级/隔离恢复数据等价、空库/兼容库与业务启动、真实 CLI 缺确认/取消/过期拒绝）。日志 `artifacts/b002-t03-initial-tests.log`。后续完整 T03 组合测试执行中，不能由该首轮结果推导全部通过。
+- 四个真实进程终止点：native backup 封存前、实际 SQL/FK/账本已写但事务尚未提交、真实事务提交后但协调观察未发布、最终验证开始前。通过 fixture 包装真实驱动/记录服务暂停，父进程终止后重新装配真实服务判断，再通过 CLI 显式确认继续；没有生产故障参数或绕过检查的测试专用迁移器。
+- 完整 `pnpm check`、Windows Electron 旧流程、最终 Windows/Linux CI：待执行与补充。
+
+### 遗留与整合建议
+
+- 未验证真实断电、介质写满/损坏、未支持文件系统、Linux 图形 Electron、生产部署、Android；ENOSPC 等为受控 API 故障注入，进程终止不代表断电。
+- 当前维护 profile 消费 T02 能力，源库须能被该 profile 打开；不宣称覆盖丢失源介质/不可打开源库的完整灾难恢复。正式恢复启用、会话策略、外部任务去重、桌面确认 UI 与 restic 不在本任务。
+- 测试样本在 `recorder-t03-*` 临时目录和忽略 artifacts；不操作真实 `.recorder/`，不提交证据中的数据库/凭据。原 `.codex/` 保留。运行中测试进程与未提交实现将在最终交付前核对。
+- 请整合者复核组合结果后再更新全局状态、批次总表和契约事实；本任务只更新后端局部说明及自己的卡，不自行标整个 B002 已验收或开始下一批。
 
 完成标“待整合”，交付本批组合结果，但不能自行标整个 B002 已验收。整合者复核后再安排桌面确认界面和回收站。提示词见 [派工入口](prompts.md)。

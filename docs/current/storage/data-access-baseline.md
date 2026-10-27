@@ -29,6 +29,6 @@ SQL 特殊能力、统一事务、迁移账本字段和插件数据保留的具�
 
 ## 验证状态
 
-已实际使用 Drizzle 查询与 Kit 生成身份/记录初始 SQL。T01 已实现只读计划、版本依赖、旧账本/摘要兼容、逐步 IMMEDIATE 事务及外键检查、安全启动；每步 SQL 与成功账本同提交，失败只回滚本步。T02 已补跨进程独占、异步使用排空、关闭故障保锁和可校验恢复点；60 项测试及 Windows Electron 四阶段通过，见 [批次交付及整合](../../work/b002-migration-recovery/README.md)。多版本执行仅用隔离样本验证；生产仍为 revision 1，普通 profile 不提供直接升级执行服务。T03 已补维护 CLI、未完成维护启动门禁与隔离恢复，Windows/Linux CI 76 项通过；维护 UI 与正式恢复启用仍未实现。
+已实际使用 Drizzle 查询与 Kit 生成身份/记录初始 SQL。T01 已实现只读计划、版本依赖、旧账本/摘要兼容、逐步 IMMEDIATE 事务及外键检查、安全启动；每步 SQL 与成功账本同提交，失败只回滚本步。T02 已补跨进程独占、异步使用排空、关闭故障保锁和可校验恢复点；60 项测试及 Windows Electron 四阶段通过，见 [批次交付及整合](../../work/b002-migration-recovery/README.md)。B003-T01 已新增正式 records revision 2（identity 仍为 revision 1），真实 v1 样本经维护 CLI 确认、恢复点和升级后保留原数据；原 revision 1 SQL 未改。普通 profile 不提供直接升级执行服务。T03 已补维护 CLI、未完成维护启动门禁与隔离恢复，Windows/Linux CI 76 项通过；维护 UI 与正式恢复启用仍未实现。
 
 返回 [当前文档索引](../README.md) 或 [技术状态](../technical-status.md)。

@@ -166,7 +166,7 @@ pnpm --filter @recorder/backend maintenance restore --database C:/RecorderSample
 pnpm --filter @recorder/backend maintenance verify --database C:/RecorderSamples/source/source.sqlite --target C:/RecorderSamples/restored
 ```
 
-Linux 使用相同命令与绝对路径，例如 `/tmp/recorder-drill/source/source.sqlite`、`/tmp/recorder-drill/restored`。CLI 使用安装的生产迁移清单，当前 identity 为 v1、records 为 v2，真实旧 v1 样本可按上述回收站步骤升级；更广的多版本故障测试通过 `createMaintenance({ filename, sources, retainedSources })` 装配 file URL 指向的隔离多版本材料，没有新增任意 SQL 的 CLI 参数。
+Linux 使用相同命令与绝对路径，例如 `/tmp/recorder-drill/source/source.sqlite`、`/tmp/recorder-drill/restored`。CLI 使用安装的生产迁移清单，当前 identity 为 v1、records 为 v2、tags 为 v1，真实旧 v1 或 T01 样本可按上述回收站/标签步骤升级；更广的多版本故障测试通过 `createMaintenance({ filename, sources, retainedSources })` 装配 file URL 指向的隔离多版本材料，没有新增任意 SQL 的 CLI 参数。
 
 | 服务 / 命令 | 实际行为 |
 | --- | --- |

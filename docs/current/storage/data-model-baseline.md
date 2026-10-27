@@ -28,6 +28,6 @@
 
 ## 验证状态
 
-已实现身份/会话与文本记录的初始表，包含 owner、全局 ID、格式/格式版本、来源实例、修订号和时间，并实现幂等保存、查询、更新与手动编辑。准确字段及边界见 [账号记录流程](../development/first-record-flow.md)。回收站已按 [B003-T01](../../work/b003-record-management/README.md) 实现：records revision 2 新增可空 deleted_at，默认查询正常记录，恢复保留身份与正文，确认清空仅删除当前账号回收站内容；基础标签按 T02 任务卡待实现。附件、分层分类及其他业务表后续实施。任务卡允许相应的新迁移，不能改已应用 SQL；`validation_probe` 仅保留为隔离测试。
+已实现身份/会话与文本记录的初始表，包含 owner、全局 ID、格式/格式版本、来源实例、修订号和时间，并实现幂等保存、查询、更新与手动编辑。准确字段及边界见 [账号记录流程](../development/first-record-flow.md)。回收站已按 [B003-T01](../../work/b003-record-management/README.md) 实现：records revision 2 新增可空 deleted_at，默认查询正常记录，恢复保留身份与正文，确认清空仅删除当前账号回收站内容；基础标签已由 T02 实现独立账号字典与记录关联表，同账号 trim 后精确同名复用；添加/移除关联不改正文 revision，回收/恢复保留关联，清空以外键级联删关联但保留字典。附件、分层分类及其他业务表后续实施。任务卡允许相应的新迁移，不能改已应用 SQL；`validation_probe` 仅保留为隔离测试。
 
 返回 [当前文档索引](../README.md) 或 [技术状态](../technical-status.md)。

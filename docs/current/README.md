@@ -14,7 +14,7 @@
 | [已确认后端技术](architecture/backend-stack.md) | Cordis 维护发行及配套 Loader、Fastify、SQLite + better-sqlite3，确认范围与验证状态 | 后端实现、依赖、存储与部署相关工作前 |
 | [已确认 API 与认证主线](architecture/api-auth-baseline.md) | HTTP/REST、OpenAPI、SSE、本地账号与可撤销会话，已确认范围与待定配套 | 公共接口、SDK、登录、设备接入及插件公开能力相关工作前 |
 | [记录编辑与版本冲突契约](interfaces/record-editing.md) | 已实现更新 API/并发保护、双端手动编辑、冲突草稿及正常离开提醒；验证范围和限制 | 开发或验收 B001 的后端更新、客户端编辑、传输与退出时 |
-| [B003 记录管理计划与任务卡](../work/b003-record-management/README.md) | 回收站已实现验收；标签与筛选待派发，含任务卡与交接 | 本批实现/审查时阅读；后续功能不默认加载历史任务卡 |
+| [B003 记录管理计划与任务卡](../work/b003-record-management/README.md) | 回收站、标签与筛选均已实现验收；保留任务卡与证据 | 追溯 B003 交付或排查相关回归时；不再作为默认派工入口 |
 | [已确认数据模型主线](storage/data-model-baseline.md) | 统一记录基础、独立附件、标签分类关联与插件业务表，确认范围和未冻结细节 | 记录、附件、组织关系、数据库访问与插件持久化工作前 |
 | [已确认数据访问与迁移主线](storage/data-access-baseline.md) | Drizzle、better-sqlite3、Kit、Recorder 统一命名空间账本与受控执行适配、卸载默认保留及维护体验 | 数据查询、事务、迁移工具、升级或插件卸载相关工作前 |
 | [数据库升级与恢复演练契约](storage/migration-recovery-contract.md) | B002 契约：T01 多版本/安全启动与 T02 独占/恢复点已实现，T03 维护 CLI、中断协调和隔离恢复已实现 | 实现/审查迁移、升级恢复点和维护入口时；不代表完整恢复已经实现 |

@@ -1,5 +1,7 @@
 # Recorder 数据模型细化设计
 
+当前附件实施以 [B005 任务卡](../../work/b005-managed-attachments/README.md) 为准：本批托管附件不跨记录共享，单独删除经明确确认后永久清理；正文可为空用于文件记录。下文共享引用、去重及完整生命周期机制仍是后续提案，不作为本批全部前置。
+
 状态：模型主线已确认，具体实体拆分、字段和约束仍为建议；尚未创建数据库。更新与资料核对日期：2026 年 10 月 24 日。确认范围见 [数据模型主线](../../current/storage/data-model-baseline.md)。
 
 阅读时机：设计记录、附件、标签分类、查询和数据归属时。先读 [当前需求](../../current/product/requirements.md) 与 [API 和认证主线](../../current/architecture/api-auth-baseline.md)；落盘和删除见 [存储生命周期](storage-lifecycle.md)，插件数据见 [插件扩展](../plugins/data-extension.md)。以下名称均为候选逻辑实体，不是已实现的表或接口。

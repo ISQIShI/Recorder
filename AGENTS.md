@@ -24,7 +24,7 @@
 
 项目进入增量实现阶段，已完成基础工程、账号/记录保存查询、记录更新 API 与双端传输，以及 Windows/Linux 自动检查；B001 的手动编辑、冲突草稿与正常离开提醒已完成，见 [当前业务流程](docs/current/development/first-record-flow.md)。继续按用户请求推进插件及验证；实际完成项以当前文档为准，不把提案当成已完成能力，不自行冻结完整 MVP 或排期。Android 真机验证明确延后。
 
-[B002](docs/work/b002-migration-recovery/README.md) 已完成维护与隔离恢复基础。按用户要求优先完善核心记录功能，[B003 桌面记录管理](docs/work/b003-record-management/README.md) 的 T01 回收站（PR #15）、T02 标签与筛选（PR #16）均已实现并通过验收，覆盖后端到 Windows 桌面。[B004 桌面分层分类](docs/work/b004-record-categories/README.md) 已通过 PR #18 验收：分类树管理、多分类归属、包含全部子分类的去重查询，以及确认删除整棵分类树但保留全部记录。当前无待派发任务，B003/B004 提示词仅留作追溯；基础附件是后续建议方向，按用户请求再单独规划。桌面维护 UI、正式恢复启用和日常备份等增强工作降低优先级，不再作为本批前置；旧库升级复用现有 CLI。不要复用已结束批次的提示词。
+[B002](docs/work/b002-migration-recovery/README.md) 已完成维护与隔离恢复基础。按用户要求优先完善核心记录功能，[B003 桌面记录管理](docs/work/b003-record-management/README.md) 的 T01 回收站（PR #15）、T02 标签与筛选（PR #16）均已实现并通过验收，覆盖后端到 Windows 桌面。[B004 桌面分层分类](docs/work/b004-record-categories/README.md) 已通过 PR #18 验收：分类树管理、多分类归属、包含全部子分类的去重查询，以及确认删除整棵分类树但保留全部记录。当前规划 [B005 桌面基础附件](docs/work/b005-managed-attachments/README.md)：T01 已有记录附件收存/取回/删除及必要恢复兼容，T02 文件直接建无正文记录，顺序交付；用户已确认两种收集方式、单独删除确认后永久清理且本批不共享、单文件至少 1 GB。使用 [B005 提示词](docs/work/b005-managed-attachments/prompts.md)，T02 等 T01 合入 main；附件尚未实现，B003/B004 提示词仅留作追溯。桌面维护 UI、正式恢复启用和日常备份等增强工作降低优先级，不再作为本批前置；旧库升级复用现有 CLI。不要复用已结束批次的提示词。
 
 当用户明确要求开始实现时，按该请求推进，不需要再次询问已授权事项；同时更新当前技术状态和必要的开发文档。本段描述阶段，不是永久禁止实现。
 

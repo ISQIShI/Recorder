@@ -114,6 +114,8 @@ pnpm --filter @recorder/backend maintenance points --database C:/RecorderSamples
 
 `attachments` revision 1 依赖 `records` revision 2，新增 `attachments_objects`，先前五份生产 SQL 保持 B004 原字节。Kit 生成命令：`pnpm --filter @recorder/backend exec drizzle-kit generate --dialect sqlite --schema ./src/data/attachments-schema.ts --out ./migrations/attachments --name initial`。当前生产清单另含 attachments revision 1；B004 旧库普通启动返回 UPGRADE_REQUIRED，仍须停止业务宿主，使用上文 inspect → 明确 plan.digest → upgrade → points，不自动升级或删库。`test/managed-attachments.test.ts` 使用真实 B004 SQL/账本核对账号、正文/revision、标签、分类及回收站保留。
 
+生产清单保留旧排列并追加附件项；实际执行顺序仍由显式依赖和规划器决定。普通 profile 通过 Loader 的入口 inject 声明迁移启动门禁依赖 `recorderMaintenanceRuns`，确保维护日志先可用，门禁失败会传播并关闭数据库，不能返回仅有 planner、缺失业务服务的半启动宿主。既有真实安全启动测试原断言保持不变。
+
 服务契约在 `attachments-contract.ts`。`managed-files` 提供可替换存储和恢复集合参与能力，仅依赖数据库与独占；`attachments` 负责记录归属/正常状态，`attachments-api` 注册元数据操作，`attachments-http` 注册二进制处理器。统一 HTTP 插件消费操作注册表，文件与 JSON 路由共用 `http-auth` 的认证/Origin/CSRF 规则。基础记录、标签、分类不注入附件业务；业务撤回取消在途文件传输及清理轮询，不删除已保存资料。
 
 | 操作 | 固定 HTTP 路径 | 输入与结果 |

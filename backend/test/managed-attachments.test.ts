@@ -57,6 +57,12 @@ test('streaming attachments enforce auth/owner, actual limits, idempotency, inte
     await new Promise<void>((done, fail) => { const req = httpRequest(new URL(attachmentUploadPath(a.id, interruptedId), app.recorderHttp.address), { method: 'PUT', headers: { ...headers, 'content-type': 'application/octet-stream', 'x-recorder-filename': 'interrupted.bin' } }); req.on('error', () => done()); req.write('partial'); void until(() => !!app.recorderDatabase.raw.prepare('SELECT 1 FROM attachments_objects WHERE id=?').get(interruptedId)).then(() => req.destroy(), fail); });
     await until(() => (app.recorderDatabase.raw.prepare('SELECT state FROM attachments_objects WHERE id=?').get(interruptedId) as any)?.state === 'deleted');
     assert.equal((await upload(app, headers, a.id, bytes, interruptedId, 'interrupted.bin')).status, 200);
+    const transport = slowUpload(app, headers, a.id), transportResult = transport.response.catch(() => undefined);
+    await until(() => !!app.recorderDatabase.raw.prepare('SELECT 1 FROM attachments_objects WHERE id=?').get(transport.uploadId));
+    await app.loader.update('attachments-http', { disabled: true }); await app.loader.await(); transport.finish();
+    const transportResponse = await transportResult; if (transportResponse) { assert.ok(transportResponse.status >= 400); await transportResponse.text(); }
+    await until(() => (app.recorderDatabase.raw.prepare('SELECT state FROM attachments_objects WHERE id=?').get(transport.uploadId) as any).state === 'deleted');
+    await app.loader.update('attachments-http', { disabled: false }); await app.loader.await();
     const withdrawn = slowUpload(app, headers, a.id), withdrawnResult = withdrawn.response.catch(() => undefined);
     await until(() => !!app.recorderDatabase.raw.prepare('SELECT 1 FROM attachments_objects WHERE id=?').get(withdrawn.uploadId));
     await app.loader.update('attachments', { disabled: true }); await app.loader.await(); withdrawn.finish();

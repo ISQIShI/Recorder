@@ -28,8 +28,9 @@ export function apply(ctx: Context) {
     },
     async download(call) {
       const principal = call.authenticate(), attachment = files.get(principal.userId, call.id); owned(principal, attachment.recordId);
+      const signal = AbortSignal.any([controller.signal, call.signal]); signal.throwIfAborted();
       const stream = files.download(principal.userId, call.id), abort = () => { stream.destroy(); };
-      controller.signal.addEventListener('abort', abort, { once: true }); stream.once('close', () => controller.signal.removeEventListener('abort', abort));
+      signal.addEventListener('abort', abort, { once: true }); stream.once('close', () => signal.removeEventListener('abort', abort));
       return { attachment, stream };
     },
   } satisfies AttachmentService);

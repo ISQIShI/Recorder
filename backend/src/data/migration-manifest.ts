@@ -1,10 +1,10 @@
 import type { MigrationSource } from '../domain.js';
 // Trusted installed-plugin metadata, assembled before activating repositories.
 export const installedMigrations: MigrationSource[] = [
-  { namespace: 'attachments', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'attachments/0000_initial.sql' },
   { namespace: 'identity', revision: 1, packageVersion: '0.0.0', requires: [], file: 'identity/0000_initial.sql' },
   { namespace: 'records', revision: 1, packageVersion: '0.0.0', requires: ['identity'], file: 'records/0000_initial.sql' },
   { namespace: 'records', revision: 2, packageVersion: '0.0.0', dependencies: [{ namespace: 'identity', revision: 1 }], file: 'records/0001_trash.sql' },
   { namespace: 'tags', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'tags/0000_initial.sql' },
   { namespace: 'categories', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'categories/0000_initial.sql' },
+  { namespace: 'attachments', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'attachments/0000_initial.sql' },
 ];

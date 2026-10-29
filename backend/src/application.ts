@@ -13,7 +13,7 @@ export async function createApplication(options: ApplicationOptions = {}) {
     { id: 'maintenance-runs', name: './plugins/maintenance-runs.js' },
     { id: 'crypto', name: './plugins/crypto.js' },
     // Business startup never loads the low-level upgrade executor. Existing databases must already match.
-    { id: 'migrations', name: './plugins/migrations.js', config: { sources: installedMigrations, mode: 'startup', maintenanceGuard: true } },
+    { id: 'migrations', name: './plugins/migrations.js', inject: ['recorderMaintenanceRuns'], config: { sources: installedMigrations, mode: 'startup', maintenanceGuard: true } },
     { id: 'identity-store', name: './plugins/identity-store.js' },
     { id: 'auth', name: './plugins/auth.js', config: { ...(options.setupCode ? { setupCode: options.setupCode } : { setupFile: join(dataDir, 'setup-code.txt') }) } },
     { id: 'record-store', name: './plugins/record-store.js' },

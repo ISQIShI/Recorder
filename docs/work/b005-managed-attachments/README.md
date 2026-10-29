@@ -83,7 +83,7 @@ Conventional Commits 提交，推自己的分支并创建 main 目标 PR，不�
   - 本地构建、全工程类型检查通过；新增后端 4 项、客户端 3 项定向测试通过，受清单影响的既有分类/标签/回收站 9 项通过。后端涵盖真实 HTTP 断流、实际超限、鉴权/owner/CSRF、重复请求、最终回收/撤销会话竞争、业务撤回取消、真实文件清理失败/重试、停用后清空、B004 显式 CLI 升级与数据保持、v1/v2 恢复/损坏文件。首轮组合测试出现等待文件消失早于持久清理完成的测试竞态，已改为等待 deleted 后核对文件确实不存在；未删除断言。
   - Windows 11 / Node 24.14.1 / Electron 45.0.0 实际十二阶段主流程通过：旧编辑/正常退出/回收站/标签/分类十阶段，以及附件上传取消/重试、重启读回、失败另存保留原目标、成功摘要、删除取消零请求/确认一次、回收只读另存/恢复/清空。仅原生对话框返回选择及故障响应使用替身；成功文件传输、UI/IPC/HTTP/SQLite 均真实运行。日志 `artifacts/b005-electron-full.log`，样本 `artifacts/records-smoke-a2XUr1/`。
   - **1 GiB 实际验收通过**：`RECORDER_SMOKE_ATTACHMENT_ONLY=1 RECORDER_SMOKE_LARGE_FILE=1` 的两个真实 Electron 阶段；源/上传/另存均为 1,073,741,824 字节，SHA-256 同为 `3a33d58aa8ee1e9d21fd4f510cc5d1ce8d25ba5e24363d19c28e2bf866f4185c`。日志 `artifacts/b005-large-electron.log`，样本/两阶段 JSON `artifacts/records-smoke-ijQiWn/`，截图 `artifacts/records-desktop-attachments.png`（后续普通 smoke 可覆盖截图）。大文件/本机数据均忽略，不提交；未测峰值内存或性能，不作此承诺。
-  - 完整 Windows/Linux 回归复用既有 PR CI，结果及 PR 待补。相关文档检查限定本基线差异，未改全局技术状态/批次索引/根依赖/锁文件/CI。
+  - PR [#20](https://github.com/ISQIShI/Recorder/pull/20) 指向 main，CI 完成前保持 Draft。首个实现提交 `7f8a8b4872c606df25b30ba24ddfe49a131695be`；后续修复正常追加，不强推。初轮 Linux CI 100 项中 99 通过，旧安全启动样本暴露清单首项变化；改为追加附件项，并由本地单项复测发现维护日志未就绪时的启动失败传播问题，用 Loader 显式依赖修正，旧断言保持且复测通过。另补独立 HTTP 提供者撤回取消真实上传的回归。完整 Windows/Linux 最终结果待补；相关文档限定本基线差异，未改全局技术状态/批次索引/根依赖/锁文件/CI。
   - 支持限制/未执行：未人工点击系统文件/覆盖对话框，未独立验收 Linux 图形 Electron、Web/Android 文件设备、远程接入、断电或真实介质丢失恢复。正式恢复启用/restic/日常备份、文件直接建记录均未实现。仅测隔离样本；清空后物理清理允许持久待重试，插件停用期间保留字节，不声称立即擦除介质/恢复点。
   - 请整合者更新的事实：attachments revision 1；桌面已有记录附件及 1 GiB 流程；manifest v2 的数据库+托管文件恢复集合/隔离恢复与 v1 兼容；Web/Android 设备待补。T02 必须在本 PR 合入最新 main 后再派发。
 - T02：未开始；依赖 T01 合入 main。

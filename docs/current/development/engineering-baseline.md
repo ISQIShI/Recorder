@@ -84,6 +84,6 @@ Windows/Linux CI 已通过冻结安装、构建、类型、测试与文档检查
 
 ## 后续工作
 
-账号与记录创建/查询/手动编辑、冲突草稿和正常离开提醒已完成；Chrome 编辑操作由实现者验收，刷新/关闭提醒由用户确认，范围见 [B001 记录](../../work/b001-record-editing/README.md)。[B002 维护与隔离恢复](../../work/b002-migration-recovery/README.md) 和 [B003 回收站、标签筛选](../../work/b003-record-management/README.md) 已完成范围内验收；后续核心功能按用户需求规划，未冻结完整 MVP 或排期。Android 本地宿主及同步另行验证。
+账号与记录创建/查询/手动编辑、冲突草稿和正常离开提醒已完成；Chrome 编辑操作由实现者验收，刷新/关闭提醒由用户确认，范围见 [B001 记录](../../work/b001-record-editing/README.md)。[B002 维护与隔离恢复](../../work/b002-migration-recovery/README.md) 和 [B003 回收站、标签筛选](../../work/b003-record-management/README.md) 已完成范围内验收；[B004 分层分类](../../work/b004-record-categories/README.md) 也已通过后端到桌面验收。后续核心功能按用户需求规划，未冻结完整 MVP 或排期。Android 本地宿主及同步另行验证。
 
 返回 [当前文档索引](../README.md) 或 [总导航](../../README.md)。

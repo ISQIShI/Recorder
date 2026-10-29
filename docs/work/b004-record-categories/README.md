@@ -1,8 +1,8 @@
 # B004：桌面分层分类
 
-状态：查询与删除交互已由用户确认，计划定稿；尚未实现，计划合入 main 后可派发 T01。更新日期：2026 年 10 月 28 日。
+状态：T01 已实现并通过整合验收（PR #18），本批结束；保留原任务卡与验证证据。更新日期：2026 年 10 月 29 日。
 
-阅读时机：实现、审查或验收本批时。本页兼作批次计划和唯一任务卡；入口为 [工作台账](../README.md)，派工用 [提示词](prompts.md)。已结束 B003 只在追溯时阅读。
+阅读时机：追溯本批交付或排查相关回归时。本页保留原计划与唯一任务卡；入口为 [工作台账](../README.md)，[原提示词](prompts.md) 不再派发。
 
 ## 目标、基线与顺序
 
@@ -58,7 +58,7 @@
 
 ## 交付与整合记录
 
-T01 状态：**待整合**。实现日期：2026 年 10 月 29 日。全局状态和本页上方计划状态由整合者验收后更新，本实现只填写交付区。
+T01 状态：**已通过整合验收**。实现与验收日期：2026 年 10 月 29 日。以下保留实现者交付及整合证据。
 
 - 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；分支：`feat/b004-t01-record-categories`。fetch 后从包含 PR #16 及 B004 定稿计划的最新 `origin/main` 建立，完整实际基线为 `1af94fc46b56e3bc607f4e31b02bdb62fd9dd79b`。原 B003 分支成果已提交/推送，初始未跟踪 `.codex/` 保留；不修改其他工作树或 main。
 - 交付 categories revision 1（依赖 records revision 2）的 Kit SQL/元数据和生产清单，identity/records/tags 四份已应用 SQL 原字节不变。独立 category-store/categories/categories-api、客户端 record-categories/categories-panel 插件覆盖树管理、多分类关联及包含全部后代的去重查询；八个操作使用统一 HTTP/OpenAPI、schema、响应校验、Web 编码和 Electron 窄 IPC。
@@ -80,4 +80,4 @@ T01 状态：**待整合**。实现日期：2026 年 10 月 29 日。全局状�
 
 未执行：Linux 图形 Electron、Web/Android 分类流程独立验收、Android 真机、真实用户资料升级及真实断电；不重复本机全套 B002 故障或 B003 手工验收。没有新增依赖、锁文件/CI 变更或待决定的产品/数据分歧。证据样本在忽略的 artifacts 中不提交，原 `.codex/` 保留。
 
-整合者需汇总的事实：分类完整后端到桌面流程及上述验证已交付；生产版本新增 categories revision 1；已有 B003 库需先确认 CLI 升级再启动；查询含全部后代并去重、删除分类保留全部记录/标签/树外归属。建议验收后更新全局技术状态、当前业务说明、工作台账及 AGENTS 的阶段描述。实现者等待审查，不自行开始附件或下一批。
+整合者核对代码 HEAD `729862311b03c164df4dae42603a28102a0bfd3f`，未发现阻塞问题；[对应 Windows/Linux CI 与 PR 标题检查](https://github.com/ISQIShI/Recorder/actions/runs/40878959348) 均成功。本地复验 `pnpm build` 与 `pnpm test:records:desktop` 十阶段通过，日志 `.tmp/pr18-build.log`、`.tmp/pr18-desktop.log`；真实 B003 升级与定向后端/客户端测试复用对应 CI，不重复本机全套检查。旧 identity/records/tags 迁移、根依赖/锁文件和 CI 未改。相关文档检查通过（18 文件、401 个内部链接、0 错误），git diff --check 通过。验收及全局状态随本 PR 更新；最终提交、检查与合并 SHA 以 PR #18 为准。没有自动开始附件或下一批。

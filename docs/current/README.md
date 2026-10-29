@@ -14,6 +14,7 @@
 | [已确认后端技术](architecture/backend-stack.md) | Cordis 维护发行及配套 Loader、Fastify、SQLite + better-sqlite3，确认范围与验证状态 | 后端实现、依赖、存储与部署相关工作前 |
 | [已确认 API 与认证主线](architecture/api-auth-baseline.md) | HTTP/REST、OpenAPI、SSE、本地账号与可撤销会话，已确认范围与待定配套 | 公共接口、SDK、登录、设备接入及插件公开能力相关工作前 |
 | [记录编辑与版本冲突契约](interfaces/record-editing.md) | 已实现更新 API/并发保护、双端手动编辑、冲突草稿及正常离开提醒；验证范围和限制 | 开发或验收 B001 的后端更新、客户端编辑、传输与退出时 |
+| [B005 基础附件计划与任务卡](../work/b005-managed-attachments/README.md) | 已有记录附件、文件直接建记录、1 GiB 流式传输与必要恢复兼容；计划未实现 | 接受 B005 任务或审查附件时；T01 合并后再做 T02 |
 | [B004 分层分类计划与任务卡](../work/b004-record-categories/README.md) | 分类树管理、多分类归属与筛选已验收（PR #18），含交付证据 | 追溯 B004 交付或排查分类回归时；不再派发原提示词 |
 | [B003 记录管理计划与任务卡](../work/b003-record-management/README.md) | 回收站、标签与筛选均已实现验收；保留任务卡与证据 | 追溯 B003 交付或排查相关回归时；不再作为默认派工入口 |
 | [已确认数据模型主线](storage/data-model-baseline.md) | 统一记录基础、独立附件、标签分类关联与插件业务表，确认范围和未冻结细节 | 记录、附件、组织关系、数据库访问与插件持久化工作前 |

@@ -1,5 +1,7 @@
 # Recorder 存储与数据生命周期提案
 
+当前附件实施以 [B005 任务卡](../../work/b005-managed-attachments/README.md) 为准：本批托管附件不跨记录共享，单独删除经明确确认后永久清理；正文可为空用于文件记录。下文共享引用、去重及完整生命周期机制仍是后续提案，不作为本批全部前置。
+
 状态：实现建议；迁移及备份恢复主线已确认，目录、参数和具体协议未冻结。更新日期：2026 年 10 月 25 日；基础存储资料核对日期：2026 年 10 月 24 日，备份专题见 10 月 25 日的独立提案。
 
 阅读时机：设计 SQLite 访问、文件落盘、上传恢复、回收站、检索、备份和清理时。先以 [数据模型主线](../../current/storage/data-model-baseline.md) 确认方向，逻辑实体见 [模型细化](data-model.md)，业务扩展见 [插件数据契约](../plugins/data-extension.md)。SQLite + better-sqlite3、Drizzle 与 Kit 主线已确认，范围见 [数据访问主线](../../current/storage/data-access-baseline.md)；下面的运行策略仍待验证，升级细节见 [迁移机制提案](plugin-migrations.md)。

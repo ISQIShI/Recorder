@@ -8,7 +8,7 @@ export interface StatusTransport {
   status(): Promise<FoundationStatus>;
 }
 export type ApiWireResult = { ok: true; value: unknown } | { ok: false; error: { code: string; message: string; status: number } };
-export interface DesktopBridge extends StatusTransport { invokeApi(method: ApiMethod, input: unknown): Promise<ApiWireResult> }
+export interface DesktopBridge extends StatusTransport { invokeApi(method: ApiMethod, input: unknown): Promise<ApiWireResult>; files?: import('./files.js').FileDeviceBridge }
 export function parseFoundationStatus(value: unknown): FoundationStatus {
   if (!value || typeof value !== 'object') throw new Error('Invalid diagnostic response');
   const input = value as Partial<FoundationStatus>;
@@ -18,3 +18,4 @@ export function parseFoundationStatus(value: unknown): FoundationStatus {
   return input as FoundationStatus;
 }
 export * from './api.js';
+export * from './files.js';

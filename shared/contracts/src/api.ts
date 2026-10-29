@@ -1,4 +1,8 @@
 export type BodyFormat = 'plain' | 'markdown';
+export interface AttachmentData { id: string; name: string; mediaType: string; bytes: number; digest: string; createdAt: number; state: 'ready' | 'deleting'; error: string | null }
+export const MAX_ATTACHMENT_BYTES = 1073741824;
+export const attachmentContentPath = (id: string) => '/api/v1/attachments/' + encodeURIComponent(id) + '/content';
+export const attachmentUploadPath = (id: string, uploadId: string) => '/api/v1/records/' + encodeURIComponent(id) + '/attachments/' + encodeURIComponent(uploadId) + '/content';
 export interface Credentials { username: string; password: string; remember: boolean; clientName: string }
 export interface RecordInput { requestId: string; title: string; body: string; format: BodyFormat }
 export interface RecordUpdateInput { id: string; expectedRevision: number; title: string; body: string; format: BodyFormat }
@@ -12,6 +16,7 @@ export interface RecordData extends RecordInput {
 export interface Identity { userId: string; username: string; sessionId: string; expiresAt: number }
 export interface SessionData { id: string; clientName: string; createdAt: number; expiresAt: number; current: boolean }
 export interface ApiInputs {
+  listAttachments: { id: string }; deleteAttachment: { id: string; confirm: true };
   info: {}; setup: Credentials & { setupCode: string }; login: Credentials; me: {}; logout: {};
   sessions: {}; revoke: { sessionId: string }; createRecord: RecordInput; updateRecord: RecordUpdateInput;
   listRecords: { q?: string; limit?: number; offset?: number; state?: RecordState }; getRecord: { id: string };
@@ -26,6 +31,7 @@ export interface ApiInputs {
   listCategoryRecords: { id: string; q?: string; limit?: number; offset?: number };
 }
 export interface ApiOutputs {
+  listAttachments: { items: AttachmentData[] }; deleteAttachment: { deleted: boolean; pending: boolean };
   info: { initialized: boolean; instanceId: string };
   setup: Identity; login: Identity; me: Identity; logout: { ok: true }; revoke: { ok: true };
   sessions: { items: SessionData[] }; createRecord: RecordData; getRecord: RecordData; updateRecord: RecordData;
@@ -47,6 +53,8 @@ const recordFields = { title: string(200), body: string(200000, 1), format: { en
 const expectedRevision = { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
 const categoryFields = { name: { type: 'string', minLength: 1 }, parentId: { anyOf: [uuid, { type: 'null' }] } };
 export const apiRoutes = {
+  listAttachments: { method: 'GET', path: '/api/v1/records/:id/attachments', authenticated: true, params: object({ id: uuid }), input: object({}) },
+  deleteAttachment: { method: 'POST', path: '/api/v1/attachments/:id/delete', authenticated: true, params: object({ id: uuid }), input: object({ confirm: { type: 'boolean', const: true } }) },
   info: { method: 'GET', path: '/api/v1/info', authenticated: false, input: object({}) },
   setup: { method: 'POST', path: '/api/v1/auth/setup', authenticated: false, input: object({ ...credentialFields, setupCode: string(128, 20) }) },
   login: { method: 'POST', path: '/api/v1/auth/login', authenticated: false, input: object(credentialFields) },
@@ -80,7 +88,9 @@ const identitySchema = object({ userId: uuid, username: string(64), sessionId: u
 const recordSchema = object({ id: uuid, requestId: uuid, title: string(200), body: string(200000), format: { type: 'string', enum: ['plain', 'markdown'] }, formatVersion: { type: 'integer', const: 1 }, revision: { type: 'integer' }, createdAt: { type: 'integer' }, updatedAt: { type: 'integer' }, originInstanceId: uuid, deletedAt: { type: ['integer', 'null'] } });
 const tagSchema = object({ id: uuid, name: string(64, 1), createdAt: { type: 'integer' } });
 const categorySchema = object({ id: uuid, name: string(64, 1), parentId: categoryFields.parentId, revision: expectedRevision, createdAt: { type: 'integer' }, updatedAt: { type: 'integer' } });
+export const attachmentSchema = object({ id: uuid, name: string(255, 1), mediaType: string(100, 1), bytes: { type: 'integer', minimum: 0, maximum: MAX_ATTACHMENT_BYTES }, digest: { type: 'string', pattern: '^[a-f0-9]{64}$' }, createdAt: { type: 'integer' }, state: { type: 'string', enum: ['ready', 'deleting'] }, error: { type: ['string', 'null'] } });
 export const apiResponses: Record<ApiMethod, object> = {
+  listAttachments: object({ items: { type: 'array', items: attachmentSchema } }), deleteAttachment: object({ deleted: { type: 'boolean' }, pending: { type: 'boolean' } }),
   info: object({ initialized: { type: 'boolean' }, instanceId: uuid }), setup: identitySchema, login: identitySchema, me: identitySchema,
   logout: object({ ok: { type: 'boolean', const: true } }), revoke: object({ ok: { type: 'boolean', const: true } }),
   sessions: object({ items: { type: 'array', items: object({ id: uuid, clientName: string(80), createdAt: { type: 'integer' }, expiresAt: { type: 'integer' }, current: { type: 'boolean' } }) } }),
@@ -120,6 +130,8 @@ export function parseApiResponse<K extends ApiMethod>(method: K, value: unknown)
   const tag = (t: any) => t && typeof t.id === 'string' && typeof t.name === 'string' && t.name === t.name.trim() && t.name.length >= 1 && t.name.length <= 64 && Number.isSafeInteger(t.createdAt);
   const category = (c: any) => tag(c) && (c.parentId === null || typeof c.parentId === 'string') && Number.isSafeInteger(c.revision) && c.revision >= 1 && Number.isSafeInteger(c.updatedAt);
   const valid = method === 'info' ? v && typeof v.initialized === 'boolean' && typeof v.instanceId === 'string'
+    : method === 'listAttachments' ? Array.isArray(v?.items) && v.items.every(isAttachment)
+    : method === 'deleteAttachment' ? typeof v?.deleted === 'boolean' && typeof v?.pending === 'boolean'
     : ['setup', 'login', 'me'].includes(method) ? identity()
     : ['logout', 'revoke', 'addRecordTag', 'removeRecordTag', 'addRecordCategory', 'removeRecordCategory'].includes(method) ? v?.ok === true
     : ['createCategory', 'updateCategory'].includes(method) ? category(v)
@@ -133,3 +145,4 @@ export function parseApiResponse<K extends ApiMethod>(method: K, value: unknown)
   if (!valid) throw new ApiError('INVALID_RESPONSE', '后端响应格式不正确', 502);
   return v;
 }
+export function isAttachment(v: any): v is AttachmentData { return v && typeof v.id === 'string' && typeof v.name === 'string' && v.name.length > 0 && v.name.length <= 255 && typeof v.mediaType === 'string' && Number.isSafeInteger(v.bytes) && v.bytes >= 0 && v.bytes <= MAX_ATTACHMENT_BYTES && /^[a-f0-9]{64}$/.test(v.digest) && Number.isSafeInteger(v.createdAt) && ['ready', 'deleting'].includes(v.state) && (v.error === null || typeof v.error === 'string'); }

@@ -162,7 +162,7 @@ test('real B003 database requires confirmed CLI upgrade and recovery point, pres
   try {
     raw.exec(ledgerSql);
     const digests = ['b4407f95f083733826bd9b100622547696fb812b2c41102da0e47038952a63e3', '9232a42a20abfcca4a7e9f76b196efad4e355507bba7e002077e760a9cec2145', '5cfbbbe2224e483beb33f97b020936c7f55b00a5ac0b06563f96465347287d9c', '62e93b7160c92779ff00650b929fd5b9eee4e5392ee8e100efbb4aa7c1092654'];
-    for (const [i, step] of installedMigrations.filter(s => s.namespace !== 'categories').entries()) {
+    for (const [i, step] of installedMigrations.filter(s => !['attachments', 'categories'].includes(s.namespace)).entries()) {
       const text = await readFile(new URL('../migrations/' + step.file, import.meta.url), 'utf8'), digest = createHash('sha256').update(text).digest('hex');
       assert.equal(digest, digests[i], 'Already applied identity/records/tags SQL bytes remain unchanged'); raw.exec(text.split('--> statement-breakpoint').join('\n'));
       raw.prepare('INSERT INTO recorder_migrations VALUES(?,?,?,?)').run(step.namespace, step.revision, digest, 123);
@@ -180,13 +180,13 @@ test('real B003 database requires confirmed CLI upgrade and recovery point, pres
   try {
     await assert.rejects(createApplication({ filename: f.filename, http: { listen: false } }), { code: 'UPGRADE_REQUIRED' });
     const inspect = await cli(f.filename, 'inspect'); assert.equal(inspect.code, 0, inspect.error);
-    const plan = JSON.parse(inspect.output.trim()).plan; assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['categories', 1]]);
+    const plan = JSON.parse(inspect.output.trim()).plan; assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['attachments', 1], ['categories', 1]]);
     assert.equal((await cli(f.filename, 'upgrade')).code, 2); assert.equal((await cli(f.filename, 'upgrade', ['--confirm', '0'.repeat(64)])).code, 2);
     const upgraded = await cli(f.filename, 'upgrade', ['--confirm', plan.digest]); assert.equal(upgraded.code, 0, upgraded.error);
     const points = await cli(f.filename, 'points'); assert.equal(points.code, 0, points.error);
     const point = JSON.parse(points.output.trim()).valid[0]; assert.equal(point.manifest.ledger.length, 4); assert.equal(point.manifest.plan.digest, plan.digest);
     app = await createApplication({ filename: f.filename, http: { listen: false } });
-    for (const [table, data] of before) assert.deepEqual(app.recorderDatabase.raw.prepare('SELECT * FROM ' + table + (table === 'recorder_migrations' ? " WHERE namespace <> 'categories'" : '') + ' ORDER BY 1').all(), data, table);
+    for (const [table, data] of before) assert.deepEqual(app.recorderDatabase.raw.prepare('SELECT * FROM ' + table + (table === 'recorder_migrations' ? " WHERE namespace NOT IN ('attachments','categories')" : '') + ' ORDER BY 1').all(), data, table);
     assert.deepEqual(app.recorderCategoryStore.list(ownerId), []); assert.equal(app.recorderRecordStore.list(ownerId, '', 30, 0, 'trash').total, 1);
     assert.equal(app.recorderTagStore.list(ownerId).length, 1); assert.deepEqual(app.recorderDatabase.raw.pragma('foreign_key_check'), []); assert.equal(app.recorderDatabase.raw.pragma('integrity_check', { simple: true }), 'ok');
   } finally { await app?.fiber.dispose(); await f.cleanup(); }

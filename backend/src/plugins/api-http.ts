@@ -1,8 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
 import Fastify, { type FastifyError } from 'fastify';
-import { apiRoutes, apiResponses, type ApiMethod } from '@recorder/contracts';
-import { failure, type Channel } from '../domain.js';
+import { apiRoutes, apiResponses, attachmentSchema, MAX_ATTACHMENT_BYTES, type ApiMethod } from '@recorder/contracts';
+import { failure } from '../domain.js';
 import '../contracts.js';
+import { authenticateHttp } from './http-auth.js';
 export const inject = ['recorderApiOperations', 'recorderAuth'];
 export interface ApiHttpConfig { port?: number; listen?: boolean; allowedOrigins?: string[] }
 export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
@@ -33,6 +34,41 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
       });
       server.get('/healthz', async () => ({ application: 'Recorder', stage: 'records' }));
       const paths: Record<string, any> = {};
+      const transfers = new Set<AbortController>();
+      server.addContentTypeParser('application/octet-stream', (_request, payload, done) => { done(null, payload); });
+      const uuid = { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' };
+      for (const upload of [true, false]) {
+        const path = upload ? '/api/v1/records/:id/attachments/:uploadId/content' : '/api/v1/attachments/:id/content';
+        const params = { type: 'object', additionalProperties: false, required: upload ? ['id', 'uploadId'] : ['id'], properties: { id: uuid, ...(upload ? { uploadId: uuid } : {}) } };
+        paths[path.replace(':id', '{id}').replace(':uploadId', '{uploadId}')] = { [upload ? 'put' : 'get']: {
+          operationId: upload ? 'uploadAttachment' : 'downloadAttachment', security: [{ cookieSession: [] }, { bearerSession: [] }],
+          parameters: [...(upload ? ['id', 'uploadId'] : ['id']).map(name => ({ name, in: 'path', required: true, schema: uuid })), ...(upload ? [{ name: 'x-recorder-filename', in: 'header', required: true, description: 'encodeURIComponent(original filename), no client path', schema: { type: 'string' } }, { name: 'x-recorder-media-type', in: 'header', schema: { type: 'string' } }] : [])],
+          ...(upload ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary', description: 'Streaming; actual bytes limited to 1 GiB' } } } } } : {}),
+          responses: { '200': { description: upload ? 'Committed attachment, or same upload replay' : 'Authenticated download; Content-Disposition attachment and x-recorder-digest SHA-256', content: upload ? { 'application/json': { schema: attachmentSchema } } : { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } }, '400': { description: 'Invalid input/credential mode' }, '401': { description: 'Session invalid' }, '403': { description: 'Host/Origin/CSRF rejected' }, '404': { description: 'Record/attachment missing or another owner' }, '409': { description: 'Trashed record, upload conflict or already in progress' }, '413': { description: 'Actual file exceeds limit' }, '503': { description: 'Attachment provider unavailable' } },
+        } };
+        server.route({ method: upload ? 'PUT' : 'GET', url: path, bodyLimit: MAX_ATTACHMENT_BYTES, schema: { params },
+          onRequest: async request => { authenticateHttp(ctx.recorderAuth, request, upload); if (upload && request.headers['content-type'] !== 'application/octet-stream') throw failure(415, 'INVALID_FILE_TYPE', '文件传输须使用二进制通道'); if (upload && Number(request.headers['content-length']) > MAX_ATTACHMENT_BYTES) throw failure(413, 'FILE_TOO_LARGE', '附件超过单文件上限'); },
+          async handler(request, reply) {
+            const control = new AbortController(); transfers.add(control);
+            const abort = () => control.abort(); const close = () => { if (!reply.raw.writableFinished) abort(); };
+            request.raw.once('aborted', abort); reply.raw.once('close', close);
+            try {
+              const input = request.params as { id: string; uploadId?: string };
+              let name: string | undefined; try { if (upload) name = decodeURIComponent(String(request.headers['x-recorder-filename'] ?? '')); } catch { throw failure(400, 'INVALID_FILE', '文件名称编码不正确'); }
+              const result = await ctx.recorderApiOperations.callFile(upload ? 'uploadAttachment' : 'downloadAttachment', { ...input, name, mediaType: request.headers['x-recorder-media-type'] as string | undefined, stream: upload ? request.body as import('node:stream').Readable : request.raw, signal: control.signal, authenticate: () => authenticateHttp(ctx.recorderAuth, request, upload).principal! });
+              if (result.stream) {
+                const attachment = result.attachment!;
+                reply.type('application/octet-stream').header('content-length', attachment.bytes).header('x-recorder-digest', attachment.digest).header('content-disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(attachment.name));
+                result.stream.once('close', () => { transfers.delete(control); });
+                control.signal.addEventListener('abort', () => result.stream!.destroy(), { once: true });
+                return reply.send(result.stream);
+              }
+              transfers.delete(control); return result.body;
+            } catch (error) { transfers.delete(control); throw error; }
+            finally { request.raw.removeListener('aborted', abort); }
+          },
+        });
+      }
       for (const method of Object.keys(apiRoutes) as ApiMethod[]) {
         const route = apiRoutes[method];
         const path = route.path.replace(':id', '{id}');
@@ -53,6 +89,8 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
             ...(['addRecordTag', 'removeRecordTag'].includes(method) ? { '409': { description: 'RECORD_TRASHED: tag associations are read-only in trash' } } : {}),
             ...(['createCategory', 'updateCategory', 'deleteCategory', 'getRecordCategories', 'addRecordCategory', 'removeRecordCategory', 'listCategoryRecords'].includes(method) ? { '404': { description: 'NOT_FOUND: record, category or parent missing or owned by another account' } } : {}),
             ...(['createCategory', 'updateCategory', 'deleteCategory', 'addRecordCategory', 'removeRecordCategory'].includes(method) ? { '409': { description: 'REVISION_CONFLICT, CATEGORY_NAME_CONFLICT, CATEGORY_CYCLE or RECORD_TRASHED; no changes written' } } : {}),
+            ...(['listAttachments', 'deleteAttachment'].includes(method) ? { '404': { description: 'NOT_FOUND: record or attachment missing or owned by another account' } } : {}),
+            ...(method === 'deleteAttachment' ? { '409': { description: 'RECORD_TRASHED: attachments are read-only in trash' } } : {}),
             '503': { description: 'Required plugin unavailable' } },
         };
         server.route({ method: route.method, url: route.path,
@@ -64,7 +102,7 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
               if (!body || !Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1
                 || (method === 'updateRecord' && !['title', 'body', 'format'].every(key => typeof body[key] === 'string'))) throw failure(400, 'INVALID_INPUT', '输入格式不正确');
             }
-            if (method === 'emptyTrash' && (request.body as { confirm?: unknown } | null)?.confirm !== true) throw failure(400, 'CONFIRMATION_REQUIRED', '清空需要明确确认');
+            if (['emptyTrash', 'deleteAttachment'].includes(method) && (request.body as { confirm?: unknown } | null)?.confirm !== true) throw failure(400, 'CONFIRMATION_REQUIRED', '永久删除需要明确确认');
             if (method === 'createTag' && typeof (request.body as { name?: unknown } | null)?.name !== 'string') throw failure(400, 'INVALID_INPUT', '标签名须为文本');
             if (['addRecordTag', 'removeRecordTag'].includes(method) && typeof (request.body as { tagId?: unknown } | null)?.tagId !== 'string') throw failure(400, 'INVALID_INPUT', '标签 ID 须为文本');
             if (['createCategory', 'updateCategory', 'deleteCategory', 'addRecordCategory', 'removeRecordCategory'].includes(method)) {
@@ -76,16 +114,7 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
             }
           },
           async handler(request, reply) {
-            const authorization = request.headers.authorization;
-            const cookies = (request.headers.cookie ?? '').split(';').map(s => s.trim()).filter(s => s.startsWith('recorder_session='));
-            if (cookies.length > 1 || (authorization && cookies.length)) throw failure(400, 'AMBIGUOUS_CREDENTIALS', '请求包含冲突凭据');
-            const channel: Channel = request.headers['x-recorder-client'] === 'native' && !request.headers.origin ? 'native' : 'web';
-            if (channel === 'web' && authorization) throw failure(400, 'INVALID_CREDENTIALS_MODE', '浏览器应使用会话 Cookie');
-            if (channel === 'native' && cookies.length) throw failure(400, 'INVALID_CREDENTIALS_MODE', '原生客户端应使用独立会话');
-            if (channel === 'web' && writes && !request.headers.origin) throw failure(403, 'ORIGIN_REQUIRED', '浏览器写请求需要来源校验');
-            const token = channel === 'native' ? (authorization?.startsWith('Bearer ') ? authorization.slice(7) : '') : cookies[0]?.slice('recorder_session='.length) ?? '';
-            const principal = route.authenticated ? ctx.recorderAuth.authenticate(token, channel) : undefined;
-            if (principal && channel === 'web' && writes && request.headers['x-csrf-token'] !== ctx.recorderAuth.csrf(token)) throw failure(403, 'CSRF_REJECTED', '会话校验失败，请刷新后重试');
+            const { token, channel, principal } = authenticateHttp(ctx.recorderAuth, request, writes, route.authenticated);
             const input = { ...(writes ? request.body as object : request.query as object), ...('params' in route ? request.params as object : {}) };
             const result = await ctx.recorderApiOperations.call(method, { input, channel, ...(principal ? { principal } : {}) });
             if (result.token) {
@@ -106,7 +135,7 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
       const address = config.listen === false ? '' : await server.listen({ host: '127.0.0.1', port: config.port ?? 4317 });
       if (address) allowed.add(address);
       ctx.provide('recorderHttp', { server, address });
-      return async () => { await server.close(); attempts.clear(); };
+      return async () => { for (const transfer of transfers) transfer.abort(); await server.close(); attempts.clear(); };
     } catch (error) { await server.close(); throw error; }
   });
 }

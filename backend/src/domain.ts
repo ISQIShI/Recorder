@@ -10,6 +10,7 @@ export * from './storage-contract.js';
 export * from './maintenance-contract.js';
 export * from './tags-contract.js';
 export * from './categories-contract.js';
+export * from './attachments-contract.js';
 export type Channel = 'web' | 'native';
 export interface User { id: string; username: string; passwordHash: string; createdAt: number }
 export interface Principal extends Identity { channel: Channel }
@@ -47,6 +48,8 @@ export interface RecordService {
 export interface OperationCall { input: any; principal?: Principal; channel: Channel }
 export interface OperationResult { body: unknown; token?: string; remember?: boolean; clearSession?: boolean }
 export interface ApiOperations {
+  registerFile(owner: Context, method: 'uploadAttachment' | 'downloadAttachment', handler: (call: import('./attachments-contract.js').FileCall) => Promise<import('./attachments-contract.js').FileResult>): void;
+  callFile(method: 'uploadAttachment' | 'downloadAttachment', call: import('./attachments-contract.js').FileCall): Promise<import('./attachments-contract.js').FileResult>;
   register(owner: Context, method: ApiMethod, handler: (call: OperationCall) => OperationResult | Promise<OperationResult>): void;
   call(method: ApiMethod, call: OperationCall): Promise<OperationResult>;
 }

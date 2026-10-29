@@ -10,5 +10,5 @@ const bridge: ApiTransport = { async request(method, input) {
 } };
 const ctx = location.search.includes('foundation=1')
   ? await mountClient(target, 'Windows / Electron', window.recorder)
-  : await mountApplication(target, 'Windows / Electron', bridge);
+  : await mountApplication(target, 'Windows / Electron', bridge, window.recorder.files);
 if (import.meta.hot) import.meta.hot.dispose(() => { void ctx.fiber.dispose(); });

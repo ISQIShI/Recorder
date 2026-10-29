@@ -75,6 +75,15 @@ Conventional Commits 提交，推自己的分支并创建 main 目标 PR，不�
 
 ## 交付与整合记录
 
-- T01：未开始；待实现者记录实际基线、交付与验证。
+- T01：实现完成，待 CI 与整合审查（2026-10-29）。本分支交付状态记录在此，批次顶层/全局状态交整合者更新。
+  - 分支 `feat/b005-t01-managed-attachments`；工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`；实际基线 `ba642d989546db85b728507c7e4b60f416ebaea3`，包含 B004 PR #18 合并 `e507231f99551224082ce5ea07a9cfc92e7aaac3` 与 B005 定稿 PR #19。仅原有 `.codex/` 未跟踪内容保留，不提交；未操作真实资料库、其他工作树或 main。
+  - 完整交付：attachments revision 1（依赖 records 2，旧五份 SQL 摘要不变）、独立 Cordis 存储/业务/HTTP/元数据/UI/设备服务；已有正常记录单文件上传/取消/同请求重试、列表、校验另存、明确确认永久删除。回收/恢复保留，回收站只读另存；清空借助 SET NULL 留对象身份，业务停用后重新启用仍能清理。持久 pending/ready/deleting/deleted、清理错误及重试，不删除未知文件、不改正文 revision。
+  - 文件走固定认证 octet-stream 路由；实际计数上限 1 GiB，JSON 限额不变。Electron 仅接受选择器句柄及固定操作，字节不走 IPC/JSON/base64，路径/token 不进 renderer。120 秒无进度超时；安全临时文件、摘要/大小通过才替换另存目标；会话变化/插件撤回取消所属工作。
+  - 恢复兼容：最小维护 profile 加载独立存储参与者；manifest v2 从数据库快照列出正常/回收站/停用业务保留的 ready 对象，复制独立文件再核验封存；缺失/损坏/参与者缺失不假成功。旧 v1 无附件点继续校验/恢复。新空目标恢复数据库与文件、预留校验数据库副本空间、不自动启用；文件独立 1 小时时限（CLI `--file-timeout-ms` 可配）及恢复点状态，不自动清理 pending。
+  - 本地构建、全工程类型检查通过；新增后端 4 项、客户端 3 项定向测试通过，受清单影响的既有分类/标签/回收站 9 项通过。后端涵盖真实 HTTP 断流、实际超限、鉴权/owner/CSRF、重复请求、最终回收/撤销会话竞争、业务撤回取消、真实文件清理失败/重试、停用后清空、B004 显式 CLI 升级与数据保持、v1/v2 恢复/损坏文件。首轮组合测试出现等待文件消失早于持久清理完成的测试竞态，已改为等待 deleted 后核对文件确实不存在；未删除断言。
+  - Windows 11 / Node 24.14.1 / Electron 45.0.0 实际十二阶段主流程通过：旧编辑/正常退出/回收站/标签/分类十阶段，以及附件上传取消/重试、重启读回、失败另存保留原目标、成功摘要、删除取消零请求/确认一次、回收只读另存/恢复/清空。仅原生对话框返回选择及故障响应使用替身；成功文件传输、UI/IPC/HTTP/SQLite 均真实运行。日志 `artifacts/b005-electron-full.log`，样本 `artifacts/records-smoke-a2XUr1/`。
+  - **1 GiB 实际验收通过**：`RECORDER_SMOKE_ATTACHMENT_ONLY=1 RECORDER_SMOKE_LARGE_FILE=1` 的两个真实 Electron 阶段；源/上传/另存均为 1,073,741,824 字节，SHA-256 同为 `3a33d58aa8ee1e9d21fd4f510cc5d1ce8d25ba5e24363d19c28e2bf866f4185c`。日志 `artifacts/b005-large-electron.log`，样本/两阶段 JSON `artifacts/records-smoke-ijQiWn/`，截图 `artifacts/records-desktop-attachments.png`（后续普通 smoke 可覆盖截图）。大文件/本机数据均忽略，不提交；未测峰值内存或性能，不作此承诺。
+  - 完整 Windows/Linux 回归复用既有 PR CI，结果及 PR 待补。相关文档检查限定本基线差异，未改全局技术状态/批次索引/根依赖/锁文件/CI。
+  - 支持限制/未执行：未人工点击系统文件/覆盖对话框，未独立验收 Linux 图形 Electron、Web/Android 文件设备、远程接入、断电或真实介质丢失恢复。正式恢复启用/restic/日常备份、文件直接建记录均未实现。仅测隔离样本；清空后物理清理允许持久待重试，插件停用期间保留字节，不声称立即擦除介质/恢复点。
+  - 请整合者更新的事实：attachments revision 1；桌面已有记录附件及 1 GiB 流程；manifest v2 的数据库+托管文件恢复集合/隔离恢复与 v1 兼容；Web/Android 设备待补。T02 必须在本 PR 合入最新 main 后再派发。
 - T02：未开始；依赖 T01 合入 main。
-- 本轮仅规划，未运行附件、大文件或恢复功能测试，不代表功能已经实现。

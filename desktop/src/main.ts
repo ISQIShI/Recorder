@@ -7,6 +7,7 @@ import * as viewPlugin from './plugins/view.js';
 import * as shortcutPlugin from './plugins/shortcut.js';
 import * as credentialsPlugin from './plugins/credentials.js';
 import * as exitPlugin from './plugins/exit.js';
+import * as filesPlugin from './plugins/files.js';
 
 if (process.env.RECORDER_SMOKE_DATA_DIR) app.setPath('userData', process.env.RECORDER_SMOKE_DATA_DIR);
 
@@ -21,6 +22,7 @@ try {
   await ctx.plugin(exitPlugin, { dispose: () => ctx.fiber.dispose() });
   await ctx.plugin(credentialsPlugin);
   await ctx.plugin(connectionPlugin, { rendererUrl, backendUrl: process.env.RECORDER_BACKEND_URL ?? 'http://127.0.0.1:4317' });
+  await ctx.plugin(filesPlugin);
   await ctx.plugin(shortcutPlugin, { enabled: !smoke && !businessSmoke });
   await ctx.plugin(viewPlugin, { rendererUrl });
   if (smoke) {

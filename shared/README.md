@@ -1,6 +1,6 @@
 # shared：跨端共享部分
 
-状态：共享契约与客户端插件包已建立，含记录编辑、回收站、标签和分层分类筛选。更新日期：2026 年 10 月 29 日。
+状态：共享契约与客户端插件包已建立，含记录编辑、回收站、标签、分类和已有记录附件界面；附件文件设备仅 Windows Electron 适配。更新日期：2026 年 10 月 29 日。
 
 阅读时机：抽取共享组件、网络契约、业务客户端和 UI 扩展接口前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [工程目录规划](../docs/current/development/repository-layout.md)。
 
@@ -21,6 +21,12 @@
 [B003-T02](../docs/work/b003-record-management/README.md#t02-任务卡标签与筛选) 新增 `TagData` 与 listTags/createTag/getRecordTags/addRecordTag/removeRecordTag/listTagRecords，统一 schema/OpenAPI、响应校验、固定路径/正文编码及窄 IPC 白名单；完整 HTTP 契约见 [后端说明](../backend/README.md#标签与筛选b003-t02)。标签独立于 RecordData 和正文 PUT，不更改正文 revision。Web fetch 的 Cookie/CSRF、Electron 主进程 Bearer 和错误码均复用既有传输。
 
 `record-tags` Cordis 模型与 `tags-panel` UI 贡献在已有记录面板下显示当前记录的多个标签，以及单标签+标题/正文关键词分页。先保存/选择记录；创建或精确同名复用后添加、选择已有、独立移除关联。写入先通过 editor.cancel 的同一离开守卫结束编辑，取消不发标签请求；回收站只读。请求失败、部分创建成功但关联失败、未加载、空结果分别提示，刷新与关联变化后重取结果并回退空末页。会话变化清空标签状态和表单，迟到回包忽略。撤回 record-tags 提供者会撤回 tags-panel，基础记录面板不依赖它；重新启用读取持久标签。UI 生命周期/草稿/会话竞态与 Web 请求有定向测试，真实 Electron 复用既有 smoke。
+
+[B005-T01](../docs/work/b005-managed-attachments/README.md) 增加 AttachmentData、listAttachments/deleteAttachment 元数据 REST/schema/响应校验，以及固定二进制路径和 `FileDeviceBridge`。字节不经 JSON IPC；窄桥只有 choose/upload/save/cancel/clear，选择器返回 handle/name/bytes，进度仅传标识、阶段和字节数，不向 renderer 暴露路径、URL 或 Bearer。完整 HTTP/持久状态见 [后端说明](../backend/README.md#已有记录托管附件b005-t01)。
+
+`file-transfer` 是可替换 Cordis 设备适配，`record-attachments` 管理选择、手动上传/同请求重试、列表、另存及明确永久删除，`attachments-panel` 独立贡献界面；基础记录/标签/分类不注入附件模型。选择/上传/删除先走 editor.cancel 草稿守卫；取消不发请求，失败保留选择与 uploadId 以核对/重试。传输期间注册既有离开守卫，强制会话变化取消设备传输、清选择句柄并忽略迟到回包；撤回只移除附件贡献。删除失败显示持久待清理状态；回收站只读列表/另存，恢复读回，附件操作不改变正文 revision。没有文件设备适配时明确提示 Windows 桌面，Web/Android 保留构建及契约但未独立适配。
+
+`test/record-attachments.test.ts` 定向检查草稿守卫、结果未确认时相同 uploadId 重试、进度/待清理反馈、回收站只读、会话取消和迟到结果、提供者撤回及无设备能力。真实 Electron 使用隔离 HTTP/SQLite/文件链路，实际 1 GiB 摘要验收见任务交付区。
 
 [B004-T01](../docs/work/b004-record-categories/README.md) 增加 `CategoryData` 和八个固定分类操作，路径/正文编码、响应校验和 IPC 白名单仍统一来自 contracts；完整 HTTP 契约见 [后端说明](../backend/README.md#分层分类与记录归属b004-t01)。分类独立于正文 PUT，更名/移动、关联不改变正文 revision。Web Cookie/CSRF 与 Electron 主进程 Bearer 沿用原传输。
 

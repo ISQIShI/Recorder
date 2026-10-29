@@ -40,6 +40,18 @@ test('shared HTTP encoder splits path/body and preserves GET/POST shapes', () =>
   assert.deepEqual(parseApiResponse('createTag', tag), tag); assert.deepEqual(parseApiResponse('getRecordTags', { items: [tag] }), { items: [tag] });
   assert.throws(() => parseApiResponse('listTags', { items: [{ ...tag, name: '  ' }] }), { code: 'INVALID_RESPONSE' });
   assert.deepEqual(parseApiResponse('listTagRecords', { items: [record], total: 1 }), { items: [record], total: 1 });
+  const category = { id, name: '父分类', parentId: null, revision: 1, createdAt: 1, updatedAt: 1 };
+  assert.deepEqual(apiRequest('updateCategory', { id, name: '子分类', parentId: id, expectedRevision: 1 }), { path: `/api/v1/categories/${id}`, method: 'PUT', body: JSON.stringify({ name: '子分类', parentId: id, expectedRevision: 1 }) });
+  assert.deepEqual(apiRequest('deleteCategory', { id, expectedRevision: 2, confirm: true }), { path: `/api/v1/categories/${id}/delete`, method: 'POST', body: '{"expectedRevision":2,"confirm":true}' });
+  assert.equal(apiRequest('listCategoryRecords', { id, q: '中文 + &' }).path, `/api/v1/categories/${id}/records?q=%E4%B8%AD%E6%96%87+%2B+%26`);
+  assert.deepEqual(parseApiResponse('createCategory', category), category);
+  assert.deepEqual(parseApiResponse('getRecordCategories', { items: [category] }), { items: [category] });
+  assert.throws(() => parseApiResponse('updateCategory', { ...category, revision: '1' }), { code: 'INVALID_RESPONSE' });
+  assert.throws(() => parseApiResponse('createCategory', { ...category, parentId: undefined }), { code: 'INVALID_RESPONSE' });
+  for (const method of ['addRecordCategory', 'removeRecordCategory'] as const) {
+    assert.equal(apiRequest(method, { id, categoryId: id }).body, JSON.stringify({ categoryId: id }));
+    assert.deepEqual(parseApiResponse(method, { ok: true }), { ok: true });
+  }
 });
 
 test('Web fetch sends PUT JSON with Cookie/CSRF and preserves API errors', async t => {
@@ -100,6 +112,32 @@ test('Web tag requests use the shared fixed contract, CSRF and response validati
       assert.equal(request.options.credentials, 'same-origin'); assert.equal((request.options.headers as Record<string, string>)['x-csrf-token'], 'tags-csrf');
     }
     assert.equal(requests[2]!.path, `/api/v1/records/${id}/tags/add`); assert.equal(requests[5]!.path, `/api/v1/tags/${id}/records?q=body`);
+  } finally { await ctx.fiber.dispose(); }
+});
+
+test('Web category transport preserves nullable parent, expectedRevision, confirmation, CSRF and error codes', async t => {
+  const ctx = new Context(), requests: { path: string; options: RequestInit }[] = [];
+  const category = { id, name: '分类', parentId: null, revision: 1, createdAt: 1, updatedAt: 1 };
+  let conflict = false;
+  t.mock.method(globalThis, 'fetch', async (path: string, options: RequestInit) => {
+    requests.push({ path, options });
+    if (conflict) return new Response(JSON.stringify({ code: 'REVISION_CONFLICT', message: 'keep category input' }), { status: 409 });
+    const value = path.endsWith('/delete') ? { deleted: 2 } : path.endsWith('/add') || path.endsWith('/remove') ? { ok: true }
+      : path.includes('/records?') ? { items: [record], total: 1 } : options.method === 'GET' ? { items: [category] } : category;
+    return new Response(JSON.stringify(value), { headers: { 'x-csrf-token': 'categories-csrf' } });
+  });
+  try {
+    await ctx.plugin(webApi); await ctx.recorderApi.request('listCategories', {});
+    assert.deepEqual(await ctx.recorderApi.request('createCategory', { name: '分类', parentId: null }), category);
+    await ctx.recorderApi.request('updateCategory', { id, name: '分类', parentId: id, expectedRevision: 1 });
+    await ctx.recorderApi.request('addRecordCategory', { id, categoryId: id }); await ctx.recorderApi.request('removeRecordCategory', { id, categoryId: id });
+    assert.deepEqual(await ctx.recorderApi.request('getRecordCategories', { id }), { items: [category] });
+    assert.deepEqual(await ctx.recorderApi.request('listCategoryRecords', { id, q: 'body' }), { items: [record], total: 1 });
+    assert.deepEqual(await ctx.recorderApi.request('deleteCategory', { id, expectedRevision: 1, confirm: true }), { deleted: 2 });
+    assert.deepEqual(JSON.parse(String(requests[1]!.options.body)), { name: '分类', parentId: null });
+    assert.deepEqual(JSON.parse(String(requests[2]!.options.body)), { name: '分类', parentId: id, expectedRevision: 1 });
+    for (const request of requests.slice(1)) { assert.equal(request.options.credentials, 'same-origin'); assert.equal((request.options.headers as Record<string, string>)['x-csrf-token'], 'categories-csrf'); }
+    conflict = true; await assert.rejects(ctx.recorderApi.request('updateCategory', { id, name: '保留的输入', parentId: null, expectedRevision: 1 }), { code: 'REVISION_CONFLICT', status: 409 });
   } finally { await ctx.fiber.dispose(); }
 });
 

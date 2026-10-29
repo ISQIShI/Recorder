@@ -10,6 +10,8 @@ import * as leaveGuard from './plugins/leave-guard.js';
 import * as recordEditor from './plugins/record-editor.js';
 import * as recordTags from './plugins/record-tags.js';
 import * as tagsPanel from './plugins/tags-panel.js';
+import * as recordCategories from './plugins/record-categories.js';
+import * as categoriesPanel from './plugins/categories-panel.js';
 export async function mountApplication(target: Element, platform: string, bridge?: ApiTransport) {
   const ctx = new Context();
   try {
@@ -24,6 +26,8 @@ export async function mountApplication(target: Element, platform: string, bridge
     await ctx.plugin(recordsPanel);
     await ctx.plugin(recordTags);
     await ctx.plugin(tagsPanel);
+    await ctx.plugin(recordCategories);
+    await ctx.plugin(categoriesPanel);
     return ctx;
   } catch (error) { await ctx.fiber.dispose(); throw error; }
 }

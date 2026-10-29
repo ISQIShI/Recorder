@@ -20,10 +20,13 @@ export async function createApplication(options: ApplicationOptions = {}) {
     { id: 'records', name: './plugins/records.js' },
     { id: 'tag-store', name: './plugins/tag-store.js' },
     { id: 'tags', name: './plugins/tags.js' },
+    { id: 'category-store', name: './plugins/category-store.js' },
+    { id: 'categories', name: './plugins/categories.js' },
     { id: 'api-operations', name: './plugins/api-operations.js' },
     { id: 'auth-api', name: './plugins/auth-api.js' },
     { id: 'records-api', name: './plugins/records-api.js' },
     { id: 'tags-api', name: './plugins/tags-api.js' },
+    { id: 'categories-api', name: './plugins/categories-api.js' },
     { id: 'http', name: './plugins/api-http.js', config: options.http ?? {} },
   ] }); }
   catch (error) {

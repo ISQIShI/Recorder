@@ -138,7 +138,7 @@ test('T01 production database upgrades only after CLI confirmation and recovery 
   try {
     raw.exec(ledgerSql);
     const digests = ['b4407f95f083733826bd9b100622547696fb812b2c41102da0e47038952a63e3', '9232a42a20abfcca4a7e9f76b196efad4e355507bba7e002077e760a9cec2145', '5cfbbbe2224e483beb33f97b020936c7f55b00a5ac0b06563f96465347287d9c'];
-    for (const [i, step] of installedMigrations.filter(s => s.namespace !== 'tags').entries()) {
+    for (const [i, step] of installedMigrations.filter(s => ['identity', 'records'].includes(s.namespace)).entries()) {
       const text = await readFile(new URL('../migrations/' + step.file, import.meta.url), 'utf8'), digest = createHash('sha256').update(text).digest('hex');
       assert.equal(digest, digests[i], 'Previously applied SQL stays byte-identical');
       raw.exec(text.split('--> statement-breakpoint').join('\n')); raw.prepare('INSERT INTO recorder_migrations VALUES(?,?,?,?)').run(step.namespace, step.revision, digest, 123);
@@ -152,14 +152,14 @@ test('T01 production database upgrades only after CLI confirmation and recovery 
   try {
     await assert.rejects(createApplication({ filename: f.filename, http: { listen: false } }), { code: 'UPGRADE_REQUIRED' });
     const inspect = await cli(f.filename, 'inspect'); assert.equal(inspect.code, 0, inspect.error);
-    const plan = JSON.parse(inspect.output.trim()).plan; assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['tags', 1]]);
+    const plan = JSON.parse(inspect.output.trim()).plan; assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['categories', 1], ['tags', 1]]);
     assert.equal((await cli(f.filename, 'upgrade')).code, 2);
     const upgrade = await cli(f.filename, 'upgrade', ['--confirm', plan.digest]); assert.equal(upgrade.code, 0, upgrade.error);
     const points = await cli(f.filename, 'points'); assert.equal(points.code, 0, points.error);
     const point = JSON.parse(points.output.trim()).valid[0]; assert.equal(point.manifest.ledger.length, 3); assert.equal(point.manifest.plan.digest, plan.digest);
     app = await createApplication({ filename: f.filename, http: { listen: false } });
     assert.deepEqual(app.recorderDatabase.raw.prepare('SELECT * FROM records_entries ORDER BY id').all(), before.records);
-    assert.deepEqual(app.recorderDatabase.raw.prepare("SELECT * FROM recorder_migrations WHERE namespace <> 'tags'").all(), before.ledger);
+    assert.deepEqual(app.recorderDatabase.raw.prepare("SELECT * FROM recorder_migrations WHERE namespace IN ('identity','records')").all(), before.ledger);
     assert.equal(app.recorderRecordStore.list(ownerId, '', 30, 0).total, 1); assert.equal(app.recorderRecordStore.list(ownerId, '', 30, 0, 'trash').total, 1);
     assert.deepEqual(app.recorderTagStore.list(ownerId), []); assert.deepEqual(app.recorderDatabase.raw.pragma('foreign_key_check'), []);
     assert.equal(app.recorderDatabase.raw.pragma('integrity_check', { simple: true }), 'ok');

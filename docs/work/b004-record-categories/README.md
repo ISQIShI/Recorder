@@ -58,4 +58,24 @@
 
 ## 交付与整合记录
 
-待实现。实现者只在此填写实际结果与相关工程说明；全局状态由整合者验收后随同一 PR 更新。目前没有新增代码、迁移或运行验证结果。
+T01 状态：**待整合**。实现日期：2026 年 10 月 29 日。全局状态和本页上方计划状态由整合者验收后更新，本实现只填写交付区。
+
+- 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；分支：`feat/b004-t01-record-categories`。fetch 后从包含 PR #16 及 B004 定稿计划的最新 `origin/main` 建立，完整实际基线为 `1af94fc46b56e3bc607f4e31b02bdb62fd9dd79b`。原 B003 分支成果已提交/推送，初始未跟踪 `.codex/` 保留；不修改其他工作树或 main。
+- 交付 categories revision 1（依赖 records revision 2）的 Kit SQL/元数据和生产清单，identity/records/tags 四份已应用 SQL 原字节不变。独立 category-store/categories/categories-api、客户端 record-categories/categories-panel 插件覆盖树管理、多分类关联及包含全部后代的去重查询；八个操作使用统一 HTTP/OpenAPI、schema、响应校验、Web 编码和 Electron 窄 IPC。
+- 更名/移动原子检查 owner、版本、同父重名和树环，顶层 partial 唯一索引保护 NULL 父节点。删除核对根 expectedRevision/confirm 后，事务删除执行时全部子树及关联，失败回滚；正常/回收站记录、标签、树外归属保留。分类关联幂等且不改正文 revision/updatedAt；清空记录靠外键清理关联，停用分类提供者仍有效。旧库只经显式摘要确认、恢复点先行的既有 CLI 升级。
+- 桌面界面提供完整路径、明确整树删除确认、分类版本冲突保留名称/父节点/基线、手动重载、失败和加载状态；草稿取消零写入、回收只读、恢复保留、空末页回退和会话迟到数据隔离。分类插件撤回/恢复不影响基础记录与标签；未新增通用组织/状态框架。
+
+本机 Windows 实际结果（隔离库、动态端口和独立 Electron userData；没有操作真实 `.recorder/`）：
+
+| 检查 | 实际结果与证据 |
+| --- | --- |
+| `pnpm build`、`pnpm typecheck` | 通过，包含 Web/Android 构建与公共契约；日志 `artifacts/b004-t01-build.log`、`b004-t01-typecheck.log`。smoke 等待修正后另构建 desktop 通过 |
+| 后端分类/标签/回收站定向测试 | `node --import tsx --test backend/test/record-categories.test.ts backend/test/record-tags.test.ts backend/test/record-trash.test.ts`，9/9 通过；`artifacts/b004-t01-storage-tests.log`。覆盖 owner/CSRF/输入、树环/重名、过期版本、删除回滚及记录保留、关联/去重分页、插件撤回恢复、真实 B003 升级原数据及旧 SQL/revision 保留 |
+| 客户端分类/传输/编辑/标签定向测试 | 四个对应 test 文件，20/20 通过；`artifacts/b004-t01-client-tests.log`。覆盖固定编码、Web Cookie/CSRF、守卫、冲突基线、空末页、读取失败、卸载/会话迟到回包 |
+| `pnpm test:records:desktop` | Windows 真实 Electron 十阶段全部通过；`artifacts/b004-t01-electron.log`，分类树截图 `artifacts/records-desktop-categories.png` 已目视核对。新增两阶段覆盖任务要求完整链路，并验证真实 409、取消/503/成功删除、所有记录/标签/树外关系保留。调试时修正首次登录列表加载及筛选清空当前记录后的 smoke 等待条件，最终完整运行通过 |
+
+待提交/PR 后补充同 HEAD 的 Windows/Linux CI 与相关文档检查结果。完整 HEAD、PR 地址随最终交付提供；不会自行合并。
+
+未执行：Linux 图形 Electron、Web/Android 分类流程独立验收、Android 真机、真实用户资料升级及真实断电；不重复本机全套 B002 故障或 B003 手工验收。没有新增依赖、锁文件/CI 变更或待决定的产品/数据分歧。证据样本在忽略的 artifacts 中不提交，原 `.codex/` 保留。
+
+整合者需汇总的事实：分类完整后端到桌面流程及上述验证已交付；生产版本新增 categories revision 1；已有 B003 库需先确认 CLI 升级再启动；查询含全部后代并去重、删除分类保留全部记录/标签/树外归属。建议验收后更新全局技术状态、当前业务说明、工作台账及 AGENTS 的阶段描述。实现者等待审查，不自行开始附件或下一批。

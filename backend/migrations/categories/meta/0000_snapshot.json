@@ -1,0 +1,191 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "e029b86f-c017-4ef4-9049-9f0c0b24b074",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "categories_nodes": {
+      "name": "categories_nodes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "categories_owner_parent_name": {
+          "name": "categories_owner_parent_name",
+          "columns": [
+            "owner_id",
+            "parent_id",
+            "name"
+          ],
+          "isUnique": true
+        },
+        "categories_owner_root_name": {
+          "name": "categories_owner_root_name",
+          "columns": [
+            "owner_id",
+            "name"
+          ],
+          "isUnique": true,
+          "where": "\"categories_nodes\".\"parent_id\" is null"
+        }
+      },
+      "foreignKeys": {
+        "categories_nodes_owner_id_identity_users_id_fk": {
+          "name": "categories_nodes_owner_id_identity_users_id_fk",
+          "tableFrom": "categories_nodes",
+          "tableTo": "identity_users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "categories_nodes_parent_id_categories_nodes_id_fk": {
+          "name": "categories_nodes_parent_id_categories_nodes_id_fk",
+          "tableFrom": "categories_nodes",
+          "tableTo": "categories_nodes",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "categories_record_links": {
+      "name": "categories_record_links",
+      "columns": {
+        "record_id": {
+          "name": "record_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "categories_link_category": {
+          "name": "categories_link_category",
+          "columns": [
+            "category_id",
+            "record_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "categories_record_links_record_id_records_entries_id_fk": {
+          "name": "categories_record_links_record_id_records_entries_id_fk",
+          "tableFrom": "categories_record_links",
+          "tableTo": "records_entries",
+          "columnsFrom": [
+            "record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "categories_record_links_category_id_categories_nodes_id_fk": {
+          "name": "categories_record_links_category_id_categories_nodes_id_fk",
+          "tableFrom": "categories_record_links",
+          "tableTo": "categories_nodes",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "categories_record_links_record_id_category_id_pk": {
+          "columns": [
+            "record_id",
+            "category_id"
+          ],
+          "name": "categories_record_links_record_id_category_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

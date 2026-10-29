@@ -1,6 +1,6 @@
 # desktop：Electron 桌面客户端
 
-状态：Windows Electron 账号、记录编辑、回收站与标签筛选流程已运行验证，产品分发待实现。更新日期：2026 年 10 月 28 日。
+状态：Windows Electron 账号、记录编辑、回收站、标签与分层分类流程已实现；实际运行证据见对应任务交付区，产品分发待实现。更新日期：2026 年 10 月 29 日。
 
 阅读时机：桌面界面、主进程、preload、设备能力和打包工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [Electron 协作提案](../docs/design/architecture/backend-electron-boundaries.md)。
 
@@ -21,6 +21,10 @@ T03 使用共享编辑 UI 和离开守卫；设备端 `exit` Cordis 插件将正
 [B003-T02 标签与筛选](../docs/work/b003-record-management/README.md#t02-任务卡标签与筛选) 由共享 record-tags/tags-panel 插件贡献独立面板，基础记录插件不依赖它。窄 IPC 复用 contracts 的六个固定标签操作与编码，不增加自定义 URL 或向 renderer 暴露 token。详情关联多标签、创建复用/选择/移除、单标签+关键词分页，草稿守卫先结束编辑；回收站只读，恢复保留标签，清空只移除关联、保留字典。
 
 `pnpm test:records:desktop` 增加 tags/tags-resume，现为八阶段。新阶段真实 UI/IPC/HTTP/SQLite 验证 trim 同名复用、多标签、移除/添加已有、取消脏编辑不请求、确认结束编辑、503 错误、正文元数据不变、关键词空结果、31 条标签分页及移除后空末页回退，重启后回收标签只读、恢复保留与清空字典保留。隔离样本和截图 `artifacts/records-desktop-tags.png` 不提交，证据见 T02 交付区。Web/Android 新标签流程及 Linux 图形 Electron 未独立验收。
+
+[B004-T01 分层分类](../docs/work/b004-record-categories/README.md) 复用独立共享 record-categories/categories-panel 插件及八个固定窄 IPC 操作。树显示完整路径，支持顶层/子节点创建、版本检查的更名/移动、明确确认删除整棵子树；记录可加入多个分类，关键词查询包含全部后代并按记录去重。写入保护现有记录草稿，冲突保留分类输入，回收站只读；没有新增桌面维护 UI 或自动升级。
+
+`pnpm test:records:desktop` 增加 categories/categories-resume，共十阶段。新增流程通过真实 UI/IPC/HTTP/SQLite 检查完整路径、关联/解除、草稿取消零写入、真实分类版本冲突、明确重载后更名/移至其他父节点/顶层、重叠关联的 31 条去重分页和空末页回退，后端/Electron 重启读回、回收只读及恢复保留、取消/失败/确认删除整树而记录/标签/树外归属不变，以及清空记录保留树。只在隔离样本用窄 API 准备分页和竞争写入，不替换实际业务链路；结果与截图 `artifacts/records-desktop-categories.png` 不提交，实际通过与未验证项见 B004 交付区。首次登录的 smoke 等待初始列表加载完成再点击保存。Web/Android 分类流程与 Linux 图形 Electron 未独立验收。
 
 快捷键插件注册 `Ctrl+Shift+Space`，尚未实按验证；关闭最后窗口退出，无托盘常驻策略。剪贴板、拖拽、安装包和更新待实现；是否附带后端未定。目前连接限制 loopback，远程 HTTPS 未实现。所有新增能力遵守 [全面插件化](../docs/current/architecture/plugin-everything.md)。
 

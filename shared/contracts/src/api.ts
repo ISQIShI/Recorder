@@ -5,6 +5,7 @@ export interface RecordUpdateInput { id: string; expectedRevision: number; title
 export interface RecordRevisionInput { id: string; expectedRevision: number }
 export type RecordState = 'active' | 'trash';
 export interface TagData { id: string; name: string; createdAt: number }
+export interface CategoryData { id: string; parentId: string | null; name: string; revision: number; createdAt: number; updatedAt: number }
 export interface RecordData extends RecordInput {
   id: string; revision: number; formatVersion: number; createdAt: number; updatedAt: number; originInstanceId: string; deletedAt: number | null;
 }
@@ -18,6 +19,11 @@ export interface ApiInputs {
   listTags: {}; createTag: { name: string }; getRecordTags: { id: string };
   addRecordTag: { id: string; tagId: string }; removeRecordTag: { id: string; tagId: string };
   listTagRecords: { id: string; q?: string; limit?: number; offset?: number };
+  listCategories: {}; createCategory: { name: string; parentId: string | null };
+  updateCategory: { id: string; name: string; parentId: string | null; expectedRevision: number };
+  deleteCategory: { id: string; expectedRevision: number; confirm: true };
+  getRecordCategories: { id: string }; addRecordCategory: { id: string; categoryId: string }; removeRecordCategory: { id: string; categoryId: string };
+  listCategoryRecords: { id: string; q?: string; limit?: number; offset?: number };
 }
 export interface ApiOutputs {
   info: { initialized: boolean; instanceId: string };
@@ -27,6 +33,9 @@ export interface ApiOutputs {
   trashRecord: RecordData; restoreRecord: RecordData; emptyTrash: { deleted: number };
   listTags: { items: TagData[] }; createTag: TagData; getRecordTags: { items: TagData[] };
   addRecordTag: { ok: true }; removeRecordTag: { ok: true }; listTagRecords: { items: RecordData[]; total: number };
+  listCategories: { items: CategoryData[] }; createCategory: CategoryData; updateCategory: CategoryData; deleteCategory: { deleted: number };
+  getRecordCategories: { items: CategoryData[] }; addRecordCategory: { ok: true }; removeRecordCategory: { ok: true };
+  listCategoryRecords: { items: RecordData[]; total: number };
 }
 export type ApiMethod = keyof ApiInputs;
 export interface ApiTransport { request<K extends ApiMethod>(method: K, input: ApiInputs[K]): Promise<ApiOutputs[K]> }
@@ -36,6 +45,7 @@ const credentialFields = { username: { ...string(64, 3), pattern: '^[A-Za-z0-9_.
 const uuid = { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' };
 const recordFields = { title: string(200), body: string(200000, 1), format: { enum: ['plain', 'markdown'], type: 'string' } };
 const expectedRevision = { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
+const categoryFields = { name: { type: 'string', minLength: 1 }, parentId: { anyOf: [uuid, { type: 'null' }] } };
 export const apiRoutes = {
   info: { method: 'GET', path: '/api/v1/info', authenticated: false, input: object({}) },
   setup: { method: 'POST', path: '/api/v1/auth/setup', authenticated: false, input: object({ ...credentialFields, setupCode: string(128, 20) }) },
@@ -57,10 +67,19 @@ export const apiRoutes = {
   addRecordTag: { method: 'POST', path: '/api/v1/records/:id/tags/add', authenticated: true, params: object({ id: uuid }), input: object({ tagId: uuid }) },
   removeRecordTag: { method: 'POST', path: '/api/v1/records/:id/tags/remove', authenticated: true, params: object({ id: uuid }), input: object({ tagId: uuid }) },
   listTagRecords: { method: 'GET', path: '/api/v1/tags/:id/records', authenticated: true, params: object({ id: uuid }), input: object({ q: string(200), limit: { type: 'integer', minimum: 1, maximum: 100 }, offset: { type: 'integer', minimum: 0, maximum: 1000000 } }, []) },
+  listCategories: { method: 'GET', path: '/api/v1/categories', authenticated: true, input: object({}) },
+  createCategory: { method: 'POST', path: '/api/v1/categories', authenticated: true, input: object(categoryFields) },
+  updateCategory: { method: 'PUT', path: '/api/v1/categories/:id', authenticated: true, params: object({ id: uuid }), input: object({ ...categoryFields, expectedRevision }) },
+  deleteCategory: { method: 'POST', path: '/api/v1/categories/:id/delete', authenticated: true, params: object({ id: uuid }), input: object({ expectedRevision, confirm: { type: 'boolean', const: true } }) },
+  getRecordCategories: { method: 'GET', path: '/api/v1/records/:id/categories', authenticated: true, params: object({ id: uuid }), input: object({}) },
+  addRecordCategory: { method: 'POST', path: '/api/v1/records/:id/categories/add', authenticated: true, params: object({ id: uuid }), input: object({ categoryId: uuid }) },
+  removeRecordCategory: { method: 'POST', path: '/api/v1/records/:id/categories/remove', authenticated: true, params: object({ id: uuid }), input: object({ categoryId: uuid }) },
+  listCategoryRecords: { method: 'GET', path: '/api/v1/categories/:id/records', authenticated: true, params: object({ id: uuid }), input: object({ q: string(200), limit: { type: 'integer', minimum: 1, maximum: 100 }, offset: { type: 'integer', minimum: 0, maximum: 1000000 } }, []) },
 } as const;
 const identitySchema = object({ userId: uuid, username: string(64), sessionId: uuid, expiresAt: { type: 'integer' } });
 const recordSchema = object({ id: uuid, requestId: uuid, title: string(200), body: string(200000), format: { type: 'string', enum: ['plain', 'markdown'] }, formatVersion: { type: 'integer', const: 1 }, revision: { type: 'integer' }, createdAt: { type: 'integer' }, updatedAt: { type: 'integer' }, originInstanceId: uuid, deletedAt: { type: ['integer', 'null'] } });
 const tagSchema = object({ id: uuid, name: string(64, 1), createdAt: { type: 'integer' } });
+const categorySchema = object({ id: uuid, name: string(64, 1), parentId: categoryFields.parentId, revision: expectedRevision, createdAt: { type: 'integer' }, updatedAt: { type: 'integer' } });
 export const apiResponses: Record<ApiMethod, object> = {
   info: object({ initialized: { type: 'boolean' }, instanceId: uuid }), setup: identitySchema, login: identitySchema, me: identitySchema,
   logout: object({ ok: { type: 'boolean', const: true } }), revoke: object({ ok: { type: 'boolean', const: true } }),
@@ -71,6 +90,10 @@ export const apiResponses: Record<ApiMethod, object> = {
   getRecordTags: object({ items: { type: 'array', items: tagSchema } }),
   addRecordTag: object({ ok: { type: 'boolean', const: true } }), removeRecordTag: object({ ok: { type: 'boolean', const: true } }),
   listTagRecords: object({ items: { type: 'array', items: recordSchema }, total: { type: 'integer', minimum: 0 } }),
+  listCategories: object({ items: { type: 'array', items: categorySchema } }), createCategory: categorySchema, updateCategory: categorySchema,
+  deleteCategory: object({ deleted: { type: 'integer', minimum: 0 } }), getRecordCategories: object({ items: { type: 'array', items: categorySchema } }),
+  addRecordCategory: object({ ok: { type: 'boolean', const: true } }), removeRecordCategory: object({ ok: { type: 'boolean', const: true } }),
+  listCategoryRecords: object({ items: { type: 'array', items: recordSchema }, total: { type: 'integer', minimum: 0 } }),
 };
 // Shared wire encoding keeps browser and main-process requests on the same fixed routes.
 export function encodeApiRequest(method: ApiMethod, input: ApiInputs[ApiMethod]) {
@@ -95,14 +118,17 @@ export function parseApiResponse<K extends ApiMethod>(method: K, value: unknown)
   const v = value as any;
   const identity = () => v && ['userId', 'username', 'sessionId'].every(k => typeof v[k] === 'string') && Number.isSafeInteger(v.expiresAt);
   const tag = (t: any) => t && typeof t.id === 'string' && typeof t.name === 'string' && t.name === t.name.trim() && t.name.length >= 1 && t.name.length <= 64 && Number.isSafeInteger(t.createdAt);
+  const category = (c: any) => tag(c) && (c.parentId === null || typeof c.parentId === 'string') && Number.isSafeInteger(c.revision) && c.revision >= 1 && Number.isSafeInteger(c.updatedAt);
   const valid = method === 'info' ? v && typeof v.initialized === 'boolean' && typeof v.instanceId === 'string'
     : ['setup', 'login', 'me'].includes(method) ? identity()
-    : ['logout', 'revoke', 'addRecordTag', 'removeRecordTag'].includes(method) ? v?.ok === true
+    : ['logout', 'revoke', 'addRecordTag', 'removeRecordTag', 'addRecordCategory', 'removeRecordCategory'].includes(method) ? v?.ok === true
+    : ['createCategory', 'updateCategory'].includes(method) ? category(v)
+    : ['listCategories', 'getRecordCategories'].includes(method) ? Array.isArray(v?.items) && v.items.every(category)
     : method === 'createTag' ? tag(v)
     : ['listTags', 'getRecordTags'].includes(method) ? Array.isArray(v?.items) && v.items.every(tag)
     : method === 'sessions' ? Array.isArray(v?.items) && v.items.every((s: any) => s && typeof s.id === 'string' && typeof s.clientName === 'string' && typeof s.current === 'boolean' && Number.isSafeInteger(s.createdAt) && Number.isSafeInteger(s.expiresAt))
-    : ['listRecords', 'listTagRecords'].includes(method) ? Array.isArray(v?.items) && v.items.every(isRecord) && Number.isSafeInteger(v.total) && v.total >= 0
-    : method === 'emptyTrash' ? Number.isSafeInteger(v?.deleted) && v.deleted >= 0
+    : ['listRecords', 'listTagRecords', 'listCategoryRecords'].includes(method) ? Array.isArray(v?.items) && v.items.every(isRecord) && Number.isSafeInteger(v.total) && v.total >= 0
+    : ['emptyTrash', 'deleteCategory'].includes(method) ? Number.isSafeInteger(v?.deleted) && v.deleted >= 0
     : isRecord(v);
   if (!valid) throw new ApiError('INVALID_RESPONSE', '后端响应格式不正确', 502);
   return v;

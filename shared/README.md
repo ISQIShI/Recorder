@@ -1,6 +1,6 @@
 # shared：跨端共享部分
 
-状态：共享契约与客户端插件包已建立，含记录编辑、回收站及标签筛选。更新日期：2026 年 10 月 28 日。
+状态：共享契约与客户端插件包已建立，含记录编辑、回收站、标签和分层分类筛选。更新日期：2026 年 10 月 29 日。
 
 阅读时机：抽取共享组件、网络契约、业务客户端和 UI 扩展接口前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [工程目录规划](../docs/current/development/repository-layout.md)。
 
@@ -22,4 +22,8 @@
 
 `record-tags` Cordis 模型与 `tags-panel` UI 贡献在已有记录面板下显示当前记录的多个标签，以及单标签+标题/正文关键词分页。先保存/选择记录；创建或精确同名复用后添加、选择已有、独立移除关联。写入先通过 editor.cancel 的同一离开守卫结束编辑，取消不发标签请求；回收站只读。请求失败、部分创建成功但关联失败、未加载、空结果分别提示，刷新与关联变化后重取结果并回退空末页。会话变化清空标签状态和表单，迟到回包忽略。撤回 record-tags 提供者会撤回 tags-panel，基础记录面板不依赖它；重新启用读取持久标签。UI 生命周期/草稿/会话竞态与 Web 请求有定向测试，真实 Electron 复用既有 smoke。
 
-根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。账号/编辑原流程见 [账号记录流程](../docs/current/development/first-record-flow.md)，回收站/标签契约与验证以 B003 交付和后端 README 为准；Web/Android 标签流程未独立验收，保留构建和公共契约检查。尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。
+[B004-T01](../docs/work/b004-record-categories/README.md) 增加 `CategoryData` 和八个固定分类操作，路径/正文编码、响应校验和 IPC 白名单仍统一来自 contracts；完整 HTTP 契约见 [后端说明](../backend/README.md#分层分类与记录归属b004-t01)。分类独立于正文 PUT，更名/移动、关联不改变正文 revision。Web Cookie/CSRF 与 Electron 主进程 Bearer 沿用原传输。
+
+`record-categories` 模型和 `categories-panel` 独立贡献分类树、完整路径、创建/更名/移动/整树删除、当前记录多分类归属及包含后代的关键词分页。分类写入先用既有 editor.cancel 草稿守卫结束记录编辑，取消不发请求；查询/分页/选择结果沿用离开守卫。分类节点冲突保留名称、父节点和 expectedRevision，刷新不自动重置编辑输入，用户须明确重新载入。删除提示执行时全部子分类及关联会删除、所有正常/回收站记录、标签和树外关系保留；取消不发删除，失败保留确认状态。回收站归属只读，恢复保留，清空记录保留树。模型包含加载/失败/空结果反馈、空末页回退、会话切换清空和迟到回包隔离；撤回只移除分类面板，基础记录/标签仍可用，重新启用读取持久数据。无新增通用状态框架或平台 SDK。
+
+根目录先编译共享包，再构建客户端；已有 UI 生命周期测试与 Electron 实际业务流程检查。分类的守卫、冲突、分页、失败、撤回/恢复及会话竞态由 `test/record-categories.test.ts` 定向验证，Web 请求由 `test/api-transport.test.ts` 验证；真实 Windows Electron 证据见 B004 交付区。账号/编辑原流程见 [账号记录流程](../docs/current/development/first-record-flow.md)，回收站/标签契约与验证以 B003 交付和后端 README 为准。Web/Android 新分类流程未独立验收，保留构建和公共契约检查。尚无独立 SDK 发布或任意第三方热安装。返回 [工程总入口](../README.md)。

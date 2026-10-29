@@ -51,6 +51,8 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
             ...(['updateRecord', 'trashRecord', 'restoreRecord'].includes(method) ? { '409': { description: 'REVISION_CONFLICT: expectedRevision is stale; RECORD_TRASHED: body update is forbidden in trash; no changes written' } } : {}),
             ...(['getRecordTags', 'addRecordTag', 'removeRecordTag', 'listTagRecords'].includes(method) ? { '404': { description: 'NOT_FOUND: record or tag missing or owned by another account' } } : {}),
             ...(['addRecordTag', 'removeRecordTag'].includes(method) ? { '409': { description: 'RECORD_TRASHED: tag associations are read-only in trash' } } : {}),
+            ...(['createCategory', 'updateCategory', 'deleteCategory', 'getRecordCategories', 'addRecordCategory', 'removeRecordCategory', 'listCategoryRecords'].includes(method) ? { '404': { description: 'NOT_FOUND: record, category or parent missing or owned by another account' } } : {}),
+            ...(['createCategory', 'updateCategory', 'deleteCategory', 'addRecordCategory', 'removeRecordCategory'].includes(method) ? { '409': { description: 'REVISION_CONFLICT, CATEGORY_NAME_CONFLICT, CATEGORY_CYCLE or RECORD_TRASHED; no changes written' } } : {}),
             '503': { description: 'Required plugin unavailable' } },
         };
         server.route({ method: route.method, url: route.path,
@@ -65,6 +67,13 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
             if (method === 'emptyTrash' && (request.body as { confirm?: unknown } | null)?.confirm !== true) throw failure(400, 'CONFIRMATION_REQUIRED', '清空需要明确确认');
             if (method === 'createTag' && typeof (request.body as { name?: unknown } | null)?.name !== 'string') throw failure(400, 'INVALID_INPUT', '标签名须为文本');
             if (['addRecordTag', 'removeRecordTag'].includes(method) && typeof (request.body as { tagId?: unknown } | null)?.tagId !== 'string') throw failure(400, 'INVALID_INPUT', '标签 ID 须为文本');
+            if (['createCategory', 'updateCategory', 'deleteCategory', 'addRecordCategory', 'removeRecordCategory'].includes(method)) {
+              const body = request.body as Record<string, unknown> | null;
+              if (!body || (['createCategory', 'updateCategory'].includes(method) && (typeof body.name !== 'string' || !(body.parentId === null || (typeof body.parentId === 'string' && body.parentId.length > 0))))
+                || (['updateCategory', 'deleteCategory'].includes(method) && (!Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1))
+                || (['addRecordCategory', 'removeRecordCategory'].includes(method) && typeof body.categoryId !== 'string')) throw failure(400, 'INVALID_INPUT', '分类输入格式不正确');
+              if (method === 'deleteCategory' && body.confirm !== true) throw failure(400, 'CONFIRMATION_REQUIRED', '删除整棵分类树需要明确确认，所有记录保留');
+            }
           },
           async handler(request, reply) {
             const authorization = request.headers.authorization;

@@ -1,8 +1,8 @@
 # B004：桌面分层分类
 
-状态：查询与删除交互已由用户确认，计划定稿；尚未实现，计划合入 main 后可派发 T01。更新日期：2026 年 10 月 28 日。
+状态：T01 已实现并通过整合验收（PR #18），本批结束；保留原任务卡与验证证据。更新日期：2026 年 10 月 29 日。
 
-阅读时机：实现、审查或验收本批时。本页兼作批次计划和唯一任务卡；入口为 [工作台账](../README.md)，派工用 [提示词](prompts.md)。已结束 B003 只在追溯时阅读。
+阅读时机：追溯本批交付或排查相关回归时。本页保留原计划与唯一任务卡；入口为 [工作台账](../README.md)，[原提示词](prompts.md) 不再派发。
 
 ## 目标、基线与顺序
 
@@ -58,4 +58,26 @@
 
 ## 交付与整合记录
 
-待实现。实现者只在此填写实际结果与相关工程说明；全局状态由整合者验收后随同一 PR 更新。目前没有新增代码、迁移或运行验证结果。
+T01 状态：**已通过整合验收**。实现与验收日期：2026 年 10 月 29 日。以下保留实现者交付及整合证据。
+
+- 工作树：`C:\Users\30828\.codex\worktrees\b74a\Recorder`；分支：`feat/b004-t01-record-categories`。fetch 后从包含 PR #16 及 B004 定稿计划的最新 `origin/main` 建立，完整实际基线为 `1af94fc46b56e3bc607f4e31b02bdb62fd9dd79b`。原 B003 分支成果已提交/推送，初始未跟踪 `.codex/` 保留；不修改其他工作树或 main。
+- 交付 categories revision 1（依赖 records revision 2）的 Kit SQL/元数据和生产清单，identity/records/tags 四份已应用 SQL 原字节不变。独立 category-store/categories/categories-api、客户端 record-categories/categories-panel 插件覆盖树管理、多分类关联及包含全部后代的去重查询；八个操作使用统一 HTTP/OpenAPI、schema、响应校验、Web 编码和 Electron 窄 IPC。
+- 更名/移动原子检查 owner、版本、同父重名和树环，顶层 partial 唯一索引保护 NULL 父节点。删除核对根 expectedRevision/confirm 后，事务删除执行时全部子树及关联，失败回滚；正常/回收站记录、标签、树外归属保留。分类关联幂等且不改正文 revision/updatedAt；清空记录靠外键清理关联，停用分类提供者仍有效。旧库只经显式摘要确认、恢复点先行的既有 CLI 升级。
+- 桌面界面提供完整路径、明确整树删除确认、分类版本冲突保留名称/父节点/基线、手动重载、失败和加载状态；草稿取消零写入、回收只读、恢复保留、空末页回退和会话迟到数据隔离。分类插件撤回/恢复不影响基础记录与标签；未新增通用组织/状态框架。
+
+本机 Windows 实际结果（隔离库、动态端口和独立 Electron userData；没有操作真实 `.recorder/`）：
+
+| 检查 | 实际结果与证据 |
+| --- | --- |
+| `pnpm build`、`pnpm typecheck` | 通过，包含 Web/Android 构建与公共契约；日志 `artifacts/b004-t01-build.log`、`b004-t01-typecheck.log`。smoke 等待修正后另构建 desktop 通过 |
+| 后端分类/标签/回收站定向测试 | `node --import tsx --test backend/test/record-categories.test.ts backend/test/record-tags.test.ts backend/test/record-trash.test.ts`，9/9 通过；`artifacts/b004-t01-storage-tests.log`。覆盖 owner/CSRF/输入、树环/重名、过期版本、删除回滚及记录保留、关联/去重分页、插件撤回恢复、真实 B003 升级原数据及旧 SQL/revision 保留 |
+| 客户端分类/传输/编辑/标签定向测试 | 四个对应 test 文件，20/20 通过；`artifacts/b004-t01-client-tests.log`。覆盖固定编码、Web Cookie/CSRF、守卫、冲突基线、空末页、读取失败、卸载/会话迟到回包 |
+| `pnpm test:records:desktop` | Windows 真实 Electron 十阶段全部通过；`artifacts/b004-t01-electron.log`，分类树截图 `artifacts/records-desktop-categories.png` 已目视核对。新增两阶段覆盖任务要求完整链路，并验证真实 409、取消/503/成功删除、所有记录/标签/树外关系保留。调试时修正首次登录列表加载及筛选清空当前记录后的 smoke 等待条件，最终完整运行通过 |
+| `pnpm check:docs --base 1af94fc46b56e3bc607f4e31b02bdb62fd9dd79b`、`git diff --check` | 通过；相关文档 8 份、内部链接 202 个、错误 0，日志 `artifacts/b004-t01-docs.log` |
+| Windows/Linux CI | 实现提交 `1e3447d160bce6bf740735b4239933a9976988bc` 的 [CI #40878153949](https://github.com/ISQIShI/Recorder/actions/runs/40878153949) 全部通过：两平台各 `pnpm check`（build/typecheck、93/93 测试、相关文档），PR 标题、标题与文档脚本回归各 6/6。日志 `artifacts/b004-t01-ci.log`；本条是后续仅文档补充，最终 HEAD 的检查以 PR checks 为准 |
+
+已正常推送并创建 main 目标 [PR #18](https://github.com/ISQIShI/Recorder/pull/18)，待整合者审查；完整最终 HEAD 随交付提供。未自行合并或推送 main。
+
+未执行：Linux 图形 Electron、Web/Android 分类流程独立验收、Android 真机、真实用户资料升级及真实断电；不重复本机全套 B002 故障或 B003 手工验收。没有新增依赖、锁文件/CI 变更或待决定的产品/数据分歧。证据样本在忽略的 artifacts 中不提交，原 `.codex/` 保留。
+
+整合者核对代码 HEAD `729862311b03c164df4dae42603a28102a0bfd3f`，未发现阻塞问题；[对应 Windows/Linux CI 与 PR 标题检查](https://github.com/ISQIShI/Recorder/actions/runs/40878959348) 均成功。本地复验 `pnpm build` 与 `pnpm test:records:desktop` 十阶段通过，日志 `.tmp/pr18-build.log`、`.tmp/pr18-desktop.log`；真实 B003 升级与定向后端/客户端测试复用对应 CI，不重复本机全套检查。旧 identity/records/tags 迁移、根依赖/锁文件和 CI 未改。相关文档检查通过（18 文件、401 个内部链接、0 错误），git diff --check 通过。验收及全局状态随本 PR 更新；最终提交、检查与合并 SHA 以 PR #18 为准。没有自动开始附件或下一批。

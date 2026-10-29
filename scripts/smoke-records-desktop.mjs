@@ -15,7 +15,7 @@ await mkdir(join(directory, 'profile'));
 let ctx;
 try {
   let port = 0;
-  for (const scenario of ['create', 'resume', 'discard-quit', 'discard-close', 'trash', 'trash-resume', 'tags', 'tags-resume']) {
+  for (const scenario of ['create', 'resume', 'discard-quit', 'discard-close', 'trash', 'trash-resume', 'tags', 'tags-resume', 'categories', 'categories-resume']) {
     const resume = scenario !== 'create';
     ctx = await createApplication({ dataDir: directory, setupCode, http: { port } });
     const address = ctx.recorderHttp.address;
@@ -28,6 +28,7 @@ try {
       RECORDER_SMOKE_SCREENSHOT: join(artifacts, 'records-desktop.png') };
     if (scenario === 'trash-resume') env.RECORDER_SMOKE_TRASH_EXPECTED = await readFile(join(directory, 'trash.json'), 'utf8');
     if (scenario === 'tags-resume') env.RECORDER_SMOKE_TAGS_EXPECTED = await readFile(join(directory, 'tags.json'), 'utf8');
+    if (scenario === 'categories-resume') env.RECORDER_SMOKE_CATEGORIES_EXPECTED = await readFile(join(directory, 'categories.json'), 'utf8');
     delete env.ELECTRON_RUN_AS_NODE;
     await new Promise((resolve, reject) => {
       const child = spawn(requireDesktop('electron'), [desktop, '--business-smoke', '--enable-logging=stderr'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });

@@ -73,8 +73,10 @@ T01 状态：**待整合**。实现日期：2026 年 10 月 29 日。全局状�
 | 后端分类/标签/回收站定向测试 | `node --import tsx --test backend/test/record-categories.test.ts backend/test/record-tags.test.ts backend/test/record-trash.test.ts`，9/9 通过；`artifacts/b004-t01-storage-tests.log`。覆盖 owner/CSRF/输入、树环/重名、过期版本、删除回滚及记录保留、关联/去重分页、插件撤回恢复、真实 B003 升级原数据及旧 SQL/revision 保留 |
 | 客户端分类/传输/编辑/标签定向测试 | 四个对应 test 文件，20/20 通过；`artifacts/b004-t01-client-tests.log`。覆盖固定编码、Web Cookie/CSRF、守卫、冲突基线、空末页、读取失败、卸载/会话迟到回包 |
 | `pnpm test:records:desktop` | Windows 真实 Electron 十阶段全部通过；`artifacts/b004-t01-electron.log`，分类树截图 `artifacts/records-desktop-categories.png` 已目视核对。新增两阶段覆盖任务要求完整链路，并验证真实 409、取消/503/成功删除、所有记录/标签/树外关系保留。调试时修正首次登录列表加载及筛选清空当前记录后的 smoke 等待条件，最终完整运行通过 |
+| `pnpm check:docs --base 1af94fc46b56e3bc607f4e31b02bdb62fd9dd79b`、`git diff --check` | 通过；相关文档 8 份、内部链接 202 个、错误 0，日志 `artifacts/b004-t01-docs.log` |
+| Windows/Linux CI | 实现提交 `1e3447d160bce6bf740735b4239933a9976988bc` 的 [CI #40878153949](https://github.com/ISQIShI/Recorder/actions/runs/40878153949) 全部通过：两平台各 `pnpm check`（build/typecheck、93/93 测试、相关文档），PR 标题、标题与文档脚本回归各 6/6。日志 `artifacts/b004-t01-ci.log`；本条是后续仅文档补充，最终 HEAD 的检查以 PR checks 为准 |
 
-待提交/PR 后补充同 HEAD 的 Windows/Linux CI 与相关文档检查结果。完整 HEAD、PR 地址随最终交付提供；不会自行合并。
+已正常推送并创建 main 目标 [PR #18](https://github.com/ISQIShI/Recorder/pull/18)，待整合者审查；完整最终 HEAD 随交付提供。未自行合并或推送 main。
 
 未执行：Linux 图形 Electron、Web/Android 分类流程独立验收、Android 真机、真实用户资料升级及真实断电；不重复本机全套 B002 故障或 B003 手工验收。没有新增依赖、锁文件/CI 变更或待决定的产品/数据分歧。证据样本在忽略的 artifacts 中不提交，原 `.codex/` 保留。
 

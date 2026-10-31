@@ -29,6 +29,7 @@ export interface AuthService {
   sessions(principal: Principal): SessionData[]; revoke(principal: Principal, sessionId: string): void;
 }
 export interface RecordStore {
+  request(ownerId: string, requestId: string): { record: RecordData; hash: string } | undefined;
   setState(ownerId: string, input: RecordRevisionInput, state: RecordState, now: number): RecordData;
   emptyTrash(ownerId: string): { deleted: number };
   update(ownerId: string, input: RecordUpdateInput, now: number): RecordData;
@@ -37,6 +38,7 @@ export interface RecordStore {
   get(ownerId: string, id: string): RecordData | undefined;
 }
 export interface RecordService {
+  fileRecord(principal: Principal, requestId: string, name: string, create?: boolean): RecordData | undefined;
   trash(principal: Principal, input: RecordRevisionInput): RecordData;
   restore(principal: Principal, input: RecordRevisionInput): RecordData;
   emptyTrash(principal: Principal, input: ApiInputs['emptyTrash']): { deleted: number };
@@ -48,8 +50,8 @@ export interface RecordService {
 export interface OperationCall { input: any; principal?: Principal; channel: Channel }
 export interface OperationResult { body: unknown; token?: string; remember?: boolean; clearSession?: boolean }
 export interface ApiOperations {
-  registerFile(owner: Context, method: 'uploadAttachment' | 'downloadAttachment', handler: (call: import('./attachments-contract.js').FileCall) => Promise<import('./attachments-contract.js').FileResult>): void;
-  callFile(method: 'uploadAttachment' | 'downloadAttachment', call: import('./attachments-contract.js').FileCall): Promise<import('./attachments-contract.js').FileResult>;
+  registerFile(owner: Context, method: 'uploadAttachment' | 'downloadAttachment' | 'createFileRecord', handler: (call: import('./attachments-contract.js').FileCall) => Promise<import('./attachments-contract.js').FileResult>): void;
+  callFile(method: 'uploadAttachment' | 'downloadAttachment' | 'createFileRecord', call: import('./attachments-contract.js').FileCall): Promise<import('./attachments-contract.js').FileResult>;
   register(owner: Context, method: ApiMethod, handler: (call: OperationCall) => OperationResult | Promise<OperationResult>): void;
   call(method: ApiMethod, call: OperationCall): Promise<OperationResult>;
 }

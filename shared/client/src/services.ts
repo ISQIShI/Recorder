@@ -25,3 +25,4 @@ export class PanelRegistry extends Service {
     });
   }
 }
+declare module '@deepseek-ai/cordis' { interface Events { 'recorder/record-created'(record: import('@recorder/contracts').RecordData): void } }

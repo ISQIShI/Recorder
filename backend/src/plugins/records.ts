@@ -2,8 +2,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { RecordInput } from '@recorder/contracts';
 import { failure, type RecordService } from '../domain.js';
 export const inject = ['recorderRecordStore', 'recorderCrypto'];
-function validate(input: Pick<RecordInput, 'title' | 'body' | 'format'>) {
-  if (!['plain', 'markdown'].includes(input.format) || typeof input.body !== 'string' || !input.body.trim()
+function validate(input: Pick<RecordInput, 'title' | 'body' | 'format'>, allowEmpty = false) {
+  if (!['plain', 'markdown'].includes(input.format) || typeof input.body !== 'string' || (!input.body.trim() && !(allowEmpty && input.body === ''))
     || input.body.length > 200000 || typeof input.title !== 'string' || input.title.length > 200) throw failure(400, 'INVALID_RECORD', '请输入正文，并检查长度和格式');
 }
 function revision(input: { expectedRevision: number }) {
@@ -11,6 +11,17 @@ function revision(input: { expectedRevision: number }) {
 }
 export function apply(ctx: Context) {
   ctx.provide('recorderRecords', {
+    fileRecord(principal, requestId, name, create = false) {
+      const hash = 'file:' + ctx.recorderCrypto.digest(name);
+      const previous = ctx.recorderRecordStore.request(principal.userId, requestId);
+      if (previous) {
+        if (previous.hash !== hash) throw failure(409, 'IDEMPOTENCY_CONFLICT', '该请求已用于其他记录内容');
+        if (previous.record.deletedAt !== null) throw failure(409, 'RECORD_TRASHED', '记录已在回收站，请先恢复');
+        return previous.record;
+      }
+      if (!create) return;
+      return ctx.recorderRecordStore.create(principal.userId, { requestId, title: name.slice(0, 200).replace(/[\uD800-\uDBFF]$/, ''), body: '', format: 'plain' }, hash, ctx.recorderCrypto.id(), Date.now());
+    },
     trash(principal, input) { revision(input); return ctx.recorderRecordStore.setState(principal.userId, input, 'trash', Date.now()); },
     restore(principal, input) { revision(input); return ctx.recorderRecordStore.setState(principal.userId, input, 'active', Date.now()); },
     emptyTrash(principal, input) {
@@ -18,7 +29,7 @@ export function apply(ctx: Context) {
       return ctx.recorderRecordStore.emptyTrash(principal.userId);
     },
     update(principal, input) {
-      validate(input);
+      validate(input, true);
       revision(input);
       return ctx.recorderRecordStore.update(principal.userId, input, Date.now());
     },

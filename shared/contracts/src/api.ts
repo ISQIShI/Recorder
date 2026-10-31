@@ -13,6 +13,8 @@ export interface CategoryData { id: string; parentId: string | null; name: strin
 export interface RecordData extends RecordInput {
   id: string; revision: number; formatVersion: number; createdAt: number; updatedAt: number; originInstanceId: string; deletedAt: number | null;
 }
+export interface FileRecordData { record: RecordData; attachment: AttachmentData }
+export const fileRecordUploadPath = (uploadId: string) => '/api/v1/file-records/' + encodeURIComponent(uploadId) + '/content';
 export interface Identity { userId: string; username: string; sessionId: string; expiresAt: number }
 export interface SessionData { id: string; clientName: string; createdAt: number; expiresAt: number; current: boolean }
 export interface ApiInputs {
@@ -63,7 +65,7 @@ export const apiRoutes = {
   sessions: { method: 'GET', path: '/api/v1/auth/sessions', authenticated: true, input: object({}) },
   revoke: { method: 'POST', path: '/api/v1/auth/sessions/revoke', authenticated: true, input: object({ sessionId: uuid }) },
   createRecord: { method: 'POST', path: '/api/v1/records', authenticated: true, input: object({ requestId: uuid, ...recordFields }) },
-  updateRecord: { method: 'PUT', path: '/api/v1/records/:id', authenticated: true, params: object({ id: uuid }), input: object({ expectedRevision, ...recordFields }) },
+  updateRecord: { method: 'PUT', path: '/api/v1/records/:id', authenticated: true, params: object({ id: uuid }), input: object({ expectedRevision, ...recordFields, body: string(200000) }) },
   trashRecord: { method: 'POST', path: '/api/v1/records/:id/trash', authenticated: true, params: object({ id: uuid }), input: object({ expectedRevision }) },
   restoreRecord: { method: 'POST', path: '/api/v1/records/:id/restore', authenticated: true, params: object({ id: uuid }), input: object({ expectedRevision }) },
   emptyTrash: { method: 'POST', path: '/api/v1/records/trash/empty', authenticated: true, input: object({ confirm: { type: 'boolean', const: true } }) },
@@ -89,6 +91,8 @@ const recordSchema = object({ id: uuid, requestId: uuid, title: string(200), bod
 const tagSchema = object({ id: uuid, name: string(64, 1), createdAt: { type: 'integer' } });
 const categorySchema = object({ id: uuid, name: string(64, 1), parentId: categoryFields.parentId, revision: expectedRevision, createdAt: { type: 'integer' }, updatedAt: { type: 'integer' } });
 export const attachmentSchema = object({ id: uuid, name: string(255, 1), mediaType: string(100, 1), bytes: { type: 'integer', minimum: 0, maximum: MAX_ATTACHMENT_BYTES }, digest: { type: 'string', pattern: '^[a-f0-9]{64}$' }, createdAt: { type: 'integer' }, state: { type: 'string', enum: ['ready', 'deleting'] }, error: { type: ['string', 'null'] } });
+export const fileRecordSchema = object({ record: recordSchema, attachment: attachmentSchema });
+export function isFileRecord(value: any): value is FileRecordData { return isRecord(value?.record) && isAttachment(value?.attachment); }
 export const apiResponses: Record<ApiMethod, object> = {
   listAttachments: object({ items: { type: 'array', items: attachmentSchema } }), deleteAttachment: object({ deleted: { type: 'boolean' }, pending: { type: 'boolean' } }),
   info: object({ initialized: { type: 'boolean' }, instanceId: uuid }), setup: identitySchema, login: identitySchema, me: identitySchema,

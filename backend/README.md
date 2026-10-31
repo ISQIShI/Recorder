@@ -1,6 +1,6 @@
 # backend：集中后端
 
-状态：本机账号认证、记录编辑/回收站、标签/分类、已有记录托管附件、离线维护与数据库/托管文件隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 29 日。
+状态：本机账号认证、记录编辑/回收站、标签/分类、托管附件及文件建记录、离线维护与数据库/托管文件隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 31 日。
 
 阅读时机：后端、业务插件、存储和服务部署工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，先读 [后端技术](../docs/current/architecture/backend-stack.md) 与 [架构概览](../docs/current/architecture/overview.md)。
 
@@ -136,6 +136,14 @@ B005 将新恢复清单升级为 **manifest v2**（seal 信封仍为 v1）：从
 数据库 backup 仍默认 60 秒，文件复制/验证独立 `fileTimeoutMs` 默认 1 小时、范围 1–86,400,000 毫秒；CLI 所有命令可选 `--file-timeout-ms`。`recorderRecoveryPoints.status` 提供 database/files/verifying 阶段及复制字节，CLI 非 idle 时每秒写 stderr，不改变 stdout JSON。隔离恢复在新空目标创建 `database.sqlite` 与 `database.sqlite.files/objects/`，校验数据库和对象，再核验原恢复点；空间预检包含对象与额外数据库校验副本。仍保留 incomplete 标记、禁止自动启动和覆盖；不扩展 restic、日常备份或正式启用。
 
 定向验证覆盖认证/owner/CSRF、实际超限、真实断流、重复上传、会话撤销与回收竞争、业务撤回、删除错误/重启重试、停用清空、B004 确认升级、v1/v2 恢复及文件损坏/参与服务缺失。实际 Windows Electron 和 1 GiB 证据见 [T01 交付区](../docs/work/b005-managed-attachments/README.md#交付与整合记录)，完整 Windows/Linux 回归交既有 CI。
+
+## 文件直接建记录（B005-T02）
+
+认证流式 `PUT /api/v1/file-records/{uploadId}/content`（`createFileRecord`）复用 T01 的 octet-stream、文件名头、实际字节上限及 Cookie/CSRF/native 校验；OpenAPI 返回 `{ record: RecordData, attachment: AttachmentData }`。上传期间只有无记录关联的 pending 对象。完整文件发布后，`managed-files` 的 IMMEDIATE 短事务调用记录服务，并同时提交首个 ready 附件关系；失败回滚记录插入并沿用持久清理，不在事务中等待网络。附件业务通过 `recorderRecords.fileRecord` 和原 `record-store.create` 组合，不复制记录存储，不给基础记录增加附件依赖。
+
+记录 requestId 使用 uploadId，创建摘要以 `file:` 加文件名摘要区别于文本创建；完整文件名留在附件元数据，初始标题截到 200 个 UTF-16 单位且不截断代理对，正文 `''`、格式 plain。重放必须通过相同 owner/名称/类型/字节摘要及持久收据校验，返回同一记录的当前内容，不重置后续编辑。已删除成功上传不能复活；回收记录须先恢复后重试。不新增 schema/迁移或记录子类型，T01 恢复集合和清理规则继续适用。
+
+统一记录 PUT 允许精确空串正文，仍拒绝非空的纯空白正文，保留长度/格式和 expectedRevision 检查；普通文本 POST 仍要求非空白正文。已有空正文记录可手动编辑标题、添加或清空正文；删除最后一个附件后保留记录。此兼容扩展不绕过冲突、owner 或回收站只读。`test/file-records.test.ts` 覆盖原子回滚、真实断流、并发/回包重试、最终会话撤销、认证/CSRF、空正文编辑与标签/分类/回收配合。实际证据见 [T02 交付区](../docs/work/b005-managed-attachments/README.md#交付与整合记录)。
 
 ## 多版本迁移服务（B002-T01）
 

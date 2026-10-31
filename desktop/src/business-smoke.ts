@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import './contracts.js';
 
 export async function runBusinessSmoke(ctx: Context) {
+  if (process.env.RECORDER_SMOKE_SCENARIO?.startsWith('file-records')) { const { runFileRecordSmoke } = await import('./file-record-smoke.js'); await runFileRecordSmoke(ctx); return; }
   if (process.env.RECORDER_SMOKE_SCENARIO?.startsWith('attachments')) { const { runAttachmentSmoke } = await import('./attachment-smoke.js'); await runAttachmentSmoke(ctx); return; }
   const contents = ctx.recorderWindow.webContents;
   const evaluate = (source: string) => contents.executeJavaScript(source, true);

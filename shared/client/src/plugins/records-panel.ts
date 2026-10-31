@@ -49,6 +49,8 @@ export function apply(ctx: Context) {
       if (account.state.identity) void run(refresh);
     }, { immediate: true });
     onBeforeUnmount(() => { active = false; request++; });
+    const stopCreated = ctx.on('recorder/record-created', () => { view.value = 'active'; query.value = ''; offset.value = 0; void run(refresh); });
+    onBeforeUnmount(stopCreated);
     return () => !account.state.identity ? h('p', { class: 'muted' }, '登录后即可保存和查找记录。') : [
       h('div', { class: 'records-grid' }, [
         h('div', [h('span', { class: 'eyebrow' }, 'CAPTURE'), h('h2', '记录此刻'),
@@ -111,7 +113,7 @@ export function apply(ctx: Context) {
                   h('label', ['编辑正文（源文）', h('textarea', { name: 'editBody', rows: 10, maxlength: 200000, value: edit.draft.body, onInput: (event: Event) => editor.change({ body: (event.target as HTMLTextAreaElement).value }) })]),
                 ]),
                 h('div', { class: 'actions' }, [
-                  h('button', { type: 'submit', 'data-save-edit': '', disabled: busy.value || edit.busy || edit.record.deletedAt !== null || !editor.dirty || !edit.draft.body.trim() }, edit.busy ? '正在处理…' : '保存修改'),
+                  h('button', { type: 'submit', 'data-save-edit': '', disabled: busy.value || edit.busy || edit.record.deletedAt !== null || !editor.dirty || (edit.draft.body !== '' && !edit.draft.body.trim()) }, edit.busy ? '正在处理…' : '保存修改'),
                   h('button', { type: 'button', 'data-cancel-edit': '', disabled: busy.value || edit.busy, onClick: () => editor.cancel() }, '结束编辑'),
                 ]),
               ]),

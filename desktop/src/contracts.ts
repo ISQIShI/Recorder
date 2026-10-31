@@ -7,7 +7,7 @@ declare module '@deepseek-ai/cordis' {
     recorderDesktopConnection: {
       ready: true; assertSender(event: import('electron').IpcMainInvokeEvent): void;
       onSessionChange(listener: () => void): () => void;
-      file(input: { kind: 'upload' | 'download'; id: string; uploadId?: string; name?: string; bytes?: number }, body: import('node:stream').Readable | undefined, signal: AbortSignal): Promise<Response>;
+      file(input: { kind: 'upload' | 'download' | 'createRecord'; id: string; uploadId?: string; name?: string; bytes?: number }, body: import('node:stream').Readable | undefined, signal: AbortSignal): Promise<Response>;
     };
     recorderDesktopView: { ready: true };
     recorderShortcut: { registered: boolean };

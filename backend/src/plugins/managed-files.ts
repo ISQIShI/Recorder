@@ -45,11 +45,11 @@ export function apply(ctx: Context, config: { maxBytes?: number } = {}) {
     recordId(owner, id) { assertActive(); return row(owner, id).record_id; },
     list(owner, recordId) { assertActive(); return (raw.prepare("SELECT * FROM attachments_objects WHERE owner_id=? AND record_id=? AND (state='ready' OR (state='deleting' AND digest IS NOT NULL)) ORDER BY created_at,id").all(owner, recordId) as Row[]).map(exposed); },
     get(owner, id) { assertActive(); const r = row(owner, id); if (r.state !== 'ready' || !r.record_id) throw failure(404, 'NOT_FOUND', '附件不存在或正在删除'); return { ...exposed(r), recordId: r.record_id }; },
-    receive(input, stream, validate, signal) { return database.use(async () => {
+    receive(input, stream, validate, signal, target) { return database.use(async () => {
       const combined = AbortSignal.any([signal, controller.signal]); combined.throwIfAborted(); validate();
       if (inflight.has(input.id)) throw failure(409, 'UPLOAD_IN_PROGRESS', '同一次上传尚在进行');
       const previous = raw.prepare('SELECT * FROM attachments_objects WHERE id=?').get(input.id) as Row | undefined;
-      if (previous && (previous.owner_id !== input.owner || previous.record_id !== input.recordId || previous.name !== input.name || previous.media_type !== input.mediaType)) throw failure(409, 'IDEMPOTENCY_CONFLICT', '此上传标识已用于其他内容');
+      if (previous && (previous.owner_id !== input.owner || previous.record_id !== (target && previous.state === 'ready' ? target.existing() : input.recordId) || previous.name !== input.name || previous.media_type !== input.mediaType)) throw failure(409, 'IDEMPOTENCY_CONFLICT', '此上传标识已用于其他内容');
       if (previous?.state === 'deleting' || (previous?.state === 'deleted' && previous.digest)) throw failure(409, 'UPLOAD_REMOVED', '此上传已被删除；请重新选择文件');
       // Reserve before the first asynchronous cleanup, so concurrent retries cannot
       // replace this request's object identity while it is publishing bytes.
@@ -66,7 +66,7 @@ export function apply(ctx: Context, config: { maxBytes?: number } = {}) {
           combined.throwIfAborted(); const digest = hash.digest('hex');
           if (ready) { validate(); if (bytes !== previous.bytes || digest !== previous.digest) throw failure(409, 'IDEMPOTENCY_CONFLICT', '重复上传内容不一致'); const current = row(input.owner, input.id); if (current.state !== 'ready') throw failure(409, 'UPLOAD_REMOVED', '此上传已被删除；请刷新附件'); return exposed(current); }
           syncFile(path(objectId, true)); renameSync(path(objectId, true), path(objectId)); syncDirectory(join(root(), 'objects')); syncDirectory(join(root(), 'pending'));
-          raw.transaction(() => { combined.throwIfAborted(); validate(); raw.prepare("UPDATE attachments_objects SET bytes=?,digest=?,state='ready' WHERE id=?").run(bytes, digest, input.id); }).immediate();
+          raw.transaction(() => { combined.throwIfAborted(); validate(); const recordId = target ? target.create() : input.recordId; raw.prepare("UPDATE attachments_objects SET record_id=?,bytes=?,digest=?,state='ready' WHERE id=?").run(recordId, bytes, digest, input.id); }).immediate();
           return exposed(row(input.owner, input.id));
         } catch (error) {
           if (!ready) await discard(row(input.owner, input.id), true);

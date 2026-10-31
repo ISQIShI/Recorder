@@ -88,6 +88,7 @@ Conventional Commits 提交，推自己的分支并创建 main 目标 PR，不�
   - 支持限制/未执行：未人工点击系统文件/覆盖对话框，未独立验收 Linux 图形 Electron、Web/Android 文件设备、远程接入、断电或真实介质丢失恢复。正式恢复启用/restic/日常备份、文件直接建记录均未实现。仅测隔离样本；清空后物理清理允许持久待重试，插件停用期间保留字节，不声称立即擦除介质/恢复点。
   - 请整合者更新的事实：attachments revision 1；桌面已有记录附件及 1 GiB 流程；manifest v2 的数据库+托管文件恢复集合/隔离恢复与 v1 兼容；Web/Android 设备待补。T02 必须在本 PR 合入最新 main 后再派发。
 - T02：实现及定向验证完成，**待整合**（2026-10-31）；完整 Windows/Linux 验证以本任务 PR 对应 HEAD 的 CI 为准。
+  - PR [#21](https://github.com/ISQIShI/Recorder/pull/21) 指向 main；实现提交 `496a6bfeef01fc58cefe9b31b5c1192789113214`，后续交付证据正常追加，不强推。CI 尚未完成时保持 Draft，最终 HEAD、检查结果见 PR checks；不自行合并。
   - 分支 `feat/b005-t02-file-records`；工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`；实际基线 `77032f4747eea5530d6b98043d0232ab7c047384`（T01 PR #20 的 squash 合并）。开工 fetch 并核对 T01 merged，原分支全部已提交；仅保留原有 `.codex/` 未跟踪内容，未操作真实 `.recorder/`、其他工作树或 main。
   - 独立 Cordis 文件建记录模型/UI，复用 T01 窄选择句柄和字节流；新增固定认证 PUT `/api/v1/file-records/{uploadId}/content`，返回记录与附件。流结束后才在同一 IMMEDIATE 事务调用记录服务创建记录并提交首个附件，失败回滚/清理，不在事务中等待网络；相同请求和文件重放只读回同一记录的当前内容。无新 schema、迁移、依赖、锁文件或 CI 变更。
   - 初始标题为文件名前 200 个 UTF-16 单位（不截断代理对），完整文件名保留在附件，正文精确空串、plain。普通文本新建仍拒绝空白正文；统一记录 PUT 允许精确空串、仍拒绝非空纯空白，支持标题编辑、后加正文再清空及空标题回退，expectedRevision/冲突草稿/回收只读保持。标签/分类/回收恢复沿用普通记录，删除最后一个附件保留记录。基础记录不依赖附件提供者，附件业务调用记录服务而不复制存储实现。

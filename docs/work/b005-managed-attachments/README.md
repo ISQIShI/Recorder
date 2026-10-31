@@ -1,6 +1,6 @@
 # B005：桌面基础附件
 
-状态：计划已定稿，尚未实现；T01 先行，T02 等 T01 合入 main 后开始。更新日期：2026 年 10 月 29 日。
+状态：T01 已通过 PR #20 整合验收；T02 待启动，从包含该 PR 的最新 main 开始。更新日期：2026 年 10 月 31 日。
 
 阅读时机：实现或审查附件收存、取回、删除及文件建记录时。本页包含两张顺序任务卡；[提示词](prompts.md) 供用户启动实现会话，[工作台账](../README.md) 登记状态。
 
@@ -75,7 +75,7 @@ Conventional Commits 提交，推自己的分支并创建 main 目标 PR，不�
 
 ## 交付与整合记录
 
-- T01：实现及验证完成，**待整合**（2026-10-29）。本分支交付状态记录在此，批次顶层/全局状态交整合者更新。
+- T01：**已通过整合验收**（2026-10-31，PR #20）。以下保留实现者交付及验证范围。
   - 分支 `feat/b005-t01-managed-attachments`；工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`；实际基线 `ba642d989546db85b728507c7e4b60f416ebaea3`，包含 B004 PR #18 合并 `e507231f99551224082ce5ea07a9cfc92e7aaac3` 与 B005 定稿 PR #19。仅原有 `.codex/` 未跟踪内容保留，不提交；未操作真实资料库、其他工作树或 main。
   - 完整交付：attachments revision 1（依赖 records 2，旧五份 SQL 摘要不变）、独立 Cordis 存储/业务/HTTP/元数据/UI/设备服务；已有正常记录单文件上传/取消/同请求重试、列表、校验另存、明确确认永久删除。回收/恢复保留，回收站只读另存；清空借助 SET NULL 留对象身份，业务停用后重新启用仍能清理。持久 pending/ready/deleting/deleted、清理错误及重试，不删除未知文件、不改正文 revision。
   - 文件走固定认证 octet-stream 路由；实际计数上限 1 GiB，JSON 限额不变。Electron 仅接受选择器句柄及固定操作，字节不走 IPC/JSON/base64，路径/token 不进 renderer。120 秒无进度超时；安全临时文件、摘要/大小通过才替换另存目标；会话变化/插件撤回取消所属工作。
@@ -88,3 +88,11 @@ Conventional Commits 提交，推自己的分支并创建 main 目标 PR，不�
   - 支持限制/未执行：未人工点击系统文件/覆盖对话框，未独立验收 Linux 图形 Electron、Web/Android 文件设备、远程接入、断电或真实介质丢失恢复。正式恢复启用/restic/日常备份、文件直接建记录均未实现。仅测隔离样本；清空后物理清理允许持久待重试，插件停用期间保留字节，不声称立即擦除介质/恢复点。
   - 请整合者更新的事实：attachments revision 1；桌面已有记录附件及 1 GiB 流程；manifest v2 的数据库+托管文件恢复集合/隔离恢复与 v1 兼容；Web/Android 设备待补。T02 必须在本 PR 合入最新 main 后再派发。
 - T02：未开始；依赖 T01 合入 main。
+
+### PR #20 整合验收（2026 年 10 月 31 日）
+
+审查实现 HEAD `e138a414f2943124d4a5232ddb3062e69a5c38ab`，目标基线 `ba642d989546db85b728507c7e4b60f416ebaea3`。未发现阻塞问题，未修改应用代码、旧迁移、根依赖/锁文件或 CI。复用 [该提交 Windows/Linux CI](https://github.com/ISQIShI/Recorder/actions/runs/40909749998)（各 100 项通过）及已有 1 GiB 实测证据；本地 `pnpm build` 通过，日志 `.tmp/pr20-build.log`。
+
+通过 computer-use 在真实 Windows Electron 与原生系统对话框补验：选中生成的中文名文件 → 上传到隔离后端 → 原生另存 → 拒绝覆盖时旧目标内容保持 → 再次确认覆盖后导出成功。源/目标各 41 字节，SHA-256 均为 `f151889ff9199e0099414ea98e12ad730336799ef6767a3863dddd193449bdbb`。样本 `artifacts/pr20-native-1Ay8qc/`，启动日志 `.tmp/pr20-native.log`；无对话框返回值替身。测试账号/记录由隔离夹具预置，未使用真实用户资料；测试窗口正常关闭，后端退出。此前 10 月 30 日未完成的原生验收由此次补齐，不改写其历史结果。工具的模态元素索引定位失败后，使用截图坐标与键盘完成，无需修改产品。
+
+相关状态与验收随本 PR 更新；`pnpm check:docs --base origin/main` 通过（17 个相关文件、396 个内部链接、0 错误），`git diff --check` 通过，最终 HEAD CI 以 PR checks 为准。没有重复全套本机回归或大文件测试；Linux 图形界面、Web/Android 文件设备、真实断电与完整灾难恢复仍未验收。T02 未开始，T01 提示词转为追溯；用户可基于本 PR 合并后的 main 派发 T02。最终提交与 squash SHA 以 PR #20 为准。

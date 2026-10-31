@@ -1,6 +1,6 @@
 # Recorder 当前技术状态
 
-状态：当前工作入口，严格区分已确认与候选。更新日期：2026 年 10 月 29 日。
+状态：当前工作入口，严格区分已确认与候选。更新日期：2026 年 10 月 31 日。
 
 阅读时机：开始新工作、选择实现依据或判断是否需要用户决定时。完整需求与职责分别见 [需求](product/requirements.md)、[架构概览](architecture/overview.md)。
 
@@ -37,7 +37,7 @@
 | 使用主体 | 同一后端先供用户自己使用，保留未来增加账号的空间 |
 | 资料组织 | 多个标签，同一记录可同时归入多个分类，分类可以分层 |
 | 删除体验 | 记录先进入回收站，可恢复；清空时再次确认彻底删除。B005 单独移除附件经明确确认后永久删除，本批不跨记录共享 |
-| 首版附件 | 已确认给已有记录添加文件、文件直接建无正文记录；至少 1 GB，B005 按 1 GiB 流式上传/另存验收，尚未实现 |
+| 首版附件 | 已确认给已有记录添加文件、文件直接建无正文记录；至少 1 GB，B005-T01 已通过 1 GiB 流式上传/另存验收；T02 文件直接建记录待实现 |
 | 优先级 | 即时唤起与响应性能、维护、扩展同级，资源占用次之 |
 | 正文与登录体验 | 纯文本 + Markdown；首次设置用户名密码，之后可记住登录并撤销会话 |
 | 编辑体验 | 用户已确认手动保存、离开未保存修改时提醒、冲突保留草稿并由用户处理；[更新 API 与双端传输](interfaces/record-editing.md) 及手动编辑、冲突草稿和 Web/Electron 正常离开提醒均已实现 |
@@ -45,7 +45,7 @@
 | 工作分工 | 用户负责关键选择与验收；主会话辅助决策、规划文档、拆任务及 Git 整合，其他 AI 按任务卡在工作树实现，见 [AI 协作](development/ai-collaboration.md) |
 | Git 协作 | 根据用户授权采用 GitHub Flow，短期任务分支与 PR squash 合并；设置、验证要求与清理见 [Git 工作流](development/git-workflow.md)；具体任务见 [工作台账](../work/README.md) |
 | 自动检查 | Windows/Linux 构建、类型、测试和文档检查，以及 PR 标题检查已启用，均为 main 必需检查；见 [Git 工作流](development/git-workflow.md) |
-| 当前阶段 | 账号、记录保存/查询/更新与编辑已完成；B002 已完成，CI 76 项测试及 Electron 四阶段通过；桌面确认、正式恢复启用、附件与日常备份继续开发 |
+| 当前阶段 | 账号、记录保存/查询/更新与编辑已完成；B002 已完成，CI 76 项测试及 Electron 四阶段通过；桌面已有记录附件已通过 B005-T01 验收；文件直接建记录、桌面确认、正式恢复启用与日常备份继续开发 |
 
 ## 尚未确认的技术选择
 
@@ -82,9 +82,9 @@
 
 ## 使用与维护
 
-[B001](../work/b001-record-editing/README.md) 与 [B002](../work/b002-migration-recovery/README.md) 已完成范围内验收。用户现要求核心功能优先，[B003 桌面记录管理](../work/b003-record-management/README.md) 已完成：T01 回收站（PR #15）、T02 标签与筛选（PR #16）均通过后端到桌面验收。[B004 桌面分层分类](../work/b004-record-categories/README.md) 已通过 PR #18 验收：树管理、多分类归属、查询包含全部子分类并去重、确认删除整棵分类树但保留所有记录。当前 [B005 基础附件](../work/b005-managed-attachments/README.md) 计划已定稿，尚未实现：T01 完成已有记录附件及必要升级恢复兼容，合入 main 后 T02 接文件直接建无正文记录。用户已确认收集、删除和至少 1 GB 的范围，工程验收按 1 GiB。旧库升级复用现有 CLI；托管文件必须随升级恢复点封存与隔离恢复。桌面维护 UI、正式恢复启用、日常备份与 restic 仍后置，不要求 Web/Android 同步推进，不冻结完整 MVP 或排期。
+[B001](../work/b001-record-editing/README.md) 与 [B002](../work/b002-migration-recovery/README.md) 已完成范围内验收。用户现要求核心功能优先，[B003 桌面记录管理](../work/b003-record-management/README.md) 已完成：T01 回收站（PR #15）、T02 标签与筛选（PR #16）均通过后端到桌面验收。[B004 桌面分层分类](../work/b004-record-categories/README.md) 已通过 PR #18 验收：树管理、多分类归属、查询包含全部子分类并去重、确认删除整棵分类树但保留所有记录。当前 [B005 基础附件](../work/b005-managed-attachments/README.md) 的 T01 已通过 PR #20 验收：已有记录附件上传/另存/确认永久删除、回收只读和恢复保留，manifest v2 封存数据库及对应文件并隔离还原，兼容旧无附件 v1 恢复点。Windows 原生选择、覆盖拒绝/确认及摘要验证已补齐。下一项 T02 文件直接建无正文记录待用户启动。用户已确认收集、删除和至少 1 GB 的范围，工程验收按 1 GiB。旧库升级复用现有 CLI；托管文件必须随升级恢复点封存与隔离恢复。桌面维护 UI、正式恢复启用、日常备份与 restic 仍后置，不要求 Web/Android 同步推进，不冻结完整 MVP 或排期。
 
-当前完成基础工程、账号、记录保存/查询/更新与双端编辑，以及桌面回收站、恢复、确认清空、多标签关联、单标签加关键词筛选，以及分层分类管理与筛选；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。B003-T01 已验证真实 v1 样本经维护 CLI 升级且原内容保留；生产清单为 identity revision 1、records revision 2、tags revision 1、categories revision 1（后两者依赖 records revision 2）。B004 已验证真实 B003 旧库经维护 CLI 升级后原账号、记录、回收站和标签保留。B003-T02 已验证 T01 旧库显式升级后正文、回收站和修订号保留；B002-T01 的计划器继续复用；普通启动先取得独占，只初始化空库或运行兼容库，已有库升级通过独立维护 CLI 显式确认，不在普通启动中执行。B002-T02 已实现受权限保护的本地恢复点与 SQL/账本/快照校验；数据库关闭失败保留独占，可结束迭代器后重试关闭，恢复点校验拒绝未封存的 WAL 等辅助文件并使用隔离副本。B002-T03 已补维护运行记录、未完成维护的启动门禁、显式确认后继续与新空目录隔离恢复。源库仍须可由维护 profile 打开，隔离库禁止自动启用业务；完整灾难恢复、桌面确认、附件与 restic 集成仍未实现。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
+当前完成基础工程、账号、记录保存/查询/更新与双端编辑，以及桌面回收站、恢复、确认清空、多标签关联、单标签加关键词筛选，以及分层分类管理与筛选；草稿仅在当前会话内存。验证范围见 [账号记录流程](development/first-record-flow.md)，首轮版本记录见 [工程基线](development/engineering-baseline.md)。B003-T01 已验证真实 v1 样本经维护 CLI 升级且原内容保留；生产清单为 identity revision 1、records revision 2、tags revision 1、categories revision 1、attachments revision 1（后三者依赖 records revision 2）。B004 已验证真实 B003 旧库经维护 CLI 升级后原账号、记录、回收站和标签保留。B003-T02 已验证 T01 旧库显式升级后正文、回收站和修订号保留；B002-T01 的计划器继续复用；普通启动先取得独占，只初始化空库或运行兼容库，已有库升级通过独立维护 CLI 显式确认，不在普通启动中执行。B002-T02 已实现受权限保护的本地恢复点与 SQL/账本/快照校验；数据库关闭失败保留独占，可结束迭代器后重试关闭，恢复点校验拒绝未封存的 WAL 等辅助文件并使用隔离副本。B002-T03 已补维护运行记录、未完成维护的启动门禁、显式确认后继续与新空目录隔离恢复。源库仍须可由维护 profile 打开，隔离库禁止自动启用业务；完整灾难恢复、桌面确认、文件直接建记录与 restic 集成仍未实现；已有记录附件和 manifest v2 文件恢复集合由 B005-T01 补齐。文档验证已按用户要求改为相关范围，见 [CI 指南](../../.github/CI.md)。
 
 后端、共享界面和 Android 主线已确认，细节见 [后端技术](architecture/backend-stack.md)、[前端技术](architecture/frontend-stack.md) 和 [Android 方向](architecture/android-stack.md)。工程入口见 [目录规划](development/repository-layout.md)。Android 原生工程已生成并同步资源；用户确认没有 SDK，APK 与真机测试待按 [环境指南](development/android-environment.md) 配置后进行。Linux CI runner 检查已通过，Chrome 已完成本机编辑/冲突操作并由用户确认刷新/关闭提醒出现；原生弹窗选择分支、其他浏览器、Linux 生产部署与性能仍未完整验证。新决定获用户确认后更新本页及对应有效说明，再补入 [历史决策记录](../history/decisions/decision-log.md)。已有明确决定不反复询问，候选不自动转为已确认。
 

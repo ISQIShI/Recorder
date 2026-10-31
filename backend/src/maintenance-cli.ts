@@ -5,7 +5,7 @@ import { createMaintenance, type MaintenanceOptions } from './maintenance-profil
 import { MaintenanceError } from './maintenance-contract.js';
 
 const usage = 'Recorder offline maintenance: inspect | upgrade | resume | points | restore | verify\n' +
-  '--database <source.sqlite> [--confirm <inspected-plan-digest> | --interactive]\n' +
+  '--database <source.sqlite> [--confirm <inspected-plan-digest> | --interactive] [--file-timeout-ms <1..86400000>]\n' +
   'restore: --point <sealed-id> --target <new-empty-directory>; verify: --target <isolated-directory>\n';
 function parse(argv: string[]) {
   const [command, ...args] = argv;
@@ -14,7 +14,7 @@ function parse(argv: string[]) {
   const flags = new Map<string, string>();
   for (let i = 0; i < args.length; i++) {
     const flag = args[i]!;
-    if (!['--database', '--confirm', '--interactive', '--point', '--target'].includes(flag) || flags.has(flag)) throw new Error('Unknown or duplicate option');
+    if (!['--database', '--confirm', '--interactive', '--point', '--target', '--file-timeout-ms'].includes(flag) || flags.has(flag)) throw new Error('Unknown or duplicate option');
     if (flag === '--interactive') flags.set(flag, 'true');
     else { const value = args[++i]; if (!value || value.startsWith('--')) throw new Error('Missing option value'); flags.set(flag, value); }
   }
@@ -22,6 +22,7 @@ function parse(argv: string[]) {
     ((command === 'restore' || command === 'verify') && !flags.has('--target')) || (command === 'restore' && !flags.has('--point')) ||
     (flags.has('--point') && command !== 'restore') || (flags.has('--target') && !['restore', 'verify'].includes(command)) ||
     (!['upgrade', 'resume'].includes(command) && (flags.has('--confirm') || flags.has('--interactive')))) throw new Error('Invalid command options');
+  if (flags.has('--file-timeout-ms') && (!/^\d+$/.test(flags.get('--file-timeout-ms')!) || Number(flags.get('--file-timeout-ms')) < 1 || Number(flags.get('--file-timeout-ms')) > 86400000)) throw new Error('Invalid file timeout');
   return { command, flags };
 }
 function reportError(error: unknown) {
@@ -38,10 +39,11 @@ export async function runMaintenanceCli(argv: string[], overrides: Pick<Maintena
   let parsed: ReturnType<typeof parse>;
   try { parsed = parse(argv); } catch { console.error(usage); return 64; }
   if (parsed.command === 'help') { stdout.write(usage); return 0; }
-  let ctx: Awaited<ReturnType<typeof createMaintenance>> | undefined, resultCode = 0;
+  let ctx: Awaited<ReturnType<typeof createMaintenance>> | undefined, resultCode = 0, progress: ReturnType<typeof setInterval> | undefined;
   try {
     const { command, flags } = parsed;
-    ctx = await createMaintenance({ filename: flags.get('--database')!, ...overrides });
+    ctx = await createMaintenance({ filename: flags.get('--database')!, ...(flags.has('--file-timeout-ms') ? { fileTimeoutMs: Number(flags.get('--file-timeout-ms')) } : {}), ...overrides });
+    progress = setInterval(() => { const status = ctx?.recorderRecoveryPoints.status; if (status && status.phase !== 'idle') console.error(JSON.stringify({ recovery: status })); }, 1000); progress.unref();
     if (command === 'inspect') {
       const result = await ctx.recorderMaintenance.inspect(); console.log(JSON.stringify(result));
       if (result.state === 'manual' || result.plan.status === 'blocked') resultCode = 4;
@@ -62,6 +64,7 @@ export async function runMaintenanceCli(argv: string[], overrides: Pick<Maintena
     }
   } catch (error) { resultCode = reportError(error); }
   finally {
+    clearInterval(progress);
     if (ctx) {
       try {
         // No outstanding command work remains. Surface close errors before Cordis cleanup joins ownership.

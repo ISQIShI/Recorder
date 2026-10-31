@@ -22,7 +22,9 @@ export interface DatabaseUse {
 export interface MigrationCapture { plan: MigrationPlan; installed: Migration[]; retained: Migration[] }
 export interface RecoveryMaterial extends Omit<Migration, 'sql'> { file: string; digest: string; role: 'installed' | 'retained' }
 export interface RecoveryManifest {
-  formatVersion: 1; state: 'sealed'; id: string; createdAt: string;
+  formatVersion: 1 | 2; state: 'sealed'; id: string; createdAt: string;
+  /** Required for version 2. Version 1 is accepted only for databases without attachments. */
+  objects?: import('./attachments-contract.js').ManagedObject[];
   source: { filename: string; planDigest: string; materialsDigest: string };
   plan: MigrationPlan; ledger: MigrationLedgerEntry[];
   versions: { recorder: string; node: string; sqlite: string; betterSqlite3: string };
@@ -33,6 +35,7 @@ export interface RecoveryManifest {
 }
 export interface RecoveryPoint { id: string; directory: string; manifestDigest: string; manifest: RecoveryManifest }
 export interface RecoveryPoints {
+  readonly status?: { phase: 'idle' | 'database' | 'files' | 'verifying'; bytes: number; total: number };
   create(expectedPlanDigest: string): Promise<RecoveryPoint>;
   verify(id: string): Promise<RecoveryPoint>;
   list(): Promise<{ valid: RecoveryPoint[]; invalid: { id: string; code: string }[]; incomplete: string[] }>;

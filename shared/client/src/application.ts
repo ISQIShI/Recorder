@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis';
-import type { ApiTransport } from '@recorder/contracts';
+import type { ApiTransport, FileDeviceBridge } from '@recorder/contracts';
 import { PanelRegistry } from './services.js';
 import { webApi, nativeApi } from './api-transport.js';
 import * as shell from './plugins/shell.js';
@@ -12,7 +12,10 @@ import * as recordTags from './plugins/record-tags.js';
 import * as tagsPanel from './plugins/tags-panel.js';
 import * as recordCategories from './plugins/record-categories.js';
 import * as categoriesPanel from './plugins/categories-panel.js';
-export async function mountApplication(target: Element, platform: string, bridge?: ApiTransport) {
+import * as fileTransfer from './plugins/file-transfer.js';
+import * as recordAttachments from './plugins/record-attachments.js';
+import * as attachmentsPanel from './plugins/attachments-panel.js';
+export async function mountApplication(target: Element, platform: string, bridge?: ApiTransport, files?: FileDeviceBridge) {
   const ctx = new Context();
   try {
     await ctx.plugin((owner: Context) => { owner.provide('recorderPlatform', { name: platform }); });
@@ -28,6 +31,9 @@ export async function mountApplication(target: Element, platform: string, bridge
     await ctx.plugin(tagsPanel);
     await ctx.plugin(recordCategories);
     await ctx.plugin(categoriesPanel);
+    await ctx.plugin(fileTransfer, { bridge: files });
+    await ctx.plugin(recordAttachments);
+    await ctx.plugin(attachmentsPanel);
     return ctx;
   } catch (error) { await ctx.fiber.dispose(); throw error; }
 }

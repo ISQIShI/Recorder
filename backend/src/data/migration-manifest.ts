@@ -6,4 +6,5 @@ export const installedMigrations: MigrationSource[] = [
   { namespace: 'records', revision: 2, packageVersion: '0.0.0', dependencies: [{ namespace: 'identity', revision: 1 }], file: 'records/0001_trash.sql' },
   { namespace: 'tags', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'tags/0000_initial.sql' },
   { namespace: 'categories', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'categories/0000_initial.sql' },
+  { namespace: 'attachments', revision: 1, packageVersion: '0.0.0', dependencies: [{ namespace: 'records', revision: 2 }], file: 'attachments/0000_initial.sql' },
 ];

@@ -10,7 +10,7 @@ import { privateDirectory, writePrivate, syncFile, syncDirectory, digest, fileDi
 import '../domain.js';
 
 export const inject = ['recorderDatabaseOwnership', 'recorderDatabase', 'recorderMigrationPlanner'];
-export interface RecoveryConfig { directory?: string; timeoutMs?: number }
+export interface RecoveryConfig { directory?: string; timeoutMs?: number; fileTimeoutMs?: number }
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const require = createRequire(import.meta.url);
 const versions = { recorder: (require('../../package.json') as { version: string }).version,
@@ -45,8 +45,17 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
   const comparison = (value: string) => process.platform === 'win32' ? value.toLowerCase() : value;
   if (comparison(owner.filename).startsWith(comparison(root) + sep)) throw new StorageError('PATH_UNSUPPORTED', 'Recovery directory must not contain the live source database');
   const timeout = config.timeoutMs ?? 60000;
+  const fileTimeout = config.fileTimeoutMs ?? 3600000;
+  if (!Number.isSafeInteger(fileTimeout) || fileTimeout <= 0 || fileTimeout > 86400000) throw new StorageError('RECOVERY_FAILED', 'Invalid managed-file timeout');
   if (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 300000) throw new StorageError('RECOVERY_FAILED', 'Invalid snapshot timeout');
   let active = true;
+  const controller = new AbortController(), status: NonNullable<RecoveryPoints['status']> = { phase: 'idle', bytes: 0, total: 0 };
+  function inventory(raw: Database.Database) {
+    const files = ctx.get('recorderManagedFiles');
+    if (files) return files.inventory(raw);
+    if (raw.prepare("SELECT 1 FROM sqlite_master WHERE name='attachments_objects'").get() && raw.prepare("SELECT 1 FROM attachments_objects WHERE state='ready' AND record_id IS NOT NULL LIMIT 1").get()) throw new StorageError('MATERIALS_UNAVAILABLE', 'Managed-file storage participant is required');
+    return [];
+  }
   const pending = new Set<Promise<unknown>>();
   const assertActive = () => { if (!active) throw new StorageError('RECOVERY_CANCELLED', 'Recovery provider is withdrawing'); owner.assertHeld(); };
   function start<T>(operation: (raw: Database.Database) => Promise<T>): Promise<T> {
@@ -74,10 +83,11 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
       if (await fileDigest(copy) !== snapshotDigest) throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot changed while copying');
       assertActive();
       const snapshot = new Database(copy, { readonly: true, fileMustExist: true });
-      try { validateDatabase(snapshot, ledger); } finally { snapshot.close(); }
+      let objects: import('../attachments-contract.js').ManagedObject[];
+      try { validateDatabase(snapshot, ledger); objects = inventory(snapshot); } finally { snapshot.close(); }
       rejectSidecars(filename);
       if (await fileDigest(filename) !== snapshotDigest || statSync(filename).size !== bytes) throw new StorageError('RECOVERY_INVALID', 'Recovery snapshot changed during validation');
-      return { digest: snapshotDigest, bytes };
+      return { digest: snapshotDigest, bytes, objects };
     } finally {
       // Only remove our own known scratch files; a crash leaves a distinguishable pending directory.
       for (const suffix of ['', '-wal', '-shm', '-journal']) {
@@ -95,7 +105,7 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
     const seal = JSON.parse(readPrivate(join(directory, 'seal.json'))) as { formatVersion: number; manifestDigest: string };
     if (seal.formatVersion !== 1 || seal.manifestDigest !== digest(manifestText)) throw new StorageError('RECOVERY_INVALID', 'Recovery manifest checksum mismatch');
     const manifest = JSON.parse(manifestText) as RecoveryManifest;
-    if (manifest.formatVersion !== 1 || manifest.state !== 'sealed' || manifest.id !== id || manifest.snapshot.file !== 'database.sqlite' ||
+    if (![1, 2].includes(manifest.formatVersion) || manifest.state !== 'sealed' || manifest.id !== id || manifest.snapshot.file !== 'database.sqlite' ||
       manifest.executableArchived !== false || manifest.source.planDigest !== manifest.plan.digest ||
       manifest.source.materialsDigest !== manifest.plan.materialsDigest || !sameLedger(manifest.ledger, manifest.plan.applied)) {
       throw new StorageError('RECOVERY_INVALID', 'Recovery manifest identity or ledger mismatch');
@@ -113,10 +123,18 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
     }
     checkMaterials({ plan: manifest.plan, installed, retained });
     const filename = join(directory, 'database.sqlite');
-    await validateSnapshot(filename, manifest.ledger, manifest.snapshot);
+    const snapshot = await validateSnapshot(filename, manifest.ledger, manifest.snapshot);
+    if ((manifest.formatVersion === 1 && (manifest.ledger.some(row => row.namespace === 'attachments') || snapshot.objects.length)) ||
+      (manifest.formatVersion === 2 && (!Array.isArray(manifest.objects) || JSON.stringify(manifest.objects) !== JSON.stringify(snapshot.objects)))) throw new StorageError('RECOVERY_INVALID', 'Recovery manifest does not include the committed attachment set');
+    if (manifest.formatVersion === 2) {
+      const objects = join(directory, 'objects'); const stat = lstatSync(objects);
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw new StorageError('RECOVERY_INVALID', 'Invalid managed-object archive');
+      if (snapshot.objects.length) { const files = ctx.get('recorderManagedFiles'); if (!files) throw new StorageError('MATERIALS_UNAVAILABLE', 'Managed-file storage participant is required'); await files.verify(snapshot.objects, objects, AbortSignal.any([controller.signal, AbortSignal.timeout(fileTimeout)])); }
+    }
     return { id, directory, manifestDigest: seal.manifestDigest, manifest };
   }
   const service: RecoveryPoints = {
+    status,
     create(expectedPlanDigest) { return start(async raw => {
       let directory: string | undefined;
       try {
@@ -134,20 +152,28 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
           const { sql, ...step } = source, file = `materials/${String(materials.length).padStart(6, '0')}.sql`;
           writePrivate(join(directory, file), sql); materials.push({ ...step, file, digest: digest(sql), role });
         }
-        const filename = join(directory, 'database.sqlite'); closeSync(openSync(filename, 'wx', 0o600));
+        const filename = join(directory, 'database.sqlite'); closeSync(openSync(filename, 'wx', 0o600)); status.phase = 'database'; status.bytes = 0; status.total = 0;
         const deadline = Date.now() + timeout;
         await raw.backup(filename, { progress() {
           assertActive(); if (Date.now() > deadline) throw new StorageError('RECOVERY_FAILED', 'Snapshot exceeded its time limit');
           return 100;
         } });
         assertActive();
-        const snapshot = await validateSnapshot(filename, plan.applied);
+        const { objects, ...snapshot } = await validateSnapshot(filename, plan.applied);
+        const archive = join(directory, 'objects'); mkdirSync(archive, { mode: 0o700 });
+        status.phase = 'files'; status.total = objects.reduce((n, object) => n + object.bytes, 0);
+        const files = ctx.get('recorderManagedFiles'), fileSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(fileTimeout)]);
+        if (objects.length) {
+          if (!files) throw new StorageError('MATERIALS_UNAVAILABLE', 'Managed-file storage participant is required');
+          await files.copy(objects, join(files.root, 'objects'), archive, fileSignal, bytes => { status.bytes += bytes; });
+          status.phase = 'verifying'; await files.verify(objects, archive, fileSignal);
+        }
         // Re-read every SQL file, not just the database; a corrupt archive is never sealed.
         for (const material of materials) if (digest(readPrivate(join(directory, material.file))) !== material.digest) throw new StorageError('RECOVERY_INVALID', 'Archived migration SQL changed before sealing');
         assertActive();
         if (planner.inspect().digest !== plan.digest) throw new StorageError('STALE_PLAN', 'Migration plan changed during snapshot');
         validateDatabase(raw, plan.applied);
-        const manifest: RecoveryManifest = { formatVersion: 1, state: 'sealed', id, createdAt: new Date().toISOString(),
+        const manifest: RecoveryManifest = { formatVersion: 2, objects, state: 'sealed', id, createdAt: new Date().toISOString(),
           source: { filename: owner.filename, planDigest: plan.digest, materialsDigest: plan.materialsDigest }, plan, ledger: plan.applied,
           versions: { ...versions, sqlite: (raw.prepare('SELECT sqlite_version() AS version').get() as { version: string }).version },
           materials, snapshot: { file: 'database.sqlite', ...snapshot },
@@ -165,7 +191,7 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
       } catch (error) {
         if (error instanceof StorageError) throw error;
         throw new StorageError(active ? 'RECOVERY_FAILED' : 'RECOVERY_CANCELLED', 'Recovery point was not made available', { cause: error });
-      }
+      } finally { status.phase = 'idle'; }
     }); },
     verify(id) { return start(async () => {
       try { return await verify(id); } catch (error) { if (error instanceof StorageError) throw error; throw new StorageError('RECOVERY_INVALID', 'Recovery point could not be verified', { cause: error }); }
@@ -182,6 +208,6 @@ export function apply(ctx: Context, config: RecoveryConfig = {}) {
       return { valid, invalid, incomplete };
     }); },
   };
-  ctx.effect(() => async () => { active = false; await Promise.allSettled([...pending]); });
+  ctx.effect(() => async () => { active = false; controller.abort(); await Promise.allSettled([...pending]); });
   ctx.provide('recorderRecoveryPoints', service);
 }

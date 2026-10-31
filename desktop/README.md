@@ -1,6 +1,6 @@
 # desktop：Electron 桌面客户端
 
-状态：Windows Electron 账号、记录编辑、回收站、标签与分层分类流程已实现；实际运行证据见对应任务交付区，产品分发待实现。更新日期：2026 年 10 月 29 日。
+状态：Windows Electron 账号、记录编辑/回收站、标签/分类及已有记录托管附件流程已实现；实际运行证据见对应任务交付区，产品分发待实现。更新日期：2026 年 10 月 29 日。
 
 阅读时机：桌面界面、主进程、preload、设备能力和打包工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [Electron 协作提案](../docs/design/architecture/backend-electron-boundaries.md)。
 
@@ -25,6 +25,14 @@ T03 使用共享编辑 UI 和离开守卫；设备端 `exit` Cordis 插件将正
 [B004-T01 分层分类](../docs/work/b004-record-categories/README.md) 复用独立共享 record-categories/categories-panel 插件及八个固定窄 IPC 操作。树显示完整路径，支持顶层/子节点创建、版本检查的更名/移动、明确确认删除整棵子树；记录可加入多个分类，关键词查询包含全部后代并按记录去重。写入保护现有记录草稿，冲突保留分类输入，回收站只读；没有新增桌面维护 UI 或自动升级。
 
 `pnpm test:records:desktop` 增加 categories/categories-resume，共十阶段。新增流程通过真实 UI/IPC/HTTP/SQLite 检查完整路径、关联/解除、草稿取消零写入、真实分类版本冲突、明确重载后更名/移至其他父节点/顶层、重叠关联的 31 条去重分页和空末页回退，后端/Electron 重启读回、回收只读及恢复保留、取消/失败/确认删除整树而记录/标签/树外归属不变，以及清空记录保留树。只在隔离样本用窄 API 准备分页和竞争写入，不替换实际业务链路；结果与截图 `artifacts/records-desktop-categories.png` 不提交，实际通过与未验证项见 B004 交付区。首次登录的 smoke 等待初始列表加载完成再点击保存。Web/Android 分类流程与 Linux 图形 Electron 未独立验收。
+
+[B005-T01 已有记录附件](../docs/work/b005-managed-attachments/README.md) 新增 `files` Cordis 设备插件，由主进程系统选择器授予句柄；preload 的 `recorder.files` 仅开放 choose/upload/save/cancel/clear 和进度订阅。主进程保留路径并校验文件大小/修改时间；renderer 任意路径/URL/额外输入、错误 sender/frame 均拒绝。连接服务用既有 Bearer 访问固定附件路由，字节经 Node 文件流和 HTTP，不进入 JSON/base64/IPC。共享 Vue 只消费文件传输服务，无 Electron SDK。
+
+单文件上限 1 GiB，显示字节进度并可取消；超时按无实际进度 120 秒处理，区别于 JSON 的 15 秒。另存为沿用系统覆盖确认，先写目标同目录独占 `.part`，流式计数/SHA-256、fsync 后替换；失败清理本次临时文件并保留原目标，不自动打开。会话替换/撤销、退出与插件撤回取消所属任务并清选择授权，已提交资料不主动删除；取消上传结果可未确认，UI 刷新后允许同一 uploadId 重试。仍限 loopback，未增加远程配置。
+
+`pnpm test:records:desktop` 现为十二阶段，新增 attachments/attachments-resume：真实 renderer/preload/主进程/HTTP/SQLite/文件流，检查选择取消/草稿守卫、上传取消与重试、进度/摘要、后端与 Electron 重启、另存失败保留旧目标、删除取消/确认且最后一个附件保留记录、回收只读另存/恢复/清空，以及源文件不变。仅原生对话框选择与可控故障响应使用替身；文件读写与成功传输不替换。Windows 手动点击原生选择/覆盖框尚未独立验收，Linux 图形 Electron、Web/Android 附件设备未验收。
+
+根构建后，PowerShell 用 `$env:RECORDER_SMOKE_ATTACHMENT_ONLY='1'; $env:RECORDER_SMOKE_LARGE_FILE='1'; pnpm test:records:desktop` 可只运行两个附件阶段，实际生成、上传并另存 **1,073,741,824 字节**样本，验证 SHA-256；随后清除这两个环境变量，普通 CI 不运行大文件。样本库、userData、源文件/另存文件、结果及截图均在忽略的 artifacts；不提交大文件。2026-10-29 Windows 实测通过及摘要见 T01 交付区，不宣称未测内存峰值或传输性能。
 
 快捷键插件注册 `Ctrl+Shift+Space`，尚未实按验证；关闭最后窗口退出，无托盘常驻策略。剪贴板、拖拽、安装包和更新待实现；是否附带后端未定。目前连接限制 loopback，远程 HTTPS 未实现。所有新增能力遵守 [全面插件化](../docs/current/architecture/plugin-everything.md)。
 

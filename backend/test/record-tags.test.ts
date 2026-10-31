@@ -152,7 +152,7 @@ test('T01 production database upgrades only after CLI confirmation and recovery 
   try {
     await assert.rejects(createApplication({ filename: f.filename, http: { listen: false } }), { code: 'UPGRADE_REQUIRED' });
     const inspect = await cli(f.filename, 'inspect'); assert.equal(inspect.code, 0, inspect.error);
-    const plan = JSON.parse(inspect.output.trim()).plan; assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['categories', 1], ['tags', 1]]);
+    const plan = JSON.parse(inspect.output.trim()).plan; assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['attachments', 1], ['categories', 1], ['tags', 1]]);
     assert.equal((await cli(f.filename, 'upgrade')).code, 2);
     const upgrade = await cli(f.filename, 'upgrade', ['--confirm', plan.digest]); assert.equal(upgrade.code, 0, upgrade.error);
     const points = await cli(f.filename, 'points'); assert.equal(points.code, 0, points.error);

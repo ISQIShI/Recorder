@@ -1,6 +1,6 @@
 # 账号认证与第一条记录流程
 
-状态：当前实现范围与使用说明；验证结果在末节记录。更新日期：2026 年 10 月 29 日。
+状态：当前实现范围与使用说明；验证结果在末节记录。更新日期：2026 年 10 月 31 日。
 
 阅读时机：运行账号和记录功能，修改认证、会话、记录 API、迁移、客户端连接或验收本轮功能时。架构扩展方向见 [本地宿主与同步](../architecture/local-runtime-sync.md)，所有能力遵守 [全面插件化](../architecture/plugin-everything.md)。
 
@@ -8,7 +8,7 @@
 
 正文支持纯文本和 Markdown，格式明确保存；首次设置账号密码，之后可记住登录、主动退出并撤销其他会话。当前实现账号初始化、登录、会话查询/撤销、创建记录、列表/分页、标题正文关键字查询和详情；已补齐记录更新 API、版本冲突保护与 Web/Electron 传输，手动编辑、冲突草稿及正常离开提醒也已实现。B003 已补桌面回收站、恢复、确认清空，以及多标签关联和单标签加关键词筛选；B004 已补分类树管理、多分类归属和包含后代的去重筛选。Markdown 本轮以源码输入和查看，不执行 HTML，也未加入富文本或 Markdown 渲染器。
 
-本轮默认连接 Node.js 本机后端。Android 真机验证按用户要求延后；Android 本地后端、云盘同步、附件、SSE、提醒、完整备份恢复均未作为本轮已完成项。公开仓库不等于后端已可直接公开部署。
+本轮默认连接 Node.js 本机后端。Android 真机验证按用户要求延后；Android 本地后端、云盘同步、SSE、提醒、完整备份恢复仍未完成；桌面已有记录附件已由 [B005-T01](../../work/b005-managed-attachments/README.md) 补齐，文件直接建记录待 T02。公开仓库不等于后端已可直接公开部署。
 
 ## 本机启动和首次设置
 
@@ -64,7 +64,7 @@
 
 SQLite 使用 foreign_keys、WAL、FULL synchronous、5 秒 busy timeout。身份与记录各有 Kit 生成的初始 SQL；运行时不调用 schema push。统一 `recorder_migrations` 记录 namespace/revision/SHA-256/应用时间，在 `BEGIN IMMEDIATE` 事务内按依赖顺序应用并检查外键。重启校验已应用摘要，拒绝历史被改写和代码落后于 schema。
 
-**生产清单为 identity revision 1、records revision 2（回收站）、tags revision 1、categories revision 1（后两者依赖 records revision 2）。** 已有 B003 库须按 [分类升级说明](../../../backend/README.md#分层分类与记录归属b004-t01) 显式确认安装 categories。已有 T01 库还需按 [标签升级说明](../../../backend/README.md#标签与筛选b003-t02) 显式升级；普通启动不自动安装新命名空间。已有 v1 库须按 [维护命令](../../../backend/README.md#记录回收站b003-t01) inspect、确认摘要并 upgrade；先创建恢复点，原数据保留。普通启动只自动初始化空库，拒绝需要升级、历史/摘要不可信或数据版本高于代码的已有库；不自动降级。低层执行器由独立 Cordis 插件提供，生产 profile 不加载，升级验证使用隔离样本，未操作用户真实资料库。B002-T02 已让普通后端先取得规范 filename 对应的独占再打开数据库；异步使用经 `use()` 注册，关闭失败保留独占，不允许第二宿主趁旧连接仍可写时进入。可校验恢复点由独立插件提供，普通业务不装配。T03 已提供独立维护 CLI、确认与中断协调，并在普通启动阻止未完成维护或隔离恢复库，不代表完整恢复系统已完成，见 [实施契约](../storage/migration-recovery-contract.md)。
+**生产清单为 identity revision 1、records revision 2（回收站）、tags revision 1、categories revision 1、attachments revision 1（后三者依赖 records revision 2）。** B004 库需显式升级安装 attachments，命令见后端 README；B005-T01 已验证旧资料及版本保留。 已有 B003 库须按 [分类升级说明](../../../backend/README.md#分层分类与记录归属b004-t01) 显式确认安装 categories。已有 T01 库还需按 [标签升级说明](../../../backend/README.md#标签与筛选b003-t02) 显式升级；普通启动不自动安装新命名空间。已有 v1 库须按 [维护命令](../../../backend/README.md#记录回收站b003-t01) inspect、确认摘要并 upgrade；先创建恢复点，原数据保留。普通启动只自动初始化空库，拒绝需要升级、历史/摘要不可信或数据版本高于代码的已有库；不自动降级。低层执行器由独立 Cordis 插件提供，生产 profile 不加载，升级验证使用隔离样本，未操作用户真实资料库。B002-T02 已让普通后端先取得规范 filename 对应的独占再打开数据库；异步使用经 `use()` 注册，关闭失败保留独占，不允许第二宿主趁旧连接仍可写时进入。可校验恢复点由独立插件提供，普通业务不装配。T03 已提供独立维护 CLI、确认与中断协调，并在普通启动阻止未完成维护或隔离恢复库，不代表完整恢复系统已完成，见 [实施契约](../storage/migration-recovery-contract.md)。
 
 ## 标签操作与筛选
 

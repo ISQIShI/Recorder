@@ -1,6 +1,6 @@
 # backend：集中后端
 
-状态：本机账号认证及记录保存/查询/更新/回收站、标签与分层分类筛选、离线维护与隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 29 日。
+状态：本机账号认证、记录编辑/回收站、标签/分类、已有记录托管附件、离线维护与数据库/托管文件隔离恢复已实现；验证结果见任务卡，生产接入和正式恢复启用待实现。更新日期：2026 年 10 月 29 日。
 
 阅读时机：后端、业务插件、存储和服务部署工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，先读 [后端技术](../docs/current/architecture/backend-stack.md) 与 [架构概览](../docs/current/architecture/overview.md)。
 
@@ -16,7 +16,7 @@
 
 设计公共接口或登录前读 [API 与认证主线](../docs/current/architecture/api-auth-baseline.md)，细化时再读 [统一 API](../docs/design/interfaces/unified-api.md) 或 [身份与多设备](../docs/design/security/identity-device-access.md)。设计服务监听和发布时读 [部署接入](../docs/design/operations/deployment-access.md)，具体实现方案尚未冻结。
 
-数据工作先读 [已确认模型主线](../docs/current/storage/data-model-baseline.md) 与 [数据访问主线](../docs/current/storage/data-access-baseline.md)。细化实体和查询时读 [模型设计](../docs/design/storage/data-model.md)，升级、版本账本和失败恢复先读 [B002 实施契约](../docs/current/storage/migration-recovery-contract.md)，更广范围参考 [迁移机制提案](../docs/design/storage/plugin-migrations.md)，落盘与删除恢复读 [存储生命周期](../docs/design/storage/storage-lifecycle.md)，插件新增字段读 [插件数据契约](../docs/design/plugins/data-extension.md)。[B002-T01](../docs/work/b002-migration-recovery/t01-versioned-migrations.md) 已实现下述多版本计划、底层逐步执行和启动门禁；[B002-T02](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md) 接入普通后端独占并提供独立恢复点服务；[B002-T03](../docs/work/b002-migration-recovery/t03-maintenance-recovery-drill.md) 增加离线维护、中断协调与隔离恢复，正式恢复启用和桌面确认仍未实现。当前生产清单为 identity revision 1、records revision 1/2、tags revision 1、categories revision 1；`validation/migrations` 是 Kit 生成的隔离探针，不参与生产升级。
+数据工作先读 [已确认模型主线](../docs/current/storage/data-model-baseline.md) 与 [数据访问主线](../docs/current/storage/data-access-baseline.md)。细化实体和查询时读 [模型设计](../docs/design/storage/data-model.md)，升级、版本账本和失败恢复先读 [B002 实施契约](../docs/current/storage/migration-recovery-contract.md)，更广范围参考 [迁移机制提案](../docs/design/storage/plugin-migrations.md)，落盘与删除恢复读 [存储生命周期](../docs/design/storage/storage-lifecycle.md)，插件新增字段读 [插件数据契约](../docs/design/plugins/data-extension.md)。[B002-T01](../docs/work/b002-migration-recovery/t01-versioned-migrations.md) 已实现下述多版本计划、底层逐步执行和启动门禁；[B002-T02](../docs/work/b002-migration-recovery/t02-upgrade-recovery-points.md) 接入普通后端独占并提供独立恢复点服务；[B002-T03](../docs/work/b002-migration-recovery/t03-maintenance-recovery-drill.md) 增加离线维护、中断协调与隔离恢复，正式恢复启用和桌面确认仍未实现。当前生产清单为 identity revision 1、records revision 1/2、tags revision 1、categories revision 1、attachments revision 1；`validation/migrations` 是 Kit 生成的隔离探针，不参与生产升级。
 
 ## 记录回收站（B003-T01）
 
@@ -110,6 +110,33 @@ pnpm --filter @recorder/backend maintenance points --database C:/RecorderSamples
 
 普通启动拒绝待升级旧库，CLI 先建并验证恢复点，再执行迁移。`test/record-categories.test.ts` 验证真实 B003 SQL/账本升级、原账号/会话/正常与回收站正文/标签/revision 保持、owner/CSRF/严格输入、树约束、删除回滚、去重分页与插件撤回恢复；旧 v1/T01 升级 fixture 只适配待执行命名空间。实际检查与平台范围见 [B004 交付区](../docs/work/b004-record-categories/README.md#交付与整合记录)。
 
+## 已有记录托管附件（B005-T01）
+
+`attachments` revision 1 依赖 `records` revision 2，新增 `attachments_objects`，先前五份生产 SQL 保持 B004 原字节。Kit 生成命令：`pnpm --filter @recorder/backend exec drizzle-kit generate --dialect sqlite --schema ./src/data/attachments-schema.ts --out ./migrations/attachments --name initial`。当前生产清单另含 attachments revision 1；B004 旧库普通启动返回 UPGRADE_REQUIRED，仍须停止业务宿主，使用上文 inspect → 明确 plan.digest → upgrade → points，不自动升级或删库。`test/managed-attachments.test.ts` 使用真实 B004 SQL/账本核对账号、正文/revision、标签、分类及回收站保留。
+
+生产清单保留旧排列并追加附件项；实际执行顺序仍由显式依赖和规划器决定。普通 profile 通过 Loader 的入口 inject 声明迁移启动门禁依赖 `recorderMaintenanceRuns`，确保维护日志先可用，门禁失败会传播并关闭数据库，不能返回仅有 planner、缺失业务服务的半启动宿主。既有真实安全启动测试原断言保持不变。
+
+服务契约在 `attachments-contract.ts`。`managed-files` 提供可替换存储和恢复集合参与能力，仅依赖数据库与独占；`attachments` 负责记录归属/正常状态，`attachments-api` 注册元数据操作，`attachments-http` 注册二进制处理器。统一 HTTP 插件消费操作注册表，文件与 JSON 路由共用 `http-auth` 的认证/Origin/CSRF 规则。基础记录、标签、分类不注入附件业务；业务撤回取消在途文件传输及清理轮询，不删除已保存资料。
+
+| 操作 | 固定 HTTP 路径 | 输入与结果 |
+| --- | --- | --- |
+| `listAttachments` | GET `/api/v1/records/{id}/attachments` | `{ items: AttachmentData[] }`，包括自己的回收站记录 |
+| `uploadAttachment` | PUT `/api/v1/records/{id}/attachments/{uploadId}/content` | octet-stream；`x-recorder-filename` 为 encodeURIComponent 文件名，媒体类型头可选；返回已提交 AttachmentData |
+| `downloadAttachment` | GET `/api/v1/attachments/{id}/content` | 认证二进制流，Content-Length、附件下载名、`x-recorder-digest` SHA-256 |
+| `deleteAttachment` | POST `/api/v1/attachments/{id}/delete` | JSON `{ confirm: true }`；`{ deleted, pending }` 如实区分已清理/待重试 |
+
+AttachmentData 为 id/name/mediaType/bytes/digest/createdAt/state/error，不暴露 owner、对象 ID 或服务端路径。未认证 401，其他账号/不存在 404，回收站上传或单独删除 409，实际超限 413。仅文件路由允许 **1 GiB（1,073,741,824 字节）**，JSON 仍为 1 MiB；实际流计数执行上限，不信任 Content-Length。上传前及最终 IMMEDIATE 短事务内重新认证、检查记录；事务不等待网络。相同 uploadId/元数据/字节重放只返回同一附件，冲突内容拒绝；已删除的成功请求不重新上传。附件增删不改变正文 revision。
+
+托管根为 `<实际数据库 filename>.files/`，沿用私有目录校验（Windows SID ACL/Linux 0700）；`pending/<不透明对象UUID>` 流式写入、计数/摘要、fsync 后发布到 `objects/<UUID>`，再提交 ready。文件名只展示，不参与落盘路径。pending/ready/deleting/deleted 为持久状态；失败上传和删除先保留对象身份再清理，异常留 FILE_CLEANUP_FAILED。业务启用时启动及每秒重试已知清理工作，排除在途上传/读取；不扫描删除未知文件。deleted 收据保留用于上传幂等，不代表字节仍存在。
+
+回收/恢复不改变附件关联；清空记录时 `record_id ON DELETE SET NULL` 保留对象 ID 与清理意图，即使附件业务停用也不丢。重新启用业务后清理失去记录的对象；业务停用期间可保留待清理字节。读回收站允许列表/另存，禁止上传/单独删除。清理失败可通过列表状态和再次删除重试，源文件、记录及独立恢复点不受单独删除影响。
+
+B005 将新恢复清单升级为 **manifest v2**（seal 信封仍为 v1）：从已验证数据库快照列出所有仍关联的 ready 对象，包括回收站、停用业务插件保留数据；复制到点内 `objects/` 的独立文件，登记大小/摘要并逐个流式核对后才封存。维护 profile 始终加载存储参与服务；存在已提交文件而服务缺失时 MATERIALS_UNAVAILABLE，不能跳过。缺失/损坏文件、空间不足、超时/撤回均失败并保留 pending 与源数据；未提交临时上传不作为用户资料恢复。历史 v1 仅接受无 attachments 账本/对象的数据库，仍可校验和隔离恢复，不能用 v1 冒充完整附件集合。
+
+数据库 backup 仍默认 60 秒，文件复制/验证独立 `fileTimeoutMs` 默认 1 小时、范围 1–86,400,000 毫秒；CLI 所有命令可选 `--file-timeout-ms`。`recorderRecoveryPoints.status` 提供 database/files/verifying 阶段及复制字节，CLI 非 idle 时每秒写 stderr，不改变 stdout JSON。隔离恢复在新空目标创建 `database.sqlite` 与 `database.sqlite.files/objects/`，校验数据库和对象，再核验原恢复点；空间预检包含对象与额外数据库校验副本。仍保留 incomplete 标记、禁止自动启动和覆盖；不扩展 restic、日常备份或正式启用。
+
+定向验证覆盖认证/owner/CSRF、实际超限、真实断流、重复上传、会话撤销与回收竞争、业务撤回、删除错误/重启重试、停用清空、B004 确认升级、v1/v2 恢复及文件损坏/参与服务缺失。实际 Windows Electron 和 1 GiB 证据见 [T01 交付区](../docs/work/b005-managed-attachments/README.md#交付与整合记录)，完整 Windows/Linux 回归交既有 CI。
+
 ## 多版本迁移服务（B002-T01）
 
 后端契约由 `src/domain.ts` 重导出 `src/migration-contract.ts` 的类型和 `MigrationError`，消费者依赖注入服务。实现分为 `plugins/migrations.ts`、其 `migrations/` 辅助模块与独立的 `migration-executor.ts` 插件；后者不在普通业务 profile 中装配。
@@ -172,7 +199,7 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 
 恢复点默认位于 `<实际 filename>.recovery-points/`，也可用插件配置 `directory` 指向父目录已存在的独立本地目录；不能让恢复目录包含源数据库。Linux 新根目录 0700、文件 0600，检查当前 uid 与非组/其他访问；Windows 通过 .NET DirectorySecurity 在创建时设置当前用户 SID 独占 FullControl 与子项继承、禁用继承，再校验 owner/DACL。既有目录不自动改权限；过宽、链接或无法核验时拒绝。Windows `chmod(0700)` 不能代替 ACL。管理员/root、备份权限、同一 OS 用户及存储设备访问不被此机制隔离；当前不加密或上传。[Windows 安全目录创建](https://learn.microsoft.com/en-us/dotnet/api/system.io.directory.createdirectory?view=netframework-4.8.1) · [Node 文件权限](https://nodejs.org/docs/latest-v24.x/api/fs.html#fschmodpath-mode-callback)
 
-封存格式 v1：内部随机 UUID；先创建 `.pending-<id>/` 与 incomplete 标识，写入 `materials/000000.sql` 等原 UTF-8 SQL，再由 `raw.backup()` 生成 `database.sqlite`（包含源 WAL 的已提交内容，不直接复制 WAL/SHM）。同时检查 integrity、FK、完整成功账本和每条已应用 SQL 的摘要；任何历史命名空间缺可信 SQL 时返回 MATERIALS_UNAVAILABLE，不能生成材料不全的恢复点。原计划前后不符、SQL 归档受损、空间不足、写入/封存失败均拒绝返回可用结果，保留 pending 供人工检查，不自动清理。
+B002 原封存格式 v1（B005 新点使用 v2，见附件一节）：内部随机 UUID；先创建 `.pending-<id>/` 与 incomplete 标识，写入 `materials/000000.sql` 等原 UTF-8 SQL，再由 `raw.backup()` 生成 `database.sqlite`（包含源 WAL 的已提交内容，不直接复制 WAL/SHM）。同时检查 integrity、FK、完整成功账本和每条已应用 SQL 的摘要；任何历史命名空间缺可信 SQL 时返回 MATERIALS_UNAVAILABLE，不能生成材料不全的恢复点。原计划前后不符、SQL 归档受损、空间不足、写入/封存失败均拒绝返回可用结果，保留 pending 供人工检查，不自动清理。
 
 `manifest.json` 保存格式/封存状态、ID/时间、实际源路径与计划/materials 摘要、完整计划与账本、Recorder/Node/SQLite/驱动版本、安装/保留 SQL 元数据及文件摘要、数据库摘要/大小、校验结果；`seal.json` 绑定完整 manifest 的 SHA-256。README.txt 明示没有归档旧版可执行程序，不能仅凭版本号承诺恢复后可启动。文件先 fsync，Linux 再 fsync 子目录；在同一父目录将 pending 原子 rename 为 UUID 是可用性边界，list 从不把 pending 当有效。Windows Node 不提供这里需要的目录 fsync，未验证真实断电持久性；即使有完整封存目录，读取时也必须再次 verify。[better-sqlite3 backup](https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md#backupdestination-options---promise) 使用及故障行为按锁定 13.0.3 实测，官方资料核对日期 2026-10-26。
 
@@ -180,7 +207,7 @@ const result = ctx.recorderMigrationExecutor.execute(plan.digest);
 
 恢复插件撤回时停止接收新调用，让在途 backup 取消/结束并等待清理；数据库 use 和所有权 retain 确保快照完成前 raw/控制库不关闭。默认快照传输超时 60 秒，可配置正整数 `timeoutMs`，最高 300 秒；不是性能承诺。StorageError 的 code 包含 DATABASE_BUSY、DATABASE_CLOSE_FAILED、PATH_UNSUPPORTED、OWNERSHIP_LOST、SERVICE_WITHDRAWN、RECOVERY_FAILED、RECOVERY_INVALID、RECOVERY_CANCELLED、STALE_PLAN、MATERIALS_UNAVAILABLE、PERMISSION_DENIED；日志仅输出原因，不输出数据库正文、密码摘要或会话秘密。
 
-T03 最小装配顺序为 ownership（filename）→ database（相同 filename）→ maintenance-runs / migrations（完整 sources/retainedSources，mode inspect）→ recovery-points / migration-executor → maintenance / isolated-recovery。协调服务在独占下确认计划、记录意图、创建并验证恢复点、核对源库与计划后调用单步执行器；整体校验通过且完成记录发布后才提示可以另行启动业务。普通 createApplication 不装配 recovery/executor，不自动创建恢复点或升级旧库。多客户端仍可访问同一业务后端。
+T03 最小装配顺序为 ownership（filename）→ database（相同 filename）→ maintenance-runs / migrations（完整 sources/retainedSources，mode inspect）→ managed-files / recovery-points / migration-executor → maintenance / isolated-recovery。协调服务在独占下确认计划、记录意图、创建并验证恢复点、核对源库与计划后调用单步执行器；整体校验通过且完成记录发布后才提示可以另行启动业务。普通 createApplication 不装配 recovery/executor，不自动创建恢复点或升级旧库。多客户端仍可访问同一业务后端。
 
 ## 离线维护与隔离恢复（B002-T03）
 

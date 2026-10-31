@@ -51,10 +51,10 @@ export function syncDirectory(path: string) {
   const fd = openSync(path, 'r'); try { fsyncSync(fd); } finally { closeSync(fd); }
 }
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-export async function fileDigest(path: string) {
+export async function fileDigest(path: string, signal?: AbortSignal) {
   regularFile(path);
   const hash = createHash('sha256');
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  for await (const chunk of createReadStream(path, { signal })) hash.update(chunk);
   return hash.digest('hex');
 }
 export function readPrivate(path: string) { regularFile(path); return readFileSync(path, 'utf8'); }

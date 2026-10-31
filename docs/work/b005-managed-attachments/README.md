@@ -1,6 +1,6 @@
 # B005：桌面基础附件
 
-状态：计划已定稿，尚未实现；T01 先行，T02 等 T01 合入 main 后开始。更新日期：2026 年 10 月 29 日。
+状态：T01 已通过 PR #20 整合验收；T02 待启动，从包含该 PR 的最新 main 开始。更新日期：2026 年 10 月 31 日。
 
 阅读时机：实现或审查附件收存、取回、删除及文件建记录时。本页包含两张顺序任务卡；[提示词](prompts.md) 供用户启动实现会话，[工作台账](../README.md) 登记状态。
 
@@ -75,6 +75,24 @@ Conventional Commits 提交，推自己的分支并创建 main 目标 PR，不�
 
 ## 交付与整合记录
 
-- T01：未开始；待实现者记录实际基线、交付与验证。
+- T01：**已通过整合验收**（2026-10-31，PR #20）。以下保留实现者交付及验证范围。
+  - 分支 `feat/b005-t01-managed-attachments`；工作树 `C:\Users\30828\.codex\worktrees\b74a\Recorder`；实际基线 `ba642d989546db85b728507c7e4b60f416ebaea3`，包含 B004 PR #18 合并 `e507231f99551224082ce5ea07a9cfc92e7aaac3` 与 B005 定稿 PR #19。仅原有 `.codex/` 未跟踪内容保留，不提交；未操作真实资料库、其他工作树或 main。
+  - 完整交付：attachments revision 1（依赖 records 2，旧五份 SQL 摘要不变）、独立 Cordis 存储/业务/HTTP/元数据/UI/设备服务；已有正常记录单文件上传/取消/同请求重试、列表、校验另存、明确确认永久删除。回收/恢复保留，回收站只读另存；清空借助 SET NULL 留对象身份，业务停用后重新启用仍能清理。持久 pending/ready/deleting/deleted、清理错误及重试，不删除未知文件、不改正文 revision。
+  - 文件走固定认证 octet-stream 路由；实际计数上限 1 GiB，JSON 限额不变。Electron 仅接受选择器句柄及固定操作，字节不走 IPC/JSON/base64，路径/token 不进 renderer。120 秒无进度超时；安全临时文件、摘要/大小通过才替换另存目标；会话变化/插件撤回取消所属工作。
+  - 恢复兼容：最小维护 profile 加载独立存储参与者；manifest v2 从数据库快照列出正常/回收站/停用业务保留的 ready 对象，复制独立文件再核验封存；缺失/损坏/参与者缺失不假成功。旧 v1 无附件点继续校验/恢复。新空目标恢复数据库与文件、预留校验数据库副本空间、不自动启用；文件独立 1 小时时限（CLI `--file-timeout-ms` 可配）及恢复点状态，不自动清理 pending。
+  - 本地构建、全工程类型检查通过；新增后端 4 项、客户端 3 项定向测试通过，受清单影响的既有分类/标签/回收站 9 项通过。后端涵盖真实 HTTP 断流、实际超限、鉴权/owner/CSRF、重复请求、最终回收/撤销会话竞争、业务撤回取消、真实文件清理失败/重试、停用后清空、B004 显式 CLI 升级与数据保持、v1/v2 恢复/损坏文件。首轮组合测试出现等待文件消失早于持久清理完成的测试竞态，已改为等待 deleted 后核对文件确实不存在；未删除断言。
+  - Windows（本机报告 10.0.26300）/ Node 24.14.1 / Electron 45.0.0 实际十二阶段主流程通过：旧编辑/正常退出/回收站/标签/分类十阶段，以及附件上传取消/重试、重启读回、失败另存保留原目标、成功摘要、删除取消零请求/确认一次、回收只读另存/恢复/清空。仅原生对话框返回选择及故障响应使用替身；成功文件传输、UI/IPC/HTTP/SQLite 均真实运行。日志 `artifacts/b005-electron-full.log`，样本 `artifacts/records-smoke-a2XUr1/`；最终启动/撤回修正后的两个附件阶段也通过，日志 `artifacts/b005-electron-final.log`。
+  - **1 GiB 实际验收通过**：`RECORDER_SMOKE_ATTACHMENT_ONLY=1 RECORDER_SMOKE_LARGE_FILE=1` 的两个真实 Electron 阶段；源/上传/另存均为 1,073,741,824 字节，SHA-256 同为 `3a33d58aa8ee1e9d21fd4f510cc5d1ce8d25ba5e24363d19c28e2bf866f4185c`。日志 `artifacts/b005-large-electron.log`，样本/两阶段 JSON `artifacts/records-smoke-ijQiWn/`，截图 `artifacts/records-desktop-attachments.png`（后续普通 smoke 可覆盖截图）。大文件/本机数据均忽略，不提交；未测峰值内存或性能，不作此承诺。
+  - PR [#20](https://github.com/ISQIShI/Recorder/pull/20) 指向 main，等待整合者审查，不自行合并。实现 `7f8a8b4872c606df25b30ba24ddfe49a131695be`、修复 `39fb13a845beed80111fbcc535622cb74296e9bc` 正常追加，无强推。修复提交的 [完整 CI](https://github.com/ISQIShI/Recorder/actions/runs/40906115475) **Windows 与 Linux 均通过 pnpm check，各 100/100 项、零失败/跳过**；构建、全工程类型、相关文档与 PR title 同样通过，日志 `artifacts/b005-ci-windows.log`、`artifacts/b005-ci-linux.log`。后续提交仅补交付证据。
+  - 初轮 Windows/Linux CI 各 99/100 通过，旧安全启动样本暴露清单首项变化；改为追加附件项，并由本地单项复测发现维护日志未就绪时的启动失败传播问题，用 Loader 显式依赖修正，旧断言保持且完整 CI 已通过。另补独立 HTTP 提供者撤回取消真实上传、并发失败请求重试不遗留无追踪对象、上传未完成拒绝作为已存附件删除的回归。相关文档检查按基线差异执行，git diff --check 通过；未改全局技术状态/批次索引/根依赖/锁文件/CI。
+  - 支持限制/未执行：未人工点击系统文件/覆盖对话框，未独立验收 Linux 图形 Electron、Web/Android 文件设备、远程接入、断电或真实介质丢失恢复。正式恢复启用/restic/日常备份、文件直接建记录均未实现。仅测隔离样本；清空后物理清理允许持久待重试，插件停用期间保留字节，不声称立即擦除介质/恢复点。
+  - 请整合者更新的事实：attachments revision 1；桌面已有记录附件及 1 GiB 流程；manifest v2 的数据库+托管文件恢复集合/隔离恢复与 v1 兼容；Web/Android 设备待补。T02 必须在本 PR 合入最新 main 后再派发。
 - T02：未开始；依赖 T01 合入 main。
-- 本轮仅规划，未运行附件、大文件或恢复功能测试，不代表功能已经实现。
+
+### PR #20 整合验收（2026 年 10 月 31 日）
+
+审查实现 HEAD `e138a414f2943124d4a5232ddb3062e69a5c38ab`，目标基线 `ba642d989546db85b728507c7e4b60f416ebaea3`。未发现阻塞问题，未修改应用代码、旧迁移、根依赖/锁文件或 CI。复用 [该提交 Windows/Linux CI](https://github.com/ISQIShI/Recorder/actions/runs/40909749998)（各 100 项通过）及已有 1 GiB 实测证据；本地 `pnpm build` 通过，日志 `.tmp/pr20-build.log`。
+
+通过 computer-use 在真实 Windows Electron 与原生系统对话框补验：选中生成的中文名文件 → 上传到隔离后端 → 原生另存 → 拒绝覆盖时旧目标内容保持 → 再次确认覆盖后导出成功。源/目标各 41 字节，SHA-256 均为 `f151889ff9199e0099414ea98e12ad730336799ef6767a3863dddd193449bdbb`。样本 `artifacts/pr20-native-1Ay8qc/`，启动日志 `.tmp/pr20-native.log`；无对话框返回值替身。测试账号/记录由隔离夹具预置，未使用真实用户资料；测试窗口正常关闭，后端退出。此前 10 月 30 日未完成的原生验收由此次补齐，不改写其历史结果。工具的模态元素索引定位失败后，使用截图坐标与键盘完成，无需修改产品。
+
+相关状态与验收随本 PR 更新；`pnpm check:docs --base origin/main` 通过（17 个相关文件、396 个内部链接、0 错误），`git diff --check` 通过，最终 HEAD CI 以 PR checks 为准。没有重复全套本机回归或大文件测试；Linux 图形界面、Web/Android 文件设备、真实断电与完整灾难恢复仍未验收。T02 未开始，T01 提示词转为追溯；用户可基于本 PR 合并后的 main 派发 T02。最终提交与 squash SHA 以 PR #20 为准。

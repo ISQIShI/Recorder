@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import Database from 'better-sqlite3';
-import { constants, copyFileSync, lstatSync, readdirSync, realpathSync, statfsSync, unlinkSync } from 'node:fs';
+import { constants, copyFileSync, lstatSync, mkdirSync, readdirSync, realpathSync, statfsSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { MaintenanceError, type IsolatedRecovery, type RestoredDatabase } from '../maintenance-contract.js';
 import type { RecoveryPoint } from '../storage-contract.js';
@@ -13,9 +13,11 @@ export const inject = ['recorderDatabaseOwnership', 'recorderDatabase', 'recorde
 const marker = 'database.sqlite.restore.json';
 const normalize = (path: string) => process.platform === 'win32' ? path.toLowerCase() : path;
 const overlaps = (a: string, b: string) => normalize(a) === normalize(b) || normalize(a).startsWith(normalize(b) + sep) || normalize(b).startsWith(normalize(a) + sep);
-export function apply(ctx: Context) {
+export function apply(ctx: Context, config: { fileTimeoutMs?: number } = {}) {
   const owner = ctx.recorderDatabaseOwnership, database = ctx.recorderDatabase, points = ctx.recorderRecoveryPoints;
   let active = true, busy = false;
+  const controller = new AbortController(), fileTimeout = config.fileTimeoutMs ?? 3600000;
+  if (!Number.isSafeInteger(fileTimeout) || fileTimeout <= 0 || fileTimeout > 86400000) throw new MaintenanceError('RESTORE_INVALID', 'Invalid managed-file timeout');
   const pending = new Set<Promise<unknown>>();
   const assertActive = () => { if (!active) throw new MaintenanceError('SERVICE_WITHDRAWN', 'Isolated recovery provider was withdrawn'); owner.assertHeld(); };
   function start<T>(action: () => Promise<T>) {
@@ -44,8 +46,8 @@ export function apply(ctx: Context) {
     // The restored database and T02's validation copy may coexist. This is a preflight, not a reservation.
     const roots = [dirname(target), dirname(point.directory)], infos = roots.map(path => statfsSync(path, { bigint: true }));
     const sameVolume = lstatSync(roots[0]!).dev === lstatSync(roots[1]!).dev;
-    const needed = BigInt(point.manifest.snapshot.bytes);
-    for (const info of infos) if (info.bavail * info.bsize < needed * (sameVolume ? 2n : 1n)) throw new MaintenanceError('SPACE_REQUIRED', 'Leave space for both the restored database and a separate validation copy');
+    const needed = BigInt(point.manifest.snapshot.bytes), objects = (point.manifest.objects ?? []).reduce((n, o) => n + BigInt(o.bytes), 0n);
+    if (infos[0]!.bavail * infos[0]!.bsize < needed * (sameVolume ? 2n : 1n) + objects || (!sameVolume && infos[1]!.bavail * infos[1]!.bsize < needed)) throw new MaintenanceError('SPACE_REQUIRED', 'Leave space for restored database, managed files and a separate validation copy');
   }
   async function validateTarget(target: string, point: RecoveryPoint) {
     assertActive();
@@ -65,6 +67,12 @@ export function apply(ctx: Context) {
       for (const suffix of ['-wal', '-shm']) if (exists(filename + suffix)) unlinkSync(filename + suffix);
     }
     if (await fileDigest(filename) !== point.manifest.snapshot.digest) throw new MaintenanceError('RESTORE_INVALID', 'Isolated main file changed during validation');
+    if (point.manifest.objects?.length) {
+      const files = ctx.get('recorderManagedFiles'); if (!files) throw new MaintenanceError('RESTORE_INVALID', 'Managed-file storage participant is required');
+      const managed = join(target, 'database.sqlite.files'), objects = join(managed, 'objects');
+      for (const path of [managed, objects]) if (!lstatSync(path).isDirectory() || lstatSync(path).isSymbolicLink()) throw new MaintenanceError('RESTORE_INVALID', 'Invalid isolated managed-file directory');
+      await files.verify(point.manifest.objects, objects, AbortSignal.any([controller.signal, AbortSignal.timeout(fileTimeout)]));
+    }
     assertActive();
   }
   const service: IsolatedRecovery = {
@@ -76,6 +84,14 @@ export function apply(ctx: Context) {
         pointId: point.id, manifestDigest: point.manifestDigest, snapshotDigest: point.manifest.snapshot.digest, versions: point.manifest.versions };
       writePrivate(join(target, marker), JSON.stringify(result));
       assertActive(); copyFileSync(join(point.directory, point.manifest.snapshot.file), join(target, result.filename), constants.COPYFILE_EXCL);
+      if (point.manifest.formatVersion === 2) {
+        const managed = join(target, 'database.sqlite.files'); privateDirectory(managed); mkdirSync(join(managed, 'objects'), { mode: 0o700 }); mkdirSync(join(managed, 'pending'), { mode: 0o700 });
+        if (point.manifest.objects!.length) {
+          const files = ctx.get('recorderManagedFiles'); if (!files) throw new MaintenanceError('RESTORE_INVALID', 'Managed-file storage participant is required');
+          await files.copy(point.manifest.objects!, join(point.directory, 'objects'), join(managed, 'objects'), AbortSignal.any([controller.signal, AbortSignal.timeout(fileTimeout)]));
+        }
+        syncDirectory(managed);
+      }
       await validateTarget(target, point);
       const verified = await checkedPoint(id);
       if (verified.manifestDigest !== point.manifestDigest) throw new MaintenanceError('RESTORE_INVALID', 'Recovery point changed during isolated restoration');
@@ -90,6 +106,6 @@ export function apply(ctx: Context) {
       await validateTarget(target, point); return result;
     }); },
   };
-  ctx.effect(() => async () => { active = false; await Promise.allSettled([...pending]); });
+  ctx.effect(() => async () => { active = false; controller.abort(); await Promise.allSettled([...pending]); });
   ctx.provide('recorderIsolatedRecovery', service);
 }

@@ -162,7 +162,7 @@ test('a real production v1 sample requires CLI confirmation and a recovery point
   try {
     await assert.rejects(createApplication({ filename: f.filename, http: { listen: false } }), { code: 'UPGRADE_REQUIRED' });
     const inspect = await cli(f.filename, 'inspect'); assert.equal(inspect.code, 0, inspect.error);
-    const plan = JSON.parse(inspect.output.trim()).plan; assert.equal(plan.status, 'upgrade-required'); assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['records', 2], ['categories', 1], ['tags', 1]]);
+    const plan = JSON.parse(inspect.output.trim()).plan; assert.equal(plan.status, 'upgrade-required'); assert.deepEqual(plan.steps.map((s: any) => [s.namespace, s.revision]), [['records', 2], ['attachments', 1], ['categories', 1], ['tags', 1]]);
     assert.equal((await cli(f.filename, 'upgrade')).code, 2);
     assert.equal((await cli(f.filename, 'upgrade', ['--confirm', '0'.repeat(64)])).code, 2);
     const upgrade = await cli(f.filename, 'upgrade', ['--confirm', plan.digest]); assert.equal(upgrade.code, 0, upgrade.error);

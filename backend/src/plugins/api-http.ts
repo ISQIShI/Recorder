@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import Fastify, { type FastifyError } from 'fastify';
-import { apiRoutes, apiResponses, attachmentSchema, MAX_ATTACHMENT_BYTES, type ApiMethod } from '@recorder/contracts';
+import { apiRoutes, apiResponses, attachmentSchema, fileRecordSchema, MAX_ATTACHMENT_BYTES, type ApiMethod } from '@recorder/contracts';
 import { failure } from '../domain.js';
 import '../contracts.js';
 import { authenticateHttp } from './http-auth.js';
@@ -37,14 +37,16 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
       const transfers = new Set<AbortController>();
       server.addContentTypeParser('application/octet-stream', (_request, payload, done) => { done(null, payload); });
       const uuid = { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' };
-      for (const upload of [true, false]) {
-        const path = upload ? '/api/v1/records/:id/attachments/:uploadId/content' : '/api/v1/attachments/:id/content';
-        const params = { type: 'object', additionalProperties: false, required: upload ? ['id', 'uploadId'] : ['id'], properties: { id: uuid, ...(upload ? { uploadId: uuid } : {}) } };
+      for (const operation of ['uploadAttachment', 'downloadAttachment', 'createFileRecord'] as const) {
+        const upload = operation !== 'downloadAttachment', create = operation === 'createFileRecord';
+        const path = create ? '/api/v1/file-records/:uploadId/content' : upload ? '/api/v1/records/:id/attachments/:uploadId/content' : '/api/v1/attachments/:id/content';
+        const names = create ? ['uploadId'] : upload ? ['id', 'uploadId'] : ['id'];
+        const params = { type: 'object', additionalProperties: false, required: names, properties: Object.fromEntries(names.map(name => [name, uuid])) };
         paths[path.replace(':id', '{id}').replace(':uploadId', '{uploadId}')] = { [upload ? 'put' : 'get']: {
-          operationId: upload ? 'uploadAttachment' : 'downloadAttachment', security: [{ cookieSession: [] }, { bearerSession: [] }],
-          parameters: [...(upload ? ['id', 'uploadId'] : ['id']).map(name => ({ name, in: 'path', required: true, schema: uuid })), ...(upload ? [{ name: 'x-recorder-filename', in: 'header', required: true, description: 'encodeURIComponent(original filename), no client path', schema: { type: 'string' } }, { name: 'x-recorder-media-type', in: 'header', schema: { type: 'string' } }] : [])],
+          operationId: operation, security: [{ cookieSession: [] }, { bearerSession: [] }],
+          parameters: [...names.map(name => ({ name, in: 'path', required: true, schema: uuid })), ...(upload ? [{ name: 'x-recorder-filename', in: 'header', required: true, description: 'encodeURIComponent(original filename), no client path', schema: { type: 'string' } }, { name: 'x-recorder-media-type', in: 'header', schema: { type: 'string' } }] : [])],
           ...(upload ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary', description: 'Streaming; actual bytes limited to 1 GiB' } } } } } : {}),
-          responses: { '200': { description: upload ? 'Committed attachment, or same upload replay' : 'Authenticated download; Content-Disposition attachment and x-recorder-digest SHA-256', content: upload ? { 'application/json': { schema: attachmentSchema } } : { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } }, '400': { description: 'Invalid input/credential mode' }, '401': { description: 'Session invalid' }, '403': { description: 'Host/Origin/CSRF rejected' }, '404': { description: 'Record/attachment missing or another owner' }, '409': { description: 'Trashed record, upload conflict or already in progress' }, '413': { description: 'Actual file exceeds limit' }, '503': { description: 'Attachment provider unavailable' } },
+          responses: { '200': { description: create ? 'Atomically committed empty-body plain record and first attachment, or same request replay' : upload ? 'Committed attachment, or same upload replay' : 'Authenticated download; Content-Disposition attachment and x-recorder-digest SHA-256', content: upload ? { 'application/json': { schema: create ? fileRecordSchema : attachmentSchema } } : { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } }, '400': { description: 'Invalid input/credential mode' }, '401': { description: 'Session invalid' }, '403': { description: 'Host/Origin/CSRF rejected' }, '404': { description: 'Record/attachment missing or another owner' }, '409': { description: 'Trashed record, upload conflict or already in progress' }, '413': { description: 'Actual file exceeds limit' }, '503': { description: 'Attachment provider unavailable' } },
         } };
         server.route({ method: upload ? 'PUT' : 'GET', url: path, bodyLimit: MAX_ATTACHMENT_BYTES, schema: { params },
           onRequest: async request => { authenticateHttp(ctx.recorderAuth, request, upload); if (upload && request.headers['content-type'] !== 'application/octet-stream') throw failure(415, 'INVALID_FILE_TYPE', '文件传输须使用二进制通道'); if (upload && Number(request.headers['content-length']) > MAX_ATTACHMENT_BYTES) throw failure(413, 'FILE_TOO_LARGE', '附件超过单文件上限'); },
@@ -55,7 +57,7 @@ export async function apply(ctx: Context, config: ApiHttpConfig = {}) {
             try {
               const input = request.params as { id: string; uploadId?: string };
               let name: string | undefined; try { if (upload) name = decodeURIComponent(String(request.headers['x-recorder-filename'] ?? '')); } catch { throw failure(400, 'INVALID_FILE', '文件名称编码不正确'); }
-              const result = await ctx.recorderApiOperations.callFile(upload ? 'uploadAttachment' : 'downloadAttachment', { ...input, name, mediaType: request.headers['x-recorder-media-type'] as string | undefined, stream: upload ? request.body as import('node:stream').Readable : request.raw, signal: control.signal, authenticate: () => authenticateHttp(ctx.recorderAuth, request, upload).principal! });
+              const result = await ctx.recorderApiOperations.callFile(operation, { ...input, id: input.id ?? '', name, mediaType: request.headers['x-recorder-media-type'] as string | undefined, stream: upload ? request.body as import('node:stream').Readable : request.raw, signal: control.signal, authenticate: () => authenticateHttp(ctx.recorderAuth, request, upload).principal! });
               if (result.stream) {
                 const attachment = result.attachment!;
                 reply.type('application/octet-stream').header('content-length', attachment.bytes).header('x-recorder-digest', attachment.digest).header('content-disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(attachment.name));

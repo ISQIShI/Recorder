@@ -1,6 +1,6 @@
 # desktop：Electron 桌面客户端
 
-状态：Windows Electron 账号、记录编辑/回收站、标签/分类及已有记录托管附件流程已实现；实际运行证据见对应任务交付区，产品分发待实现。更新日期：2026 年 10 月 29 日。
+状态：Windows Electron 账号、记录编辑/回收站、标签/分类、托管附件及文件建记录流程已实现；实际运行证据见对应任务交付区，产品分发待实现。更新日期：2026 年 10 月 31 日。
 
 阅读时机：桌面界面、主进程、preload、设备能力和打包工作前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [Electron 协作提案](../docs/design/architecture/backend-electron-boundaries.md)。
 
@@ -30,11 +30,15 @@ T03 使用共享编辑 UI 和离开守卫；设备端 `exit` Cordis 插件将正
 
 单文件上限 1 GiB，显示字节进度并可取消；超时按无实际进度 120 秒处理，区别于 JSON 的 15 秒。另存为沿用系统覆盖确认，先写目标同目录独占 `.part`，流式计数/SHA-256、fsync 后替换；失败清理本次临时文件并保留原目标，不自动打开。会话替换/撤销、退出与插件撤回取消所属任务并清选择授权，已提交资料不主动删除；取消上传结果可未确认，UI 刷新后允许同一 uploadId 重试。仍限 loopback，未增加远程配置。
 
-`pnpm test:records:desktop` 现为十二阶段，新增 attachments/attachments-resume：真实 renderer/preload/主进程/HTTP/SQLite/文件流，检查选择取消/草稿守卫、上传取消与重试、进度/摘要、后端与 Electron 重启、另存失败保留旧目标、删除取消/确认且最后一个附件保留记录、回收只读另存/恢复/清空，以及源文件不变。仅原生对话框选择与可控故障响应使用替身；文件读写与成功传输不替换。Windows 手动点击原生选择/覆盖框尚未独立验收，Linux 图形 Electron、Web/Android 附件设备未验收。
+`pnpm test:records:desktop` 现为十二阶段，新增 attachments/attachments-resume：真实 renderer/preload/主进程/HTTP/SQLite/文件流，检查选择取消/草稿守卫、上传取消与重试、进度/摘要、后端与 Electron 重启、另存失败保留旧目标、删除取消/确认且最后一个附件保留记录、回收只读另存/恢复/清空，以及源文件不变。仅原生对话框选择与可控故障响应使用替身；文件读写与成功传输不替换。Windows 原生选择/覆盖框已由 PR #20 整合验收补齐，见 T01 整合记录；Linux 图形 Electron、Web/Android 附件设备未验收。
 
 根构建后，PowerShell 用 `$env:RECORDER_SMOKE_ATTACHMENT_ONLY='1'; $env:RECORDER_SMOKE_LARGE_FILE='1'; pnpm test:records:desktop` 可只运行两个附件阶段，实际生成、上传并另存 **1,073,741,824 字节**样本，验证 SHA-256；随后清除这两个环境变量，普通 CI 不运行大文件。样本库、userData、源文件/另存文件、结果及截图均在忽略的 artifacts；不提交大文件。2026-10-29 Windows 实测通过及摘要见 T01 交付区，不宣称未测内存峰值或传输性能。
 
 快捷键插件注册 `Ctrl+Shift+Space`，尚未实按验证；关闭最后窗口退出，无托盘常驻策略。剪贴板、拖拽、安装包和更新待实现；是否附带后端未定。目前连接限制 loopback，远程 HTTPS 未实现。所有新增能力遵守 [全面插件化](../docs/current/architecture/plugin-everything.md)。
+
+B005-T02 的“选择文件新建记录”复用同一设备插件，新增 `createRecord` 窄操作（仅 handle/uploadId/transferId），经连接服务访问固定文件建记录路由。字节读写、无进度超时、取消和会话规则沿用 T01；renderer 不得给路径或 URL。成功后进入普通无正文记录详情，可编辑、标签/分类、回收恢复；删除最后一个附件仍保留记录。
+
+`pnpm test:records:desktop` 增加 file-records/file-records-resume，现为十四阶段；PowerShell `$env:RECORDER_SMOKE_FILE_RECORD_ONLY='1'; pnpm test:records:desktop` 可仅验新增两阶段（运行后清除此变量）。覆盖选择/草稿取消、取消上传零空壳、真实提交后模拟回包丢失再同请求重试只建一次、自动选择与标题搜索、重启、另存摘要、空正文标题编辑/409/明确重整、添加再清空正文、空标题回退、标签/分类与回收恢复、最后附件删除保留空记录。仅选择框返回与故障注入使用替身，成功 UI/IPC/HTTP/SQLite/文件流真实运行。T01 的原生选择/另存/拒绝和确认覆盖已由 PR #20 整合验收补齐；T02 不重复原生框或 1 GiB 全量验收，传输字节管线未改。Linux 图形 Electron 与 Web/Android 文件设备未验收；本项结果见 [T02 交付区](../docs/work/b005-managed-attachments/README.md#交付与整合记录)。
 
 连接与传输工作按需读 [统一 API](../docs/design/interfaces/unified-api.md)；凭据、设备登记和退出工作读 [身份与多设备](../docs/design/security/identity-device-access.md)。本机后端启动或远程地址配置另参考 [部署接入](../docs/design/operations/deployment-access.md)。
 

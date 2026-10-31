@@ -10,6 +10,10 @@ export function apply(ctx: Context) {
   const instanceId = ctx.recorderIdentityStore.instanceId;
   ctx.provide('recorderRecordStore', {
     instanceId,
+    request(ownerId, requestId) {
+      const row = db.select().from(records).where(and(eq(records.ownerId, ownerId), eq(records.requestId, requestId))).get();
+      return row && { record: expose(row), hash: row.requestHash };
+    },
     setState(ownerId, input, state, now) {
       return db.transaction(tx => {
         const owned = and(eq(records.ownerId, ownerId), eq(records.id, input.id));

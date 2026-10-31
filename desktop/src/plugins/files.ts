@@ -6,7 +6,7 @@ import { dirname, basename, join } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { Transform, Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { ApiError, MAX_ATTACHMENT_BYTES, isAttachment, type FileProgress, type ChosenFile, type ApiWireResult } from '@recorder/contracts';
+import { ApiError, MAX_ATTACHMENT_BYTES, isAttachment, isFileRecord, type FileProgress, type ChosenFile, type ApiWireResult } from '@recorder/contracts';
 import '../contracts.js';
 export const inject = ['recorderWindow', 'recorderDesktopConnection'];
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -20,8 +20,8 @@ export function apply(ctx: Context, config: { idleTimeoutMs?: number } = {}) {
     const notifications = new Map<string, number>();
     function progress(value: FileProgress) { const now = Date.now(); if (value.bytes !== value.total && now - (notifications.get(value.id) ?? 0) < 100) return; notifications.set(value.id, now); if (active && !ctx.recorderWindow.webContents.isDestroyed()) ctx.recorderWindow.webContents.send('recorder:file-progress', value); }
     async function operation(method: unknown, input: any) {
-      if (!input || typeof input !== 'object' || Array.isArray(input) || JSON.stringify(input).length > 2000 || !['choose', 'upload', 'save', 'cancel', 'clear'].includes(String(method))) throw new ApiError('INVALID_REQUEST', '文件操作格式不正确', 400);
-      const keys: Record<string, string[]> = { choose: [], upload: ['handle', 'recordId', 'uploadId', 'transferId'], save: ['id', 'transferId'], cancel: ['transferId'], clear: [] };
+      if (!input || typeof input !== 'object' || Array.isArray(input) || JSON.stringify(input).length > 2000 || !['choose', 'upload', 'createRecord', 'save', 'cancel', 'clear'].includes(String(method))) throw new ApiError('INVALID_REQUEST', '文件操作格式不正确', 400);
+      const keys: Record<string, string[]> = { choose: [], upload: ['handle', 'recordId', 'uploadId', 'transferId'], createRecord: ['handle', 'uploadId', 'transferId'], save: ['id', 'transferId'], cancel: ['transferId'], clear: [] };
       if (Object.keys(input).some(key => !keys[String(method)]!.includes(key))) throw new ApiError('INVALID_REQUEST', '不接受路径或其他额外输入', 400);
       if (method === 'clear') { clear(); return true; }
       if (method === 'cancel') { if (uuid.test(input.transferId)) transfers.get(input.transferId)?.abort(); return true; }
@@ -32,12 +32,13 @@ export function apply(ctx: Context, config: { idleTimeoutMs?: number } = {}) {
         const path = result.filePaths[0], stat = statSync(path); if (!stat.isFile() || stat.size > MAX_ATTACHMENT_BYTES) throw new ApiError('FILE_TOO_LARGE', '请选择不超过 1 GiB 的普通文件', 400);
         const file = { handle: randomUUID(), name: basename(path), bytes: stat.size }; handles.clear(); handles.set(file.handle, { ...file, path, modified: stat.mtimeMs }); return file;
       }
-      if (!uuid.test(input.transferId) || transfers.has(input.transferId) || !(method === 'upload' ? uuid.test(input.recordId) && uuid.test(input.uploadId) && uuid.test(input.handle) : uuid.test(input.id))) throw new ApiError('INVALID_REQUEST', '文件操作标识不正确', 400);
+      const upload = method === 'upload' || method === 'createRecord';
+      if (!uuid.test(input.transferId) || transfers.has(input.transferId) || !(upload ? (method === 'createRecord' || uuid.test(input.recordId)) && uuid.test(input.uploadId) && uuid.test(input.handle) : uuid.test(input.id))) throw new ApiError('INVALID_REQUEST', '文件操作标识不正确', 400);
       const controller = new AbortController(); transfers.set(input.transferId, controller); let lastProgress = Date.now(), choosingTarget = false;
       const idle = setInterval(() => { if (!choosingTarget && Date.now() - lastProgress > (config.idleTimeoutMs ?? 120000)) controller.abort(new Error('文件传输长时间没有进度，结果尚未确认')); }, 1000); idle.unref();
       let temporary: string | undefined;
       try {
-        if (method === 'upload') {
+        if (upload) {
           const file = handles.get(input.handle); if (!file) throw new ApiError('HANDLE_EXPIRED', '文件选择已失效，请重新选择', 400);
           const stat = statSync(file.path); if (!stat.isFile() || stat.size !== file.bytes || stat.mtimeMs !== file.modified) throw new ApiError('FILE_CHANGED', '原文件已变化，请重新选择', 409);
           let bytes = 0;
@@ -47,8 +48,8 @@ export function apply(ctx: Context, config: { idleTimeoutMs?: number } = {}) {
           // Fetch may reject before it starts consuming the body (or on cancellation).
           // Keep both stream errors observed and stop reading the selected file then.
           counted.on('error', () => source.destroy());
-          const response = await connection.file({ kind: 'upload', id: input.recordId, uploadId: input.uploadId, name: file.name, bytes: file.bytes }, counted, controller.signal);
-          const body = await response.json(); if (!isAttachment(body)) throw new ApiError('INVALID_RESPONSE', '上传结果尚未确认，请刷新附件或重试同一次上传', 502);
+          const response = await connection.file({ kind: method === 'createRecord' ? 'createRecord' : 'upload', id: input.recordId ?? '', uploadId: input.uploadId, name: file.name, bytes: file.bytes }, counted, controller.signal);
+          const body = await response.json(); if (!(method === 'createRecord' ? isFileRecord(body) : isAttachment(body))) throw new ApiError('INVALID_RESPONSE', '上传结果尚未确认，请刷新记录或重试同一次上传', 502);
           return body;
         }
         const response = await connection.file({ kind: 'download', id: input.id }, undefined, controller.signal);

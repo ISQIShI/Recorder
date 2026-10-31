@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { failure, type Principal } from '../domain.js';
 import type { AttachmentService } from '../attachments-contract.js';
-export const inject = ['recorderManagedFiles', 'recorderRecordStore', 'recorderMigrations'];
+export const inject = ['recorderManagedFiles', 'recorderRecordStore', 'recorderRecords', 'recorderMigrations'];
 export function apply(ctx: Context) {
   const controller = new AbortController();
   ctx.effect(() => () => controller.abort());
@@ -12,6 +12,11 @@ export function apply(ctx: Context) {
     if (write && record.deletedAt !== null) throw failure(409, 'RECORD_TRASHED', '回收站附件只读，请先恢复记录');
   }
   const files = ctx.recorderManagedFiles;
+  function metadata(call: import('../attachments-contract.js').FileCall) {
+    const name = call.name ?? '', mediaType = call.mediaType ?? 'application/octet-stream';
+    if (!name || name.length > 255 || /[\\/\x00-\x1f\x7f]/.test(name) || ['.', '..'].includes(name) || !/^[\w.+-]+\/[\w.+-]+$/.test(mediaType) || mediaType.length > 100) throw failure(400, 'INVALID_FILE', '文件名称或类型不正确');
+    return { name, mediaType };
+  }
   ctx.effect(() => { void files.cleanup().catch(() => {}); const timer = setInterval(() => { void files.cleanup().catch(() => {}); }, 1000); timer.unref(); return () => clearInterval(timer); });
   ctx.provide('recorderAttachments', {
     list(principal, id) { owned(principal, id); return { items: files.list(principal.userId, id) }; },
@@ -21,10 +26,19 @@ export function apply(ctx: Context) {
     },
     async upload(call) {
       const principal = call.authenticate(); owned(principal, call.id, true);
-      const name = call.name ?? '', mediaType = call.mediaType ?? 'application/octet-stream';
-      if (!name || name.length > 255 || /[\\/\x00-\x1f\x7f]/.test(name) || ['.', '..'].includes(name) || !/^[\w.+-]+\/[\w.+-]+$/.test(mediaType) || mediaType.length > 100) throw failure(400, 'INVALID_FILE', '文件名称或类型不正确');
+      const { name, mediaType } = metadata(call);
       const body = await files.receive({ owner: principal.userId, recordId: call.id, id: call.uploadId!, name, mediaType }, call.stream, () => { call.authenticate(); owned(principal, call.id, true); }, AbortSignal.any([call.signal, controller.signal]));
       return { body };
+    },
+    async createRecord(call) {
+      const principal = call.authenticate(), { name, mediaType } = metadata(call), requestId = call.uploadId!;
+      const existing = () => ctx.recorderRecords.fileRecord(principal, requestId, name);
+      const validate = () => { controller.signal.throwIfAborted(); call.authenticate(); existing(); };
+      const attachment = await files.receive({ owner: principal.userId, recordId: null, id: requestId, name, mediaType }, call.stream, validate, AbortSignal.any([call.signal, controller.signal]), {
+        existing: () => existing()?.id,
+        create: () => ctx.recorderRecords.fileRecord(principal, requestId, name, true)!.id,
+      });
+      return { body: { record: existing()!, attachment } };
     },
     async download(call) {
       const principal = call.authenticate(), attachment = files.get(principal.userId, call.id); owned(principal, attachment.recordId);

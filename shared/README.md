@@ -1,6 +1,6 @@
 # shared：跨端共享部分
 
-状态：共享契约与客户端插件包已建立，含记录编辑、回收站、标签、分类和已有记录附件界面；附件文件设备仅 Windows Electron 适配。更新日期：2026 年 10 月 29 日。
+状态：共享契约与客户端插件包已建立，含记录编辑、回收站、标签、分类、已有记录附件及文件建记录界面；附件文件设备仅 Windows Electron 适配。更新日期：2026 年 10 月 31 日。
 
 阅读时机：抽取共享组件、网络契约、业务客户端和 UI 扩展接口前。遵守根目录 [AGENTS.md](../AGENTS.md)，阅读 [前端技术](../docs/current/architecture/frontend-stack.md) 和 [工程目录规划](../docs/current/development/repository-layout.md)。
 
@@ -27,6 +27,8 @@
 `file-transfer` 是可替换 Cordis 设备适配，`record-attachments` 管理选择、手动上传/同请求重试、列表、另存及明确永久删除，`attachments-panel` 独立贡献界面；基础记录/标签/分类不注入附件模型。选择/上传/删除先走 editor.cancel 草稿守卫；取消不发请求，失败保留选择与 uploadId 以核对/重试。传输期间注册既有离开守卫，强制会话变化取消设备传输、清选择句柄并忽略迟到回包；撤回只移除附件贡献。删除失败显示持久待清理状态；回收站只读列表/另存，恢复读回，附件操作不改变正文 revision。没有文件设备适配时明确提示 Windows 桌面，Web/Android 保留构建及契约但未独立适配。
 
 `test/record-attachments.test.ts` 定向检查草稿守卫、结果未确认时相同 uploadId 重试、进度/待清理反馈、回收站只读、会话取消和迟到结果、提供者撤回及无设备能力。真实 Electron 使用隔离 HTTP/SQLite/文件链路，实际 1 GiB 摘要验收见任务交付区。
+
+[B005-T02](../docs/work/b005-managed-attachments/README.md#t02文件直接创建记录) 新增固定 `fileRecordUploadPath`、`FileRecordData` 响应及窄设备 `createRecord` 操作，只传选择句柄、请求与进度标识；沿用 `file-transfer` 的传输/取消。独立 `file-records` 模型与 `file-records-panel` 贡献“从文件新建记录”，选择和上传前保护现有编辑草稿，失败/结果未确认保留同一 uploadId；成功刷新普通列表并选择详情，会话变化和撤回取消请求、忽略迟到结果。记录面板通过通用 record-created 事件刷新，不依赖文件模型。正文 PUT 支持精确空串，文本新建仍要求非空白；空标题继续显示“无标题记录”，409 不改变空正文草稿及原基线。`test/file-records.test.ts` 覆盖草稿、重试、空正文保存/冲突、会话/撤回与无设备能力；Web/Android 仍明确设备不可用。
 
 [B004-T01](../docs/work/b004-record-categories/README.md) 增加 `CategoryData` 和八个固定分类操作，路径/正文编码、响应校验和 IPC 白名单仍统一来自 contracts；完整 HTTP 契约见 [后端说明](../backend/README.md#分层分类与记录归属b004-t01)。分类独立于正文 PUT，更名/移动、关联不改变正文 revision。Web Cookie/CSRF 与 Electron 主进程 Bearer 沿用原传输。
 

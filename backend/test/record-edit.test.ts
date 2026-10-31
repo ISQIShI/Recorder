@@ -128,7 +128,7 @@ test('PUT authenticates, isolates owners, rejects malformed inputs and describes
     for (const extra of [{ id: before.id }, { ownerId: otherId }, { owner: otherId }, { requestId: randomUUID() }, { revision: 8 }, { createdAt: 0 }, { updatedAt: 0 }, { originInstanceId: randomUUID() }, { formatVersion: 2 }]) {
       assert.equal((await put(ctx, before.id, { ...edit, ...extra }, headers)).statusCode, 400);
     }
-    for (const changes of [{ body: ' \n\t' }, { body: '' }, { body: 'x'.repeat(200001) }, { body: '😀'.repeat(100001) }, { body: 123 }, { title: 'x'.repeat(201) }, { title: '😀'.repeat(101) }, { title: null }, { format: 'html' }]) {
+    for (const changes of [{ body: ' \n\t' }, { body: 'x'.repeat(200001) }, { body: '😀'.repeat(100001) }, { body: 123 }, { title: 'x'.repeat(201) }, { title: '😀'.repeat(101) }, { title: null }, { format: 'html' }]) {
       assert.equal((await put(ctx, before.id, { ...edit, ...changes }, headers)).statusCode, 400);
     }
     for (const id of ['not-a-uuid', encodeURIComponent('../auth/logout')]) assert.equal((await put(ctx, id, edit, headers)).statusCode, 400);

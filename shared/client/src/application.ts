@@ -15,6 +15,8 @@ import * as categoriesPanel from './plugins/categories-panel.js';
 import * as fileTransfer from './plugins/file-transfer.js';
 import * as recordAttachments from './plugins/record-attachments.js';
 import * as attachmentsPanel from './plugins/attachments-panel.js';
+import * as fileRecords from './plugins/file-records.js';
+import * as fileRecordsPanel from './plugins/file-records-panel.js';
 export async function mountApplication(target: Element, platform: string, bridge?: ApiTransport, files?: FileDeviceBridge) {
   const ctx = new Context();
   try {
@@ -32,6 +34,8 @@ export async function mountApplication(target: Element, platform: string, bridge
     await ctx.plugin(recordCategories);
     await ctx.plugin(categoriesPanel);
     await ctx.plugin(fileTransfer, { bridge: files });
+    await ctx.plugin(fileRecords);
+    await ctx.plugin(fileRecordsPanel);
     await ctx.plugin(recordAttachments);
     await ctx.plugin(attachmentsPanel);
     return ctx;

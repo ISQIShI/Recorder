@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { ipcMain } from 'electron';
-import { parseFoundationStatus, encodeApiRequest, isApiMethod, parseApiResponse, attachmentUploadPath, attachmentContentPath, ApiError } from '@recorder/contracts';
+import { parseFoundationStatus, encodeApiRequest, isApiMethod, parseApiResponse, attachmentUploadPath, attachmentContentPath, fileRecordUploadPath, ApiError } from '@recorder/contracts';
 import './credentials.js';
 import '../contracts.js';
 export const inject = ['recorderWindow', 'recorderCredentials'];
@@ -51,9 +51,10 @@ export async function apply(ctx: Context, config: { rendererUrl: string; backend
       onSessionChange(listener) { sessions.add(listener); return () => { sessions.delete(listener); }; },
       async file(input, body, signal) {
         if (!token) throw new ApiError('UNAUTHORIZED', '请先登录', 401);
-        const path = input.kind === 'upload' ? attachmentUploadPath(input.id, input.uploadId!) : attachmentContentPath(input.id);
-        const response = await fetch(new URL(path, base), { method: input.kind === 'upload' ? 'PUT' : 'GET', redirect: 'error', credentials: 'omit',
-          headers: { 'x-recorder-request': '1', 'x-recorder-client': 'native', authorization: 'Bearer ' + token, ...(input.kind === 'upload' ? { 'content-type': 'application/octet-stream', 'content-length': String(input.bytes), 'x-recorder-filename': encodeURIComponent(input.name!) } : {}) },
+        const path = input.kind === 'createRecord' ? fileRecordUploadPath(input.uploadId!) : input.kind === 'upload' ? attachmentUploadPath(input.id, input.uploadId!) : attachmentContentPath(input.id);
+        const upload = input.kind !== 'download';
+        const response = await fetch(new URL(path, base), { method: upload ? 'PUT' : 'GET', redirect: 'error', credentials: 'omit',
+          headers: { 'x-recorder-request': '1', 'x-recorder-client': 'native', authorization: 'Bearer ' + token, ...(upload ? { 'content-type': 'application/octet-stream', 'content-length': String(input.bytes), 'x-recorder-filename': encodeURIComponent(input.name!) } : {}) },
           ...(body ? { body: body as any, duplex: 'half' } : {}), signal: AbortSignal.any([controller.signal, signal]) } as RequestInit);
         if (response.status === 401) { setToken(); await ctx.recorderCredentials.save(base.href); }
         if (!response.ok) { const error = await response.json() as any; throw new ApiError(error.code ?? 'FILE_TRANSFER_FAILED', error.message ?? '文件传输失败', response.status); }

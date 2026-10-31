@@ -23,8 +23,8 @@ console.log('RECORDER_ATTACHMENT_SAMPLE', { directory, bytes });
 let ctx;
 try {
   let port = 0;
-  const stages = ['attachments', 'attachments-resume'];
-  for (const scenario of [...(process.env.RECORDER_SMOKE_ATTACHMENT_ONLY ? [] : ['create', 'resume', 'discard-quit', 'discard-close', 'trash', 'trash-resume', 'tags', 'tags-resume', 'categories', 'categories-resume']), ...stages]) {
+  const stages = process.env.RECORDER_SMOKE_FILE_RECORD_ONLY ? ['file-records', 'file-records-resume'] : ['attachments', 'attachments-resume', ...(process.env.RECORDER_SMOKE_ATTACHMENT_ONLY ? [] : ['file-records', 'file-records-resume'])];
+  for (const scenario of [...(process.env.RECORDER_SMOKE_ATTACHMENT_ONLY || process.env.RECORDER_SMOKE_FILE_RECORD_ONLY ? [] : ['create', 'resume', 'discard-quit', 'discard-close', 'trash', 'trash-resume', 'tags', 'tags-resume', 'categories', 'categories-resume']), ...stages]) {
     const resume = scenario !== 'create';
     ctx = await createApplication({ dataDir: directory, setupCode, http: { port } });
     const address = ctx.recorderHttp.address;
@@ -40,12 +40,13 @@ try {
     if (scenario === 'tags-resume') env.RECORDER_SMOKE_TAGS_EXPECTED = await readFile(join(directory, 'tags.json'), 'utf8');
     if (scenario === 'categories-resume') env.RECORDER_SMOKE_CATEGORIES_EXPECTED = await readFile(join(directory, 'categories.json'), 'utf8');
     if (scenario === 'attachments-resume') env.RECORDER_SMOKE_ATTACHMENTS_EXPECTED = await readFile(join(directory, 'attachments.json'), 'utf8');
+    if (scenario === 'file-records-resume') env.RECORDER_SMOKE_FILE_RECORD_EXPECTED = await readFile(join(directory, 'file-records.json'), 'utf8');
     delete env.ELECTRON_RUN_AS_NODE;
     await new Promise((resolve, reject) => {
       const child = spawn(requireDesktop('electron'), [desktop, '--business-smoke', '--enable-logging=stderr'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
       let output = '';
-      for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { output = (output + chunk).slice(-16000); if (scenario.startsWith('attachments')) process.stdout.write(chunk); });
-      const timeout = setTimeout(() => { child.kill(); reject(new Error('Business desktop timeout\n' + output)); }, scenario.startsWith('attachments') ? 600000 : 45000);
+      for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { output = (output + chunk).slice(-16000); if (scenario.startsWith('attachments') || scenario.startsWith('file-records')) process.stdout.write(chunk); });
+      const timeout = setTimeout(() => { child.kill(); reject(new Error('Business desktop timeout\n' + output)); }, scenario.startsWith('attachments') || scenario.startsWith('file-records') ? 600000 : 45000);
       child.on('error', error => { clearTimeout(timeout); reject(error); });
       child.on('exit', async code => {
         clearTimeout(timeout);
